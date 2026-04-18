@@ -6,7 +6,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json && cp src/renderer/index.html src/renderer/phaser.min.js dist/renderer/ && rm -rf dist/assets && cp -R assets dist/assets",
     "start": "npm run build && electron .",
-    "dist": "npm run build && electron-builder --mac --config electron-builder.json"
+    "dist": "npm run build && electron-builder --config electron-builder.json",
+    "dist:mac": "npm run build && electron-builder --mac --config electron-builder.json",
+    "dist:win": "npm run build && electron-builder --win --config electron-builder.json",
+    "dist:linux": "npm run build && electron-builder --linux --config electron-builder.json"
   },
   "license": "MIT",
   "devDependencies": {
