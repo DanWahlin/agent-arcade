@@ -1,0 +1,15 @@
+{
+  "appId": "com.danwahlin.agentbreak",
+  "productName": "Agent Break",
+  "files": [
+    "dist/**/*",
+    "package.json"
+  ],
+  "mac": {
+    "category": "public.app-category.games",
+    "target": "dir",
+    "hardenedRuntime": false,
+    "gatekeeperAssess": false,
+    "identity": null
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "agent-break",
+  "version": "0.1.0",
+  "description": "Agent Break — stress-relief Mario-style overlay for while your AI agent is thinking (Electron + Phaser)",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json && cp src/renderer/index.html src/renderer/phaser.min.js dist/renderer/ && rm -rf dist/assets && cp -R assets dist/assets",
+    "start": "npm run build && electron .",
+    "dist": "npm run build && electron-builder --mac --config electron-builder.json"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0",
+    "typescript": "^5.6.0"
+  },
+  "dependencies": {
+    "phaser": "^3.85.0"
+  }
+}
