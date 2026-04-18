@@ -1,10 +1,10 @@
 {
   "name": "agent-arcade",
   "version": "0.1.0",
-  "description": "Agent Arcade — stress-relief retro platformer overlay for while your AI agent is thinking (Electron + Phaser)",
-  "main": "dist/main/main.js",
+  "description": "Agent Arcade — stress-relief retro platformer overlay to use while your AI agent is working",
+  "main": "dist/app/main.js",
   "scripts": {
-    "build": "tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json && cp src/renderer/index.html src/renderer/phaser.min.js dist/renderer/ && rm -rf dist/assets && cp -R assets dist/assets",
+    "build": "tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json && cp src/game/index.html dist/game/ && cp node_modules/phaser/dist/phaser.min.js dist/game/ && rm -rf dist/assets && cp -R assets dist/assets",
     "start": "npm run build && electron .",
     "dist": "npm run build && electron-builder --config electron-builder.json",
     "dist:mac": "npm run build && electron-builder --mac --config electron-builder.json",
@@ -20,6 +20,6 @@
     "typescript": "^5.6.0"
   },
   "dependencies": {
-    "phaser": "^3.85.0"
+    "phaser": "^4.0.0"
   }
 }

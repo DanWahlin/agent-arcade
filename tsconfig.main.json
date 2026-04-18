@@ -3,13 +3,13 @@
     "target": "ES2022",
     "module": "commonjs",
     "moduleResolution": "node",
-    "outDir": "dist/main",
-    "rootDir": "src/main",
+    "outDir": "dist/app",
+    "rootDir": "src/app",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "sourceMap": true
   },
-  "include": ["src/main/**/*.ts"]
+  "include": ["src/app/**/*.ts"]
 }
