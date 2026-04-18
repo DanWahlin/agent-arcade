@@ -67,7 +67,6 @@ export class PixelNinjaScene extends BaseScene {
   private parachuteFlyingEnemies: any[] = [];
   private parachuteTimer = 0;
   private glowSprite?: any;
-  private powerTimer = 0;
 
   constructor() { super('pixel-ninja'); }
 
@@ -929,21 +928,11 @@ export class PixelNinjaScene extends BaseScene {
     if (this.stompGrace > 0) this.stompGrace -= dtMs * 0.06;
     if (this.fireCooldown > 0) this.fireCooldown -= dtMs * 0.06;
 
-    if (this.isBig) {
-      this.powerTimer -= dtMs;
-      // Flash warning in last 3 seconds
-      if (this.powerTimer < 3000 && this.glowSprite) {
-        this.glowSprite.setVisible(Math.floor(this.time.now / 150) % 2 === 0);
-      }
-      if (this.powerTimer <= 0) {
-        this.isBig = false;
-        if (this.glowSprite) this.glowSprite.setVisible(false);
-      }
-    }
-
     const running = this.keys.shift.isDown;
-    const maxSpeed = running ? 320 : 200;
-    const accel = running ? 1100 : 800;
+    // Powered up = faster speed + higher acceleration
+    const speedMult = this.isBig ? 1.5 : 1;
+    const maxSpeed = (running ? 320 : 200) * speedMult;
+    const accel = (running ? 1100 : 800) * speedMult;
 
     if (this.cursors.left.isDown) {
       this.player.setAccelerationX(-accel);
@@ -984,13 +973,13 @@ export class PixelNinjaScene extends BaseScene {
     if (jumpJustPressed) this.jumpBuffer = 120;
 
     if (this.jumpBuffer > 0 && this.coyoteTime > 0) {
-      // Normal jump
-      this.player.setVelocityY(-820);
+      // Normal jump — higher when powered up
+      this.player.setVelocityY(this.isBig ? -950 : -820);
       this.jumpBuffer = 0;
       this.coyoteTime = 0;
     } else if (jumpJustPressed && !onGround && this.canDoubleJump && !this.hasDoubleJumped) {
-      // Double jump — slightly weaker boost
-      this.player.setVelocityY(-700);
+      // Double jump — also boosted when powered
+      this.player.setVelocityY(this.isBig ? -800 : -700);
       this.hasDoubleJumped = true;
     }
 
@@ -1360,7 +1349,6 @@ export class PixelNinjaScene extends BaseScene {
     m.destroy();
     if (!this.isBig) {
       this.isBig = true;
-      this.powerTimer = 15000; // 15 seconds
       this.addScore(1000, this.player.x, this.player.y - 20);
       // Growth flash — briefly golden then normal
       this.player.setTint(0xffdd00);
@@ -1381,6 +1369,14 @@ export class PixelNinjaScene extends BaseScene {
     if (this.invincible > 0 || this.stompGrace > 0 || this.shrinkTimer > 0) return;
     const state = e.getData('state');
     const kind = e.getData('kind');
+
+    // Powered up = invincible, destroy enemies on contact
+    if (this.isBig && state === 'walk') {
+      this.killGoomba(e);
+      this.addScore(300, e.x, e.y - 20);
+      this.invincible = 10;
+      return;
+    }
 
     const playerBottom = this.player.y;
     const enemyTop = e.y - e.displayHeight;
@@ -1532,30 +1528,7 @@ export class PixelNinjaScene extends BaseScene {
     if (this.parachuteMode) this.endParachute();
   }
 
-  private respawn() {
-    if (this.lives <= 0) {
-      // Game over — show leaderboard
-      this.dead = false;
-      this.player.setVisible(false);
-      this.showGameOver(this.score, () => {
-        this.lives = 3;
-        this.score = 0;
-        this.syncScoreToHUD();
-        this.syncLivesToHUD();
-        this.player.setVisible(true);
-        let x = Math.max(this.lastSafeX, this.cameras.main.scrollX + 200);
-        while (this.isInGap(x)) x += BLOCK;
-        this.player.setPosition(x, GROUND_Y - 100);
-        this.player.setVelocity(0, 0);
-        this.player.body.checkCollision.none = false;
-        this.player.clearTint();
-        this.invincible = 90;
-        this.shrinkTimer = 0;
-        this.stompGrace = 0;
-        if (this.glowSprite) this.glowSprite.setVisible(false);
-      });
-      return;
-    }
+  private doRespawn() {
     this.dead = false;
     let x = Math.max(this.lastSafeX, this.cameras.main.scrollX + 200);
     while (this.isInGap(x)) x += BLOCK;
@@ -1567,6 +1540,23 @@ export class PixelNinjaScene extends BaseScene {
     this.shrinkTimer = 0;
     this.stompGrace = 0;
     if (this.glowSprite) this.glowSprite.setVisible(false);
+  }
+
+  private respawn() {
+    if (this.lives <= 0) {
+      this.dead = false;
+      this.player.setVisible(false);
+      this.showGameOver(this.score, () => {
+        this.lives = 3;
+        this.score = 0;
+        this.syncScoreToHUD();
+        this.syncLivesToHUD();
+        this.player.setVisible(true);
+        this.doRespawn();
+      });
+      return;
+    }
+    this.doRespawn();
   }
 
   private syncLivesToHUD() {

@@ -13,7 +13,9 @@ const GAMES = [
   { key: 'pixel-galaxy', scene: PixelGalaxyScene, label: '🚀 Pixel Galaxy' },
 ];
 
-let currentGameKey = localStorage.getItem('agentArcade_lastGame') || 'pixel-ninja';
+let currentGameKey: string;
+try { currentGameKey = localStorage.getItem('agentArcade_lastGame') || 'pixel-ninja'; }
+catch { currentGameKey = 'pixel-ninja'; }
 // Validate stored key exists in registry
 if (!GAMES.find(g => g.key === currentGameKey)) currentGameKey = 'pixel-ninja';
 
@@ -50,7 +52,7 @@ if (currentGameKey !== GAMES[0].key) {
   game.scene.stop(currentGameKey);
   game.scene.start(key);
   currentGameKey = key;
-  localStorage.setItem('agentArcade_lastGame', key);
+  try { localStorage.setItem('agentArcade_lastGame', key); } catch { /* ignore */ }
 };
 
 // Populate game selector dropdown

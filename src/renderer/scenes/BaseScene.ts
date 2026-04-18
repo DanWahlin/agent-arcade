@@ -16,10 +16,26 @@ export abstract class BaseScene extends Phaser.Scene {
     super(key);
   }
 
+  /** Safe localStorage helpers */
+  private storageGet(key: string): string | null {
+    try { return localStorage.getItem(key); } catch { return null; }
+  }
+  private storageSet(key: string, value: string) {
+    try { localStorage.setItem(key, value); } catch { /* quota exceeded or disabled */ }
+  }
+  private storageRemove(key: string) {
+    try { localStorage.removeItem(key); } catch { /* ignore */ }
+  }
+
   /** Load high score for this scene from localStorage. */
   protected loadHighScore() {
-    const stored = localStorage.getItem(`agentArcade_hi_${this.scene.key}`);
-    this.highScore = stored ? parseInt(stored, 10) : 0;
+    // Clean up old agentBreak keys (from before rename)
+    this.storageRemove(`agentBreak_board_${this.scene.key}`);
+    this.storageRemove(`agentBreak_hi_${this.scene.key}`);
+
+    const stored = this.storageGet(`agentArcade_hi_${this.scene.key}`);
+    this.highScore = stored ? parseInt(stored, 10) || 0 : 0;
+    this.gameOverShown = false;
     this.syncHighScoreToHUD();
   }
 
@@ -27,7 +43,7 @@ export abstract class BaseScene extends Phaser.Scene {
   protected checkHighScore() {
     if (this.score > this.highScore) {
       this.highScore = this.score;
-      localStorage.setItem(`agentArcade_hi_${this.scene.key}`, String(this.highScore));
+      this.storageSet(`agentArcade_hi_${this.scene.key}`, String(this.highScore));
       this.syncHighScoreToHUD();
     }
   }
@@ -96,24 +112,30 @@ export abstract class BaseScene extends Phaser.Scene {
 
   /** Get top 10 scores for this game from localStorage. */
   protected getLeaderboard(): number[] {
-    const stored = localStorage.getItem(`agentArcade_board_${this.scene.key}`);
-    return stored ? JSON.parse(stored) : [];
+    const stored = this.storageGet(`agentArcade_board_${this.scene.key}`);
+    if (!stored) return [];
+    try { return JSON.parse(stored); } catch { return []; }
   }
 
   /** Add a score to the leaderboard, keep top 10, return rank (1-based, 0 = not in top 10). */
   protected addToLeaderboard(score: number): number {
+    if (score <= 0) return 0;
     const board = this.getLeaderboard();
     board.push(score);
     board.sort((a: number, b: number) => b - a);
     const trimmed = board.slice(0, 10);
-    localStorage.setItem(`agentArcade_board_${this.scene.key}`, JSON.stringify(trimmed));
+    this.storageSet(`agentArcade_board_${this.scene.key}`, JSON.stringify(trimmed));
     this.checkHighScore();
     const rank = trimmed.indexOf(score) + 1;
     return rank <= 10 ? rank : 0;
   }
 
+  private gameOverShown = false;
+
   /** Show game over overlay with leaderboard. Call restartFn when dismissed. */
   protected showGameOver(finalScore: number, restartFn: () => void) {
+    if (this.gameOverShown) return;
+    this.gameOverShown = true;
     const rank = this.addToLeaderboard(finalScore);
     const board = this.getLeaderboard();
 
@@ -262,9 +284,10 @@ export abstract class BaseScene extends Phaser.Scene {
     document.body.appendChild(overlay);
 
     const dismiss = () => {
-      overlay.remove();
+      this.gameOverShown = false;
+      overlay.style.animation = 'go-fadeIn 0.3s ease-in reverse';
+      setTimeout(() => { overlay.remove(); restartFn(); }, 250);
       document.removeEventListener('keydown', onKey);
-      restartFn();
     };
     const onKey = (ev: KeyboardEvent) => {
       if (ev.code === 'Space' || ev.code === 'Enter') { ev.preventDefault(); dismiss(); }
