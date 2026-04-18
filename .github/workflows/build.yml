@@ -49,9 +49,11 @@ jobs:
             build/*.dmg
             build/*.zip
             build/*.exe
+            build/*.blockmap
             build/*.AppImage
             build/*.deb
-          if-no-files-found: warn
+            build/*.yml
+          if-no-files-found: error
 
   release:
     needs: build

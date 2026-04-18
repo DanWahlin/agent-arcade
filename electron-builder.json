@@ -1,6 +1,10 @@
 {
   "appId": "com.danwahlin.agentarcade",
   "productName": "Agent Arcade",
+  "directories": {
+    "output": "build"
+  },
+  "publish": null,
   "files": [
     "dist/**/*",
     "package.json"
