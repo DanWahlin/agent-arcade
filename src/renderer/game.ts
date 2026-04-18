@@ -2,18 +2,18 @@
 // Each mini-game is a Phaser Scene extending BaseScene.
 
 import { W, H } from './scenes/BaseScene.js';
-import { PixelPlumberScene } from './scenes/PixelPlumber.js';
+import { PixelNinjaScene } from './scenes/PixelNinja.js';
 
 declare const Phaser: any;
 
 // Registry of available games
 const GAMES = [
-  { key: 'pixel-plumber', scene: PixelPlumberScene, label: '🔧 Pixel Plumber' },
+  { key: 'pixel-ninja', scene: PixelNinjaScene, label: '🥷 Pixel Ninja' },
   // Future: { key: 'galaga', scene: GalagaScene, label: '🚀 Galaga' },
   // Future: { key: 'pitfall', scene: PitfallScene, label: '🌴 Pitfall' },
 ];
 
-let currentGameKey = 'pixel-plumber';
+let currentGameKey = 'pixel-ninja';
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,

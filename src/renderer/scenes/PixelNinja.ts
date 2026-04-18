@@ -1,27 +1,18 @@
-// PixelPlumberScene — side-scrolling SMB-style gameplay.
+// PixelNinja — side-scrolling platformer with free JuhoSprite assets.
 // Extracted from the original monolithic game.ts and refactored to
 // extend BaseScene for the multi-game architecture.
 
 declare const Phaser: any;
 
 import { BaseScene, W, H } from './BaseScene.js';
-import {
-  ENEMY_COLORS,
-  ENEMY_CUTS,
-  ROW_BASE_Y,
-  type EnemyColor,
-  type EnemyCutName,
-  texKey,
-} from '../sprite-atlas.js';
 
-const BLOCK = 32;
-const MARIO_W = 32;
-const MARIO_H = 48;
-const BIG_MARIO_H = 64;
-const GROUND_Y = H - 48;
+const BLOCK = 48;                // logical world tile size
+const MARIO_W = 48;              // player draw size
+const MARIO_H = 48;              // player draw size
+const GROUND_Y = H - 64;         // top of ground row
 const SPAWN_X = 600;
 
-export class PixelPlumberScene extends BaseScene {
+export class PixelNinjaScene extends BaseScene {
   // Input
   private cursors!: any;
   private keys!: { space: any; shift: any; f: any; z: any };
@@ -43,6 +34,8 @@ export class PixelPlumberScene extends BaseScene {
   private jumpKeyWasDown = false;
   private coyoteTime = 0;     // ms left where we can still jump after leaving ground
   private jumpBuffer = 0;     // ms left where a queued jump press will fire on landing
+  private canDoubleJump = false;
+  private hasDoubleJumped = false;
 
   // Animation: cycle the run frame based on distance traveled, not wall time,
   // so step rhythm matches actual movement speed.
@@ -69,25 +62,38 @@ export class PixelPlumberScene extends BaseScene {
   private parachuteFlyingEnemies: any[] = [];
   private parachuteTimer = 0;
 
-  constructor() { super('pixel-plumber'); }
+  constructor() { super('pixel-ninja'); }
 
-  get displayName() { return 'Pixel Plumber'; }
+  get displayName() { return 'Pixel Ninja'; }
 
   preload() {
-    // NES Mario spritesheets — 6 frames each, uniform cell sizes.
-    // Frame order: 0=idle, 1=walk1, 2=walk2, 3=walk3, 4=skid, 5=jump
-    this.load.spritesheet('mario_small', '../assets/sprites/mario_small_sheet.png', {
-      frameWidth: 16, frameHeight: 16,
-    });
-    this.load.spritesheet('mario_big', '../assets/sprites/mario_big_sheet.png', {
-      frameWidth: 16, frameHeight: 32,
-    });
-    this.load.image('enemies_sheet', '../assets/enemies.png');
+    // Player spritesheet: 7 frames of 16×16
+    this.load.spritesheet('player', '../assets/player_strip.png', { frameWidth: 16, frameHeight: 16 });
+    // Enemy spritesheet: 5 frames of 16×16
+    this.load.spritesheet('enemy', '../assets/enemy_strip.png', { frameWidth: 16, frameHeight: 16 });
+    // Coin animation: 4 frames of 16×16
+    this.load.spritesheet('coin_anim', '../assets/coin_sheet.png', { frameWidth: 16, frameHeight: 16 });
+    // Heart pickup
+    this.load.spritesheet('heart_anim', '../assets/heart_sheet.png', { frameWidth: 16, frameHeight: 16 });
+    // Tile textures
+    this.load.image('grass_block', '../assets/grass_block.png');
+    this.load.image('dirt_block', '../assets/dirt_block.png');
+    this.load.image('brown_block', '../assets/brown_block.png');
+    this.load.image('qblock_img', '../assets/qblock_new.png');
+    this.load.image('platform_tile', '../assets/platform.png');
+    this.load.image('spikes_tile', '../assets/spikes.png');
+    this.load.image('flag_tile', '../assets/flag.png');
+    this.load.image('impact', '../assets/impact_sheet.png');
+    this.load.image('clouds', '../assets/clouds.png');
+    this.load.image('hill_0', '../assets/hill_0.png');
+    this.load.image('hill_1', '../assets/hill_1.png');
+    this.load.image('big_bush', '../assets/big_bush.png');
+    this.load.image('small_bush', '../assets/small_bush.png');
+    this.load.image('background', '../assets/background.png');
   }
 
   create() {
     this.makeBlockTextures();
-    this.makeEnemyTextures();
 
     this.physics.world.setBounds(0, 0, 1_000_000, H);
 
@@ -105,7 +111,7 @@ export class PixelPlumberScene extends BaseScene {
     this.extendGround(0, W * 2);
 
     // Mario — spritesheet frame 0 = idle
-    this.mario = this.physics.add.sprite(SPAWN_X, GROUND_Y - 200, 'mario_small', 0);
+    this.mario = this.physics.add.sprite(SPAWN_X, GROUND_Y - 200, 'player', 0);
     this.mario.setOrigin(0.5, 1);
     this.mario.setDisplaySize(MARIO_W, MARIO_H);
     // Physics body fills the full cell so Mario's head hits blocks above.
@@ -115,18 +121,30 @@ export class PixelPlumberScene extends BaseScene {
     this.mario.body.setGravityY(1800);
     this.mario.setDepth(10);
 
-    // Phaser animations — frame indices: 0=idle, 1=walk1, 2=walk2, 3=walk3, 4=skid, 5=jump
-    // Classic NES 3-frame walk cycle: walk1 → walk2 → walk3 (repeating)
+    // Player animations
     this.anims.create({
-      key: 'small_walk',
-      frames: this.anims.generateFrameNumbers('mario_small', { frames: [1, 2, 3] }),
+      key: 'player_walk',
+      frames: this.anims.generateFrameNumbers('player', { frames: [1, 2, 3] }),
       frameRate: 10,
       repeat: -1,
     });
     this.anims.create({
-      key: 'big_walk',
-      frames: this.anims.generateFrameNumbers('mario_big', { frames: [1, 2, 3] }),
-      frameRate: 10,
+      key: 'player_idle',
+      frames: [{ key: 'player', frame: 0 }],
+      frameRate: 1,
+    });
+    // Coin spin animation
+    this.anims.create({
+      key: 'coin_spin',
+      frames: this.anims.generateFrameNumbers('coin_anim', { start: 0, end: 3 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    // Enemy walk
+    this.anims.create({
+      key: 'enemy_walk',
+      frames: this.anims.generateFrameNumbers('enemy', { frames: [0, 1, 2, 3] }),
+      frameRate: 6,
       repeat: -1,
     });
 
@@ -198,6 +216,8 @@ export class PixelPlumberScene extends BaseScene {
       });
     }
 
+    this.addDecorations();
+
     this.generateLevel(SPAWN_X + 400, W + 600);
     this.syncLivesToHUD();
   }
@@ -205,42 +225,13 @@ export class PixelPlumberScene extends BaseScene {
   // ---------- Brick / block textures generated at runtime via Graphics ----------
   private makeBlockTextures() {
     const g = this.add.graphics();
-    // Brick (orange / dark outline)
-    g.clear();
-    g.fillStyle(0xb8732e); g.fillRect(0, 0, BLOCK, BLOCK);
-    g.fillStyle(0x000000); g.fillRect(0, 0, BLOCK, 2); g.fillRect(0, BLOCK / 2 - 1, BLOCK, 2);
-    g.fillRect(0, BLOCK - 2, BLOCK, 2);
-    g.fillRect(0, 0, 2, BLOCK); g.fillRect(BLOCK / 2 - 1, 0, 2, BLOCK / 2);
-    g.fillRect(BLOCK / 4 - 1, BLOCK / 2, 2, BLOCK / 2);
-    g.fillRect((3 * BLOCK) / 4 - 1, BLOCK / 2, 2, BLOCK / 2);
-    g.generateTexture('brick', BLOCK, BLOCK);
 
-    // Q-block (yellow with ?)
+    // Used Q-block (brown/empty) — 16×16 to match source tile size
     g.clear();
-    g.fillStyle(0xeab63a); g.fillRect(0, 0, BLOCK, BLOCK);
-    g.fillStyle(0xc7892a); g.fillRect(0, 0, BLOCK, 3); g.fillRect(0, BLOCK - 3, BLOCK, 3);
-    g.fillRect(0, 0, 3, BLOCK); g.fillRect(BLOCK - 3, 0, 3, BLOCK);
-    g.fillStyle(0x4a2a08);
-    g.fillRect(BLOCK / 2 - 3, BLOCK / 2 - 8, 8, 3);
-    g.fillRect(BLOCK / 2 + 3, BLOCK / 2 - 5, 3, 5);
-    g.fillRect(BLOCK / 2 - 1, BLOCK / 2, 4, 3);
-    g.fillRect(BLOCK / 2 - 1, BLOCK / 2 + 6, 4, 3);
-    g.generateTexture('qblock', BLOCK, BLOCK);
-
-    // Used Q-block (brown/empty)
-    g.clear();
-    g.fillStyle(0xa56a26); g.fillRect(0, 0, BLOCK, BLOCK);
-    g.fillStyle(0x6e4715); g.fillRect(0, 0, BLOCK, 3); g.fillRect(0, BLOCK - 3, BLOCK, 3);
-    g.fillRect(0, 0, 3, BLOCK); g.fillRect(BLOCK - 3, 0, 3, BLOCK);
-    g.generateTexture('qblock_used', BLOCK, BLOCK);
-
-    // Ground block
-    g.clear();
-    g.fillStyle(0xb8732e); g.fillRect(0, 0, BLOCK, BLOCK);
-    g.fillStyle(0x6e4715); g.fillRect(0, 0, BLOCK, 2);
-    g.fillStyle(0x000000); g.fillRect(BLOCK / 2 - 1, 0, 2, BLOCK);
-    g.fillRect(0, BLOCK / 2 - 1, BLOCK, 2);
-    g.generateTexture('ground', BLOCK, BLOCK);
+    g.fillStyle(0xa56a26); g.fillRect(0, 0, 16, 16);
+    g.fillStyle(0x6e4715); g.fillRect(0, 0, 16, 1); g.fillRect(0, 15, 16, 1);
+    g.fillRect(0, 0, 1, 16); g.fillRect(15, 0, 1, 16);
+    g.generateTexture('qblock_used', 16, 16);
 
     // Pipe body (2 blocks wide)
     g.clear();
@@ -248,16 +239,6 @@ export class PixelPlumberScene extends BaseScene {
     g.fillStyle(0x00680c); g.lineStyle(2, 0x00680c); g.strokeRect(0, 0, BLOCK * 2, BLOCK);
     g.fillStyle(0x80e080); g.fillRect(BLOCK / 3 + 4, 0, 4, BLOCK);
     g.generateTexture('pipe_body', BLOCK * 2, BLOCK);
-
-    // Coin frames
-    g.clear();
-    g.fillStyle(0xffd24a); g.fillCircle(8, 12, 6);
-    g.fillStyle(0xb88a1f); g.fillRect(7, 5, 2, 14);
-    g.generateTexture('coin0', 16, 24);
-    g.clear();
-    g.fillStyle(0xffd24a); g.fillRect(6, 5, 4, 14);
-    g.fillStyle(0xb88a1f); g.fillRect(7, 5, 2, 14);
-    g.generateTexture('coin1', 16, 24);
 
     // Mushroom
     g.clear();
@@ -294,6 +275,48 @@ export class PixelPlumberScene extends BaseScene {
     g.fillStyle(0x000000);
     g.fillRect(8, 12, 16, 3);
     g.generateTexture('piranha_1', 32, 32);
+
+    // Blue slime enemy — bouncy blob, moves faster
+    g.clear();
+    g.fillStyle(0x2244cc);
+    g.fillEllipse(8, 10, 14, 12);
+    g.fillStyle(0x4488ff);
+    g.fillEllipse(8, 8, 10, 8);
+    g.fillStyle(0xffffff);
+    g.fillCircle(5, 7, 2); g.fillCircle(11, 7, 2);
+    g.fillStyle(0x000000);
+    g.fillCircle(6, 7, 1); g.fillCircle(12, 7, 1);
+    g.generateTexture('slime_0', 16, 16);
+    g.clear();
+    g.fillStyle(0x2244cc);
+    g.fillEllipse(8, 11, 16, 10);
+    g.fillStyle(0x4488ff);
+    g.fillEllipse(8, 9, 12, 7);
+    g.fillStyle(0xffffff);
+    g.fillCircle(5, 8, 2); g.fillCircle(11, 8, 2);
+    g.fillStyle(0x000000);
+    g.fillCircle(6, 8, 1); g.fillCircle(12, 8, 1);
+    g.generateTexture('slime_1', 16, 16);
+
+    // Green bat enemy — flies in a wave pattern
+    g.clear();
+    g.fillStyle(0x22aa44);
+    g.fillEllipse(8, 9, 8, 8);
+    g.fillStyle(0x44dd66);
+    g.fillTriangle(1, 6, 6, 8, 3, 12);  // left wing
+    g.fillTriangle(15, 6, 10, 8, 13, 12); // right wing
+    g.fillStyle(0xff0000);
+    g.fillCircle(6, 8, 1); g.fillCircle(10, 8, 1);
+    g.generateTexture('bat_0', 16, 16);
+    g.clear();
+    g.fillStyle(0x22aa44);
+    g.fillEllipse(8, 9, 8, 8);
+    g.fillStyle(0x44dd66);
+    g.fillTriangle(1, 10, 6, 8, 3, 4);  // wings up
+    g.fillTriangle(15, 10, 10, 8, 13, 4);
+    g.fillStyle(0xff0000);
+    g.fillCircle(6, 8, 1); g.fillCircle(10, 8, 1);
+    g.generateTexture('bat_1', 16, 16);
 
     // Warp pipe (lighter green with down arrow)
     g.clear();
@@ -336,62 +359,66 @@ export class PixelPlumberScene extends BaseScene {
     g.lineBetween(cw - 6, 24, cw / 2, ch - 2);
     g.generateTexture('parachute', cw, ch);
 
+    // Coin frame 0 (circle)
+    g.clear();
+    g.fillStyle(0xffd24a); g.fillCircle(12, 12, 9);
+    g.fillStyle(0xb88a1f); g.fillRect(11, 3, 2, 18);
+    g.generateTexture('coin0', 24, 24);
+    // Coin frame 1 (thin)
+    g.clear();
+    g.fillStyle(0xffd24a); g.fillRect(9, 3, 6, 18);
+    g.fillStyle(0xb88a1f); g.fillRect(11, 3, 2, 18);
+    g.generateTexture('coin1', 24, 24);
+
     g.destroy();
   }
 
-  private makeEnemyTextures() {
-    const sheet = this.textures.get('enemies_sheet').getSourceImage() as HTMLImageElement;
-    const cut = (key: string, x: number, y: number, w: number, h: number) => {
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      const ctx = canvas.getContext('2d')!;
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(sheet, x, y, w, h, 0, 0, w, h);
-      this.textures.addImage(key, canvas as any);
-    };
-    // Generate every named sprite for every color row from the atlas.
-    // Texture key: `${color}_${name}` e.g. "green_koopa_0".
-    const cutNames = Object.keys(ENEMY_CUTS) as EnemyCutName[];
-    for (const color of ENEMY_COLORS) {
-      const baseY = ROW_BASE_Y[color];
-      for (const name of cutNames) {
-        const c = ENEMY_CUTS[name];
-        cut(texKey(color, name), c.x, baseY + c.dy, c.w, c.h);
-      }
+  private addDecorations() {
+    // Semi-transparent tiled background — mountains peeking through
+    // The image is 320×180, tile it across a wide area with slow parallax
+    for (let i = 0; i < 30; i++) {
+      this.add.image(i * W * 0.5, H / 2, 'background')
+        .setDisplaySize(W * 0.5, H)
+        .setAlpha(0.18)
+        .setScrollFactor(0.05)
+        .setDepth(-5);
     }
-    // Legacy short keys still referenced elsewhere in this file.
-    const alias = (key: string, color: EnemyColor, name: EnemyCutName) => {
-      const c = ENEMY_CUTS[name];
-      cut(key, c.x, ROW_BASE_Y[color] + c.dy, c.w, c.h);
-    };
-    alias('goomba_0',     'brown', 'goomba_0');
-    alias('goomba_1',     'brown', 'goomba_1');
-    alias('goomba_flat',  'brown', 'goomba_flat');
-    alias('koopa_0',      'green', 'koopa_0');
-    alias('koopa_1',      'green', 'koopa_1');
-    alias('rkoopa_0',     'red',   'koopa_0');
-    alias('rkoopa_1',     'red',   'koopa_1');
-    alias('koopa_shell',  'green', 'koopa_shell_0');
-    alias('rkoopa_shell', 'red',   'koopa_shell_0');
-  }
 
-  private makeShellTexture(key: string, fill: number, stroke: number) {
-    const w = 28, h = 22;
-    const g = this.add.graphics();
-    g.fillStyle(stroke, 1);
-    g.fillEllipse(w / 2, h / 2 + 1, w, h);
-    g.fillStyle(fill, 1);
-    g.fillEllipse(w / 2, h / 2, w - 4, h - 4);
-    // Shell rim/highlight
-    g.fillStyle(0xffffff, 0.35);
-    g.fillEllipse(w / 2 - 4, h / 2 - 4, 10, 4);
-    // Spike pattern
-    g.fillStyle(stroke, 1);
-    for (let i = -1; i <= 1; i++) {
-      g.fillTriangle(w / 2 + i * 7, h / 2 - 3, w / 2 + i * 7 - 2, h / 2 + 3, w / 2 + i * 7 + 2, h / 2 + 3);
+    // Sparse clouds at very low opacity — subtle atmosphere without blocking the desktop
+    for (let i = 0; i < 15; i++) {
+      const cx = i * 800 + Math.random() * 400;
+      const cy = 40 + Math.random() * 100;
+      this.add.image(cx, cy, 'clouds')
+        .setDisplaySize(240, 72)
+        .setAlpha(0.15)
+        .setScrollFactor(0.1)
+        .setDepth(-3);
     }
-    g.generateTexture(key, w, h);
-    g.destroy();
+
+    // Hills behind the ground — very subtle
+    for (let i = 0; i < 20; i++) {
+      const hx = i * 500 + Math.random() * 300;
+      const isSmall = Math.random() < 0.5;
+      const tex = isSmall ? 'hill_0' : 'hill_1';
+      const hh = isSmall ? 64 : 96;
+      this.add.image(hx, GROUND_Y - hh / 2 + 10, tex)
+        .setDisplaySize(isSmall ? 64 : 64, hh)
+        .setAlpha(0.12)
+        .setScrollFactor(0.3)
+        .setDepth(-2);
+    }
+
+    // Bushes at ground level — decorative
+    for (let i = 0; i < 25; i++) {
+      const bx = i * 400 + Math.random() * 200;
+      const isBig = Math.random() < 0.4;
+      const tex = isBig ? 'big_bush' : 'small_bush';
+      this.add.image(bx, GROUND_Y - 8, tex)
+        .setDisplaySize(isBig ? 96 : 64, 32)
+        .setAlpha(0.2)
+        .setScrollFactor(0.5)
+        .setDepth(-1);
+    }
   }
 
   private extendGround(fromX: number, toX: number) {
@@ -402,7 +429,8 @@ export class PixelPlumberScene extends BaseScene {
         Math.abs(g.x - (x + BLOCK / 2)) < 1
       );
       if (exists) continue;
-      const g = this.groundGroup.create(x + BLOCK / 2, GROUND_Y + BLOCK / 2, 'ground') as any;
+      const g = this.groundGroup.create(x + BLOCK / 2, GROUND_Y + BLOCK / 2, 'grass_block') as any;
+      g.setDisplaySize(BLOCK, BLOCK);
       g.refreshBody();
     }
   }
@@ -421,28 +449,36 @@ export class PixelPlumberScene extends BaseScene {
       const r = Math.random();
       if (r < 0.11) {
         const n = 3 + Math.floor(Math.random() * 2);
-        const y = GROUND_Y - BLOCK * 3;
+        const y = GROUND_Y - BLOCK * 2;
         const qi = Math.floor(Math.random() * n);
         for (let i = 0; i < n; i++) {
           const bx = x + i * BLOCK;
           if (i === qi) {
-            const q = this.qblockGroup.create(bx + BLOCK / 2, y + BLOCK / 2, 'qblock') as any;
+            const q = this.qblockGroup.create(bx + BLOCK / 2, y + BLOCK / 2, 'qblock_img') as any;
             q.setData('hit', false); q.setData('reward', 'coin');
+            q.setDisplaySize(BLOCK, BLOCK);
             q.refreshBody();
           } else {
-            const b = this.brickGroup.create(bx + BLOCK / 2, y + BLOCK / 2, 'brick') as any;
+            const b = this.brickGroup.create(bx + BLOCK / 2, y + BLOCK / 2, 'brown_block') as any;
+            b.setDisplaySize(BLOCK, BLOCK);
             b.refreshBody();
           }
         }
         x += n * BLOCK;
+        // Enemy patrolling on top of the block row
+        if (Math.random() < 0.4) {
+          this.spawnEnemyAt('goomba', x - (n - 1) * BLOCK + BLOCK / 2, GROUND_Y - BLOCK * 2 - BLOCK / 2);
+        }
       } else if (r < 0.17) {
-        const q = this.qblockGroup.create(x + BLOCK / 2, GROUND_Y - BLOCK * 3 + BLOCK / 2, 'qblock') as any;
+        const q = this.qblockGroup.create(x + BLOCK / 2, GROUND_Y - BLOCK * 2 + BLOCK / 2, 'qblock_img') as any;
         q.setData('hit', false); q.setData('reward', 'mushroom');
+        q.setDisplaySize(BLOCK, BLOCK);
         q.refreshBody();
         x += BLOCK;
       } else if (r < 0.22) {
-        const q = this.qblockGroup.create(x + BLOCK / 2, GROUND_Y - BLOCK * 3 + BLOCK / 2, 'qblock') as any;
+        const q = this.qblockGroup.create(x + BLOCK / 2, GROUND_Y - BLOCK * 2 + BLOCK / 2, 'qblock_img') as any;
         q.setData('hit', false); q.setData('reward', 'coin');
+        q.setDisplaySize(BLOCK, BLOCK);
         q.refreshBody();
         x += BLOCK;
       } else if (r < 0.35) {
@@ -458,27 +494,37 @@ export class PixelPlumberScene extends BaseScene {
         this.spawnEnemy('goomba', x);
         x += BLOCK * 2;
       } else if (r < 0.67) {
+        // Ascending staircase with enemy on top
         const h = 2 + Math.floor(Math.random() * 3);
         for (let step = 0; step < h; step++) {
           const b = this.brickGroup.create(
             x + step * BLOCK + BLOCK / 2,
             GROUND_Y - (step + 1) * BLOCK + BLOCK / 2,
-            'brick'
+            'brown_block'
           ) as any;
+          b.setDisplaySize(BLOCK, BLOCK);
           b.refreshBody();
+        }
+        // 50% chance enemy on the top step
+        if (Math.random() < 0.5) {
+          const topX = x + (h - 1) * BLOCK + BLOCK / 2;
+          const topY = GROUND_Y - h * BLOCK;
+          this.spawnEnemyAt('goomba', topX, topY);
         }
         x += h * BLOCK;
       } else if (r < 0.73) {
         for (let i = 0; i < 3; i++) {
           const cy = GROUND_Y - BLOCK * 2 - Math.floor(Math.sin((i / 2) * Math.PI) * BLOCK);
           const c = this.coinGroup.create(x + i * BLOCK + BLOCK / 2, cy + BLOCK / 2, 'coin0') as any;
+          c.setDisplaySize(BLOCK * 0.5, BLOCK * 0.65);
           c.body.setAllowGravity(false);
           c.body.setSize(12, 18);
         }
         x += 3 * BLOCK;
       } else if (r < 0.81) {
-        // pipe
-        const ph = (2 + Math.floor(Math.random() * 2)) * BLOCK;
+        // pipe — 1-2 blocks tall (jumpable)
+        const pipeBlocks = 1 + Math.floor(Math.random() * 2);
+        const ph = pipeBlocks * BLOCK;
         const pw = 2 * BLOCK;
         const py = GROUND_Y - ph;
         const isGold = Math.random() < 0.30; // 30% for testing (lower later)
@@ -488,6 +534,7 @@ export class PixelPlumberScene extends BaseScene {
           const isTop = yy === py;
           const tex = isTop && isGold ? 'pipe_gold' : isTop && isWarp ? 'pipe_warp' : 'pipe_body';
           const seg = this.pipeGroup.create(x + pw / 2, yy + BLOCK / 2, tex) as any;
+          seg.setDisplaySize(BLOCK * 2, BLOCK);
           seg.refreshBody();
           if (isTop) topSeg = seg;
         }
@@ -518,32 +565,37 @@ export class PixelPlumberScene extends BaseScene {
       } else if (r < 0.90) {
         // Elevated bridge with enemy — 3 blocks up (reachable with a jump)
         const bridgeLen = 4 + Math.floor(Math.random() * 3);
-        const bridgeY = GROUND_Y - BLOCK * 3;
+        const bridgeY = GROUND_Y - BLOCK * 2;
         for (let i = 0; i < bridgeLen; i++) {
-          const b = this.brickGroup.create(x + i * BLOCK + BLOCK / 2, bridgeY + BLOCK / 2, 'brick') as any;
+          const b = this.brickGroup.create(x + i * BLOCK + BLOCK / 2, bridgeY + BLOCK / 2, 'brown_block') as any;
+          b.setDisplaySize(BLOCK, BLOCK);
           b.refreshBody();
         }
         this.spawnEnemyAt('goomba', x + BLOCK, bridgeY - BLOCK / 2);
         x += bridgeLen * BLOCK;
       } else if (r < 0.93) {
         // Multi-tier platform
-        const lowerY = GROUND_Y - BLOCK * 3;
+        const lowerY = GROUND_Y - BLOCK * 2;
         for (let i = 0; i < 4; i++) {
           if (i === 1) {
-            const q = this.qblockGroup.create(x + i * BLOCK + BLOCK / 2, lowerY + BLOCK / 2, 'qblock') as any;
+            const q = this.qblockGroup.create(x + i * BLOCK + BLOCK / 2, lowerY + BLOCK / 2, 'qblock_img') as any;
             q.setData('hit', false); q.setData('reward', 'coin');
+            q.setDisplaySize(BLOCK, BLOCK);
             q.refreshBody();
           } else {
-            const b = this.brickGroup.create(x + i * BLOCK + BLOCK / 2, lowerY + BLOCK / 2, 'brick') as any;
+            const b = this.brickGroup.create(x + i * BLOCK + BLOCK / 2, lowerY + BLOCK / 2, 'brown_block') as any;
+            b.setDisplaySize(BLOCK, BLOCK);
             b.refreshBody();
           }
         }
         const upperY = GROUND_Y - BLOCK * 5;
         for (let i = 1; i <= 2; i++) {
-          const b = this.brickGroup.create(x + i * BLOCK + BLOCK / 2, upperY + BLOCK / 2, 'brick') as any;
+          const b = this.brickGroup.create(x + i * BLOCK + BLOCK / 2, upperY + BLOCK / 2, 'brown_block') as any;
+          b.setDisplaySize(BLOCK, BLOCK);
           b.refreshBody();
         }
         const c = this.coinGroup.create(x + 1.5 * BLOCK + BLOCK / 2, upperY - BLOCK / 2, 'coin0') as any;
+        c.setDisplaySize(BLOCK * 0.5, BLOCK * 0.65);
         c.body.setAllowGravity(false);
         c.body.setSize(12, 18);
         x += 4 * BLOCK;
@@ -554,15 +606,16 @@ export class PixelPlumberScene extends BaseScene {
           const b = this.brickGroup.create(
             x + step * BLOCK + BLOCK / 2,
             GROUND_Y - (h - step) * BLOCK + BLOCK / 2,
-            'brick'
+            'brown_block'
           ) as any;
+          b.setDisplaySize(BLOCK, BLOCK);
           b.refreshBody();
         }
         x += h * BLOCK;
       } else if (r < 0.97) {
         // Mixed brick/qblock cluster
         const clusterLen = 5;
-        const clusterY = GROUND_Y - BLOCK * 3;
+        const clusterY = GROUND_Y - BLOCK * 2;
         const qPositions = new Set<number>();
         const qCount = 1 + Math.floor(Math.random() * 2);
         while (qPositions.size < qCount) {
@@ -570,11 +623,13 @@ export class PixelPlumberScene extends BaseScene {
         }
         for (let i = 0; i < clusterLen; i++) {
           if (qPositions.has(i)) {
-            const q = this.qblockGroup.create(x + i * BLOCK + BLOCK / 2, clusterY + BLOCK / 2, 'qblock') as any;
+            const q = this.qblockGroup.create(x + i * BLOCK + BLOCK / 2, clusterY + BLOCK / 2, 'qblock_img') as any;
             q.setData('hit', false); q.setData('reward', 'coin');
+            q.setDisplaySize(BLOCK, BLOCK);
             q.refreshBody();
           } else {
-            const b = this.brickGroup.create(x + i * BLOCK + BLOCK / 2, clusterY + BLOCK / 2, 'brick') as any;
+            const b = this.brickGroup.create(x + i * BLOCK + BLOCK / 2, clusterY + BLOCK / 2, 'brown_block') as any;
+            b.setDisplaySize(BLOCK, BLOCK);
             b.refreshBody();
           }
         }
@@ -586,36 +641,52 @@ export class PixelPlumberScene extends BaseScene {
   }
 
   private spawnEnemy(kind: 'goomba' | 'koopa' | 'rkoopa', x: number) {
-    const tex = kind === 'goomba' ? 'goomba_0' : kind === 'koopa' ? 'koopa_0' : 'rkoopa_0';
-    const h = kind === 'goomba' ? BLOCK : BLOCK + 16;
-    const e = this.enemyGroup.create(x + BLOCK / 2, GROUND_Y, tex) as any;
-    e.setOrigin(0.5, 1);
-    e.setDisplaySize(BLOCK, h);
-    // Explicit gravity so enemies always fall — don't rely on world gravity.
-    e.body.setGravityY(1800);
-    e.body.setAllowGravity(true);
-    e.setVelocityX(-90);
-    e.setBounceX(1);
-    e.setCollideWorldBounds(false);
-    e.setData('kind', kind);
-    e.setData('state', 'walk');
-    e.setData('timer', 0);
+    this.spawnEnemyAt(kind, x + BLOCK / 2, GROUND_Y);
   }
 
   private spawnEnemyAt(kind: 'goomba' | 'koopa' | 'rkoopa', x: number, y: number) {
-    const tex = kind === 'goomba' ? 'goomba_0' : kind === 'koopa' ? 'koopa_0' : 'rkoopa_0';
-    const h = kind === 'goomba' ? BLOCK : BLOCK + 16;
-    const e = this.enemyGroup.create(x, y, tex) as any;
+    // Pick a random visual type: red monster, blue slime, or green bat
+    const roll = Math.random();
+    let tex: string;
+    let enemyType: string;
+    let speed: number;
+    let isBat = false;
+
+    if (roll < 0.45) {
+      // Red monster (original) — standard speed
+      tex = 'enemy';
+      enemyType = 'monster';
+      speed = -100;
+    } else if (roll < 0.75) {
+      // Blue slime — faster, squishier
+      tex = 'slime_0';
+      enemyType = 'slime';
+      speed = -150;
+    } else {
+      // Green bat — flies in a wave, no gravity
+      tex = 'bat_0';
+      enemyType = 'bat';
+      speed = -120;
+      isBat = true;
+    }
+
+    const e = this.enemyGroup.create(x, y, tex, 0) as any;
     e.setOrigin(0.5, 1);
-    e.setDisplaySize(BLOCK, h);
-    e.body.setGravityY(1800);
-    e.body.setAllowGravity(true);
-    e.setVelocityX(-90);
+    e.setDisplaySize(BLOCK, BLOCK);
+    e.body.setGravityY(isBat ? 0 : 1800);
+    e.body.setAllowGravity(!isBat);
+    e.setVelocityX(speed);
     e.setBounceX(1);
     e.setCollideWorldBounds(false);
     e.setData('kind', kind);
+    e.setData('enemyType', enemyType);
     e.setData('state', 'walk');
     e.setData('timer', 0);
+    e.setData('baseY', y);
+
+    if (tex === 'enemy') {
+      e.anims.play('enemy_walk', true);
+    }
   }
 
   update(_t: number, dtMs: number) {
@@ -635,7 +706,7 @@ export class PixelPlumberScene extends BaseScene {
       if (this.parachuteSprite) {
         this.parachuteSprite.x = this.mario.x;
         // Bottom of parachute (origin 0.5,1) sits at Mario's head
-        const marioH = this.isBig ? BIG_MARIO_H : MARIO_H;
+        const marioH = MARIO_H;
         this.parachuteSprite.y = this.mario.y - marioH + 8;
       }
 
@@ -650,9 +721,17 @@ export class PixelPlumberScene extends BaseScene {
         this.mario.setVelocityX(Math.sin(this.time.now / 1200) * 40);
       }
 
+      // Up/down control: pull up (slow descent) or dive down (faster)
+      if (this.cursors.up.isDown) {
+        this.mario.setVelocityY(-120);
+      } else if (this.cursors.down.isDown) {
+        this.mario.setVelocityY(200);
+      }
+
       // Keep Mario within visible screen
       if (this.mario.x < camX + 30) this.mario.x = camX + 30;
       if (this.mario.x > camX + W - 30) this.mario.x = camX + W - 30;
+      if (this.mario.y < 40) this.mario.y = 40;
       this.parachuteTimer += dtMs;
       if (this.parachuteTimer > 1500) {
         this.parachuteTimer = 0;
@@ -660,7 +739,7 @@ export class PixelPlumberScene extends BaseScene {
         const camX = this.cameras.main.scrollX;
         const ex = fromLeft ? camX - 20 : camX + W + 20;
         const ey = this.mario.y + (Math.random() - 0.3) * 200;
-        const fe = this.enemyGroup.create(ex, ey, 'goomba_0') as any;
+        const fe = this.enemyGroup.create(ex, ey, 'enemy', 0) as any;
         fe.setOrigin(0.5, 0.5);
         fe.setDisplaySize(BLOCK, BLOCK);
         fe.body.setAllowGravity(false);
@@ -681,11 +760,10 @@ export class PixelPlumberScene extends BaseScene {
         this.endParachute();
       }
       this.mario.anims.stop();
-      this.mario.setFrame(5);
+      this.mario.setFrame(4); // jump frame while parachuting
       if (this.cursors.left.isDown) this.mario.flipX = true;
       else if (this.cursors.right.isDown) this.mario.flipX = false;
-      const targetH = this.isBig ? BIG_MARIO_H : MARIO_H;
-      this.mario.setDisplaySize(MARIO_W, targetH);
+      this.mario.setDisplaySize(MARIO_W, MARIO_H);
       this.syncScoreToHUD();
       return;
     }
@@ -718,8 +796,15 @@ export class PixelPlumberScene extends BaseScene {
     if (this.mario.body.velocity.x < -maxSpeed) this.mario.setVelocityX(-maxSpeed);
 
     const onGround = this.mario.body.blocked.down || this.mario.body.touching.down;
-    if (onGround) this.coyoteTime = 100;
-    else this.coyoteTime = Math.max(0, this.coyoteTime - dtMs);
+    if (onGround) {
+      this.coyoteTime = 100;
+      this.hasDoubleJumped = false;
+      this.canDoubleJump = false;
+    } else {
+      this.coyoteTime = Math.max(0, this.coyoteTime - dtMs);
+      // Enable double jump once we're airborne from a real jump (not just walking off edge)
+      if (!this.canDoubleJump && this.coyoteTime <= 0) this.canDoubleJump = true;
+    }
     this.jumpBuffer = Math.max(0, this.jumpBuffer - dtMs);
 
     // Manual edge detection: Phaser's JustDown can miss key presses when
@@ -731,9 +816,14 @@ export class PixelPlumberScene extends BaseScene {
     if (jumpJustPressed) this.jumpBuffer = 120;
 
     if (this.jumpBuffer > 0 && this.coyoteTime > 0) {
+      // Normal jump
       this.mario.setVelocityY(-820);
       this.jumpBuffer = 0;
       this.coyoteTime = 0;
+    } else if (jumpJustPressed && !onGround && this.canDoubleJump && !this.hasDoubleJumped) {
+      // Double jump — slightly weaker boost
+      this.mario.setVelocityY(-700);
+      this.hasDoubleJumped = true;
     }
 
     // Variable jump height: low gravity while ascending and key held.
@@ -797,39 +887,25 @@ export class PixelPlumberScene extends BaseScene {
     const moveDir = vx > 5 ? 1 : vx < -5 ? -1 : 0;
 
     // Animation: use Phaser's anims system with the spritesheet.
-    // Frame indices: 0=idle, 1=runA, 2=runB, 3=skid, 4=jump
-    const sheetKey = this.isBig ? 'mario_big' : 'mario_small';
-    const walkAnim = this.isBig ? 'big_walk' : 'small_walk';
+    const sheetKey = 'player';
+    const walkAnim = 'player_walk';
 
-    // Size: setDisplaySize keeps physics body scaling consistent
-    const targetH = this.isBig ? BIG_MARIO_H : MARIO_H;
-    this.mario.setDisplaySize(MARIO_W, targetH);
+    // Size is always the same (no big/small visual change)
+    this.mario.setDisplaySize(MARIO_W, MARIO_H);
 
-    // Ensure correct spritesheet texture when switching small ↔ big
-    const expectedTexture = sheetKey;
-    if (this.mario.texture.key !== expectedTexture) {
-      this.mario.setTexture(expectedTexture, 0);
-      // Update physics body for the new cell size
-      if (this.isBig) {
-        this.mario.body.setSize(12, 32);
-        this.mario.body.setOffset(2, 0);
-      } else {
-        this.mario.body.setSize(12, 16);
-        this.mario.body.setOffset(2, 0);
-      }
+    // Ensure correct texture
+    if (this.mario.texture.key !== sheetKey) {
+      this.mario.setTexture(sheetKey, 0);
     }
 
     if (!onGround) {
       this.mario.anims.stop();
-      this.mario.setFrame(5); // jump
+      this.mario.setFrame(4); // jump
     } else if (intent !== 0 && moveDir !== 0 && intent !== moveDir && speed > 60) {
       this.mario.anims.stop();
-      this.mario.setFrame(4); // skid
+      this.mario.setFrame(0); // no skid frame in new set, use idle
     } else if (speed > 20) {
-      // Always call play — ignoreIfPlaying=true prevents restarts when
-      // already running, but allows restart after anims.stop().
       this.mario.anims.play(walkAnim, true);
-      // Scale animation speed with Mario's velocity for a natural feel.
       const animFps = Math.max(6, Math.min(20, speed / 20));
       this.mario.anims.msPerFrame = 1000 / animFps;
     } else {
@@ -848,7 +924,7 @@ export class PixelPlumberScene extends BaseScene {
 
     (this.coinGroup.getChildren() as any[]).forEach(c => {
       const i = Math.floor(this.time.now / 120) % 2;
-      c.setTexture(`coin${i}`);
+      c.setTexture(i === 0 ? 'coin0' : 'coin1');
       if (c.x < camLeft - 100) c.destroy();
     });
 
@@ -904,15 +980,31 @@ export class PixelPlumberScene extends BaseScene {
     if (!e.active) return;
     const state = e.getData('state');
     const kind = e.getData('kind');
+    const enemyType = e.getData('enemyType') || 'monster';
 
     if (e.x < camLeft - BLOCK * 3) { e.destroy(); return; }
     if (e.y > H + 50) { e.destroy(); return; }
     if (!e.body) return;
 
-    if (state === 'walk') {
-      const i = Math.floor(this.time.now / 180) % 2;
-      const texBase = kind === 'goomba' ? 'goomba' : kind === 'koopa' ? 'koopa' : 'rkoopa';
-      e.setTexture(`${texBase}_${i}`);
+    if (state === 'walk' || state === 'flying') {
+      // Animate based on enemy type
+      if (enemyType === 'monster') {
+        if (!e.anims.isPlaying || e.anims.currentAnim?.key !== 'enemy_walk') {
+          e.anims.play('enemy_walk', true);
+        }
+      } else if (enemyType === 'slime') {
+        const frame = Math.floor(this.time.now / 200) % 2;
+        e.setTexture(frame === 0 ? 'slime_0' : 'slime_1');
+        e.setDisplaySize(BLOCK, BLOCK);
+      } else if (enemyType === 'bat') {
+        const frame = Math.floor(this.time.now / 150) % 2;
+        e.setTexture(frame === 0 ? 'bat_0' : 'bat_1');
+        e.setDisplaySize(BLOCK, BLOCK);
+        // Wave pattern flight
+        const baseY = e.getData('baseY') || GROUND_Y - BLOCK * 2;
+        e.y = baseY + Math.sin(this.time.now / 400 + e.x * 0.01) * 40;
+      }
+
       if (kind === 'rkoopa' && (e.body.blocked.down || e.body.touching.down)) {
         const ahead = e.x + (e.body.velocity.x > 0 ? BLOCK : -BLOCK);
         if (this.isInGap(ahead)) {
@@ -928,7 +1020,6 @@ export class PixelPlumberScene extends BaseScene {
         e.setVelocityX(-90);
       }
     }
-    // 'shell' (kicked) and 'dying' need no per-frame logic — physics + tweens handle them.
   }
 
   private onMarioHitBrick(_mario: any, brick: any) {
@@ -956,6 +1047,7 @@ export class PixelPlumberScene extends BaseScene {
     if (Math.abs(q.x - this.mario.x) > BLOCK * 0.55) return;
     q.setData('hit', true);
     q.setTexture('qblock_used');
+    q.setDisplaySize(BLOCK, BLOCK);
     this.tweens.add({ targets: q, y: q.y - 6, yoyo: true, duration: 100 });
     const reward = q.getData('reward');
     if (reward === 'mushroom' && !this.isBig) {
@@ -997,6 +1089,19 @@ export class PixelPlumberScene extends BaseScene {
     if (!this.isBig) {
       this.isBig = true;
       this.addScore(1000, this.mario.x, this.mario.y - 20);
+      // Visual feedback: golden flash + scale pulse
+      this.mario.setTint(0xffdd00);
+      this.tweens.add({
+        targets: this.mario,
+        scaleX: this.mario.scaleX * 1.4,
+        scaleY: this.mario.scaleY * 1.4,
+        duration: 150,
+        yoyo: true,
+        onComplete: () => {
+          this.mario.setTint(0x44aaff); // blue tint = powered up
+          this.mario.setDisplaySize(MARIO_W, MARIO_H);
+        },
+      });
     }
   }
 
@@ -1040,15 +1145,12 @@ export class PixelPlumberScene extends BaseScene {
     }
   }
 
-  // Replace the koopa with a fresh shell sprite. Trying to morph one Game
-  // Object between two textures with different aspect ratios (18×42 koopa →
-  // 28×22 shell) is fragile — we just destroy and respawn.
+  // Replace the enemy with a shell sprite using the dead frame.
   private becomeShell(e: any) {
     const kind = e.getData('kind');
     const x = e.x;
     e.destroy();
-    const tex = kind === 'rkoopa' ? 'rkoopa_shell' : 'koopa_shell';
-    const shell = this.enemyGroup.create(x, GROUND_Y, tex) as any;
+    const shell = this.enemyGroup.create(x, GROUND_Y, 'enemy', 4) as any;
     shell.setOrigin(0.5, 1);
     shell.setDisplaySize(BLOCK, BLOCK * 0.7);
     shell.body.setGravityY(1800);
@@ -1067,7 +1169,8 @@ export class PixelPlumberScene extends BaseScene {
   private killGoomba(e: any) {
     e.setData('state', 'dying');
     e.disableBody(false, false);
-    e.setTexture('goomba_flat');
+    e.anims.stop();
+    e.setFrame(4); // dead frame in enemy strip
     this.addScore(200, e.x, e.y - 20);
     this.tweens.add({
       targets: e,
@@ -1130,6 +1233,7 @@ export class PixelPlumberScene extends BaseScene {
   private takeHit() {
     if (this.isBig) {
       this.isBig = false;
+      this.mario.clearTint();
       this.shrinkTimer = 60;
     } else {
       this.die();
@@ -1145,6 +1249,7 @@ export class PixelPlumberScene extends BaseScene {
     this.mario.setVelocity(0, -500);
     this.mario.body.checkCollision.none = true;
     this.isBig = false;
+    this.mario.clearTint();
     if (this.parachuteMode) this.endParachute();
   }
 
@@ -1162,6 +1267,7 @@ export class PixelPlumberScene extends BaseScene {
     this.mario.setPosition(x, GROUND_Y - 100);
     this.mario.setVelocity(0, 0);
     this.mario.body.checkCollision.none = false;
+    this.mario.clearTint();
     this.invincible = 90;
     this.shrinkTimer = 0;
     this.stompGrace = 0;
@@ -1244,6 +1350,7 @@ export class PixelPlumberScene extends BaseScene {
           const cx = targetX + (Math.random() - 0.5) * W * 0.6;
           const cy = 100 + Math.random() * (GROUND_Y - 200);
           const c = this.coinGroup.create(cx, cy, 'coin0') as any;
+          c.setDisplaySize(BLOCK * 0.5, BLOCK * 0.65);
           c.body.setAllowGravity(false);
           c.body.setSize(12, 18);
           c.setData('parachuteCoin', true);
