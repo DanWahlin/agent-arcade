@@ -5,7 +5,7 @@ import * as fs from 'fs';
 // Project root: dist/main/main.js -> ../../
 const PROJECT_ROOT = path.resolve(__dirname, '..', '..');
 const LOG_DIR = path.join(PROJECT_ROOT, 'logs');
-const LOG = path.join(LOG_DIR, 'agent-break.log');
+const LOG = path.join(LOG_DIR, 'agent-arcade.log');
 try { fs.mkdirSync(LOG_DIR, { recursive: true }); } catch {}
 function log(...args: any[]) {
   const line = `[${new Date().toISOString()}] ${args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ')}\n`;
@@ -104,7 +104,7 @@ function setPausedState(isPaused: boolean) {
         app.focus({ steal: true });
         win.focus();
         win.webContents.focus();
-        win.webContents.send('agent-break:resume');
+        win.webContents.send('agent-arcade:resume');
       });
     } catch (e) {
       log('failed to register global Escape:', String(e));
@@ -124,7 +124,7 @@ function toggleWindow() {
     app.focus({ steal: true });
     win.focus();
     win.webContents.focus();
-    win.webContents.send('agent-break:resume');
+    win.webContents.send('agent-arcade:resume');
     return;
   }
   if (visible) {
@@ -141,7 +141,7 @@ function toggleWindow() {
 
 function createTray() {
   log('createTray: starting');
-  const iconPath = path.join(__dirname, '..', 'assets', 'sprites', 'small_0.png');
+  const iconPath = path.join(__dirname, '..', 'assets', 'tray_icon.png');
   let img = nativeImage.createFromPath(iconPath);
   log('createTray: iconPath=', iconPath, 'empty=', img.isEmpty(), 'size=', img.getSize());
   if (img.isEmpty()) {
@@ -154,7 +154,7 @@ function createTray() {
 
   try {
     tray = new Tray(img);
-    tray.setToolTip('Agent Break');
+    tray.setToolTip('Agent Arcade');
     tray.setTitle('🍄');
     const menu = Menu.buildFromTemplate([
       { label: 'Show / Hide  (⌃⌥M)', click: toggleWindow },
@@ -184,14 +184,14 @@ if (!gotLock) {
   app.whenReady().then(() => {
     log('whenReady fired');
 
-    ipcMain.on('agent-break:set-click-through', (_e, enabled: boolean) => {
+    ipcMain.on('agent-arcade:set-click-through', (_e, enabled: boolean) => {
       if (!win) return;
       // forward: true keeps mouse-move events flowing for hover detection
       // while clicks pass through to apps below.
       win.setIgnoreMouseEvents(!!enabled, { forward: true });
     });
 
-    ipcMain.on('agent-break:set-paused', (_e, isPaused: boolean) => {
+    ipcMain.on('agent-arcade:set-paused', (_e, isPaused: boolean) => {
       setPausedState(!!isPaused);
     });
 

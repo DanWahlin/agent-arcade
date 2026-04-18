@@ -44,7 +44,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: agent-break-${{ matrix.platform }}
+          name: agent-arcade-${{ matrix.platform }}
           path: |
             build/*.dmg
             build/*.zip

@@ -1,7 +1,7 @@
 {
-  "name": "agent-break",
+  "name": "agent-arcade",
   "version": "0.1.0",
-  "description": "Agent Break — stress-relief Mario-style overlay for while your AI agent is thinking (Electron + Phaser)",
+  "description": "Agent Arcade — stress-relief retro platformer overlay for while your AI agent is thinking (Electron + Phaser)",
   "main": "dist/main/main.js",
   "scripts": {
     "build": "tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json && cp src/renderer/index.html src/renderer/phaser.min.js dist/renderer/ && rm -rf dist/assets && cp -R assets dist/assets",

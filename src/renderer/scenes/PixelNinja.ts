@@ -7,8 +7,8 @@ declare const Phaser: any;
 import { BaseScene, W, H } from './BaseScene.js';
 
 const BLOCK = 48;                // logical world tile size
-const MARIO_W = 48;              // player draw size
-const MARIO_H = 48;              // player draw size
+const PLAYER_W = 48;              // player draw size
+const PLAYER_H = 48;              // player draw size
 const GROUND_Y = H - 64;         // top of ground row
 const SPAWN_X = 600;
 
@@ -17,8 +17,8 @@ export class PixelNinjaScene extends BaseScene {
   private cursors!: any;
   private keys!: { space: any; shift: any; f: any; z: any };
 
-  // Mario state
-  private mario!: any;
+  // Player state
+  private player!: any;
   private isBig = false;
   private facingRight = true;
   private invincible = 90;
@@ -55,12 +55,19 @@ export class PixelNinjaScene extends BaseScene {
   private enemyGroup!: any;
 
   private gaps: { start: number; end: number }[] = [];
+  private bridgeGroup!: any;
+  private flagGroup!: any;
+  private currentLevel = 1;
+  private distanceSinceFlag = 0;
   private piranhaGroup!: any;
+  private fireGroup!: any;
   private warping = false;
   private parachuteMode = false;
   private parachuteSprite?: any;
   private parachuteFlyingEnemies: any[] = [];
   private parachuteTimer = 0;
+  private glowSprite?: any;
+  private powerTimer = 0;
 
   constructor() { super('pixel-ninja'); }
 
@@ -83,6 +90,7 @@ export class PixelNinjaScene extends BaseScene {
     this.load.image('platform_tile', '../assets/platform.png');
     this.load.image('spikes_tile', '../assets/spikes.png');
     this.load.image('flag_tile', '../assets/flag.png');
+    this.load.image('bridge_tile', '../assets/bridge.png');
     this.load.image('impact', '../assets/impact_sheet.png');
     this.load.image('clouds', '../assets/clouds.png');
     this.load.image('hill_0', '../assets/hill_0.png');
@@ -90,6 +98,8 @@ export class PixelNinjaScene extends BaseScene {
     this.load.image('big_bush', '../assets/big_bush.png');
     this.load.image('small_bush', '../assets/small_bush.png');
     this.load.image('background', '../assets/background.png');
+    this.load.spritesheet('enemy_tall', '../assets/enemy_tall_strip.png', { frameWidth: 16, frameHeight: 32 });
+    this.load.spritesheet('enemy_short', '../assets/enemy_short_strip.png', { frameWidth: 16, frameHeight: 16 });
   }
 
   create() {
@@ -106,20 +116,23 @@ export class PixelNinjaScene extends BaseScene {
     this.fireballGroup = this.physics.add.group();
     this.enemyGroup = this.physics.add.group();
     this.piranhaGroup = this.physics.add.group({ allowGravity: false });
+    this.bridgeGroup = this.physics.add.staticGroup();
+    this.flagGroup = this.physics.add.staticGroup();
+    this.fireGroup = this.physics.add.group({ allowGravity: false });
 
     // Initial ground
     this.extendGround(0, W * 2);
 
-    // Mario — spritesheet frame 0 = idle
-    this.mario = this.physics.add.sprite(SPAWN_X, GROUND_Y - 200, 'player', 0);
-    this.mario.setOrigin(0.5, 1);
-    this.mario.setDisplaySize(MARIO_W, MARIO_H);
-    // Physics body fills the full cell so Mario's head hits blocks above.
-    this.mario.body.setSize(12, 16);
-    this.mario.body.setOffset(2, 0);
-    this.mario.setMaxVelocity(700, 900);
-    this.mario.body.setGravityY(1800);
-    this.mario.setDepth(10);
+    // Player — spritesheet frame 0 = idle
+    this.player = this.physics.add.sprite(SPAWN_X, GROUND_Y - 200, 'player', 0);
+    this.player.setOrigin(0.5, 1);
+    this.player.setDisplaySize(PLAYER_W, PLAYER_H);
+    // Physics body fills the full cell so player's head hits blocks above.
+    this.player.body.setSize(12, 16);
+    this.player.body.setOffset(2, 0);
+    this.player.setMaxVelocity(700, 900);
+    this.player.body.setGravityY(1800);
+    this.player.setDepth(10);
 
     // Player animations
     this.anims.create({
@@ -147,17 +160,29 @@ export class PixelNinjaScene extends BaseScene {
       frameRate: 6,
       repeat: -1,
     });
+    this.anims.create({
+      key: 'enemy_tall_walk',
+      frames: this.anims.generateFrameNumbers('enemy_tall', { frames: [0, 1, 2, 3] }),
+      frameRate: 6,
+      repeat: -1,
+    });
+    this.anims.create({
+      key: 'enemy_short_walk',
+      frames: this.anims.generateFrameNumbers('enemy_short', { frames: [0, 1, 2, 3] }),
+      frameRate: 8,
+      repeat: -1,
+    });
 
     // Camera
     this.cameras.main.setBounds(0, 0, 1_000_000, H);
-    this.cameras.main.startFollow(this.mario, true, 0.15, 0.05, -W * 0.2, 0);
+    this.cameras.main.startFollow(this.player, true, 0.15, 0.05, -W * 0.2, 0);
     this.cameras.main.setBackgroundColor('rgba(0,0,0,0)');
 
     // Colliders
-    this.physics.add.collider(this.mario, this.groundGroup);
-    this.physics.add.collider(this.mario, this.brickGroup, this.onMarioHitBrick, undefined, this);
-    this.physics.add.collider(this.mario, this.qblockGroup, this.onMarioHitQBlock, undefined, this);
-    this.physics.add.collider(this.mario, this.pipeGroup);
+    this.physics.add.collider(this.player, this.groundGroup);
+    this.physics.add.collider(this.player, this.brickGroup, this.onPlayerHitBrick, undefined, this);
+    this.physics.add.collider(this.player, this.qblockGroup, this.onPlayerHitQBlock, undefined, this);
+    this.physics.add.collider(this.player, this.pipeGroup);
 
     this.physics.add.collider(this.enemyGroup, this.groundGroup);
     this.physics.add.collider(this.enemyGroup, this.brickGroup);
@@ -175,11 +200,16 @@ export class PixelNinjaScene extends BaseScene {
     this.physics.add.collider(this.fireballGroup, this.qblockGroup, this.onFireballHitSolid, undefined, this);
     this.physics.add.collider(this.fireballGroup, this.pipeGroup, this.onFireballHitSolid, undefined, this);
 
-    this.physics.add.overlap(this.mario, this.coinGroup, this.onMarioCoin, undefined, this);
-    this.physics.add.overlap(this.mario, this.mushroomGroup, this.onMarioMushroom, undefined, this);
-    this.physics.add.overlap(this.mario, this.enemyGroup, this.onMarioEnemy, undefined, this);
+    this.physics.add.overlap(this.player, this.coinGroup, this.onPlayerCoin, undefined, this);
+    this.physics.add.overlap(this.player, this.mushroomGroup, this.onPlayerMushroom, undefined, this);
+    this.physics.add.overlap(this.player, this.enemyGroup, this.onPlayerEnemy, undefined, this);
     this.physics.add.overlap(this.fireballGroup, this.enemyGroup, this.onFireballEnemy, undefined, this);
-    this.physics.add.overlap(this.mario, this.piranhaGroup, this.onMarioPiranha, undefined, this);
+    this.physics.add.overlap(this.player, this.piranhaGroup, this.onPlayerPiranha, undefined, this);
+    this.physics.add.overlap(this.player, this.fireGroup, this.onPlayerFire, undefined, this);
+
+    this.physics.add.collider(this.player, this.bridgeGroup, this.onPlayerBridge, undefined, this);
+    this.physics.add.collider(this.enemyGroup, this.bridgeGroup);
+    this.physics.add.overlap(this.player, this.flagGroup, this.onPlayerFlag, undefined, this);
 
     // Input
     this.input.keyboard.addCapture('UP,DOWN,LEFT,RIGHT,SPACE,SHIFT,F,Z');
@@ -193,8 +223,8 @@ export class PixelNinjaScene extends BaseScene {
 
     // Pause bridge: called from index.html when user presses Esc / clicks resume.
     // Pauses the Phaser scene + sound, and asks main to enable click-through.
-    (window as any).__agentBreakPause = (shouldPause: boolean) => {
-      const ab = (window as any).agentBreak;
+    (window as any).__agentArcadePause = (shouldPause: boolean) => {
+      const ab = (window as any).agentArcade;
       if (shouldPause) {
         this.pauseGame();
       } else {
@@ -205,7 +235,7 @@ export class PixelNinjaScene extends BaseScene {
     };
 
     // Allow the main process to force-resume (e.g., via global ⌃⌥M).
-    const ab = (window as any).agentBreak;
+    const ab = (window as any).agentArcade;
     if (ab && ab.onResumeRequest) {
       ab.onResumeRequest(() => {
         const hud = document.getElementById('hud');
@@ -220,6 +250,10 @@ export class PixelNinjaScene extends BaseScene {
 
     this.generateLevel(SPAWN_X + 400, W + 600);
     this.syncLivesToHUD();
+    this.loadHighScore();
+    this.distanceSinceFlag = 0;
+    this.currentLevel = 1;
+    this.syncLevelToHUD();
   }
 
   // ---------- Brick / block textures generated at runtime via Graphics ----------
@@ -254,6 +288,27 @@ export class PixelNinjaScene extends BaseScene {
     g.fillStyle(0xffe080); g.fillCircle(6, 6, 3);
     g.generateTexture('fireball', 16, 16);
 
+    // Fire eruption — organic flame shape with layered colors
+    g.clear();
+    // Outer flame (dark red)
+    g.fillStyle(0xcc2200);
+    g.fillEllipse(8, 24, 14, 16);
+    g.fillEllipse(8, 14, 10, 14);
+    g.fillEllipse(8, 6, 6, 10);
+    // Middle flame (orange)
+    g.fillStyle(0xff6600);
+    g.fillEllipse(8, 26, 10, 12);
+    g.fillEllipse(8, 16, 8, 12);
+    g.fillEllipse(8, 8, 4, 8);
+    // Inner flame (yellow core)
+    g.fillStyle(0xffcc00);
+    g.fillEllipse(8, 28, 6, 8);
+    g.fillEllipse(8, 20, 4, 8);
+    // Hot white tip
+    g.fillStyle(0xffffaa);
+    g.fillEllipse(8, 28, 3, 5);
+    g.generateTexture('fire_column', 16, 32);
+
     // Piranha plant frame 0 (mouth closed)
     g.clear();
     g.fillStyle(0x22aa22);
@@ -276,27 +331,32 @@ export class PixelNinjaScene extends BaseScene {
     g.fillRect(8, 12, 16, 3);
     g.generateTexture('piranha_1', 32, 32);
 
-    // Blue slime enemy — bouncy blob, moves faster
+    // Power-up glow effect
     g.clear();
-    g.fillStyle(0x2244cc);
-    g.fillEllipse(8, 10, 14, 12);
-    g.fillStyle(0x4488ff);
-    g.fillEllipse(8, 8, 10, 8);
-    g.fillStyle(0xffffff);
-    g.fillCircle(5, 7, 2); g.fillCircle(11, 7, 2);
-    g.fillStyle(0x000000);
-    g.fillCircle(6, 7, 1); g.fillCircle(12, 7, 1);
-    g.generateTexture('slime_0', 16, 16);
+    g.fillStyle(0xffdd00, 0.3);
+    g.fillCircle(20, 20, 20);
+    g.fillStyle(0xffff88, 0.2);
+    g.fillCircle(20, 20, 14);
+    g.generateTexture('glow', 40, 40);
+
+    // Individual cloud puffs (3 sizes for variety)
     g.clear();
-    g.fillStyle(0x2244cc);
-    g.fillEllipse(8, 11, 16, 10);
-    g.fillStyle(0x4488ff);
-    g.fillEllipse(8, 9, 12, 7);
     g.fillStyle(0xffffff);
-    g.fillCircle(5, 8, 2); g.fillCircle(11, 8, 2);
-    g.fillStyle(0x000000);
-    g.fillCircle(6, 8, 1); g.fillCircle(12, 8, 1);
-    g.generateTexture('slime_1', 16, 16);
+    g.fillCircle(10, 10, 8); g.fillCircle(20, 8, 10); g.fillCircle(32, 10, 9);
+    g.fillCircle(16, 14, 7); g.fillCircle(26, 14, 8);
+    g.generateTexture('cloud_sm', 42, 22);
+
+    g.clear();
+    g.fillStyle(0xffffff);
+    g.fillCircle(14, 14, 12); g.fillCircle(30, 10, 14); g.fillCircle(48, 14, 11);
+    g.fillCircle(22, 18, 10); g.fillCircle(38, 18, 12);
+    g.generateTexture('cloud_md', 60, 28);
+
+    g.clear();
+    g.fillStyle(0xffffff);
+    g.fillCircle(16, 16, 14); g.fillCircle(36, 12, 16); g.fillCircle(58, 14, 13);
+    g.fillCircle(24, 22, 12); g.fillCircle(46, 20, 14); g.fillCircle(70, 16, 10);
+    g.generateTexture('cloud_lg', 82, 32);
 
     // Green bat enemy — flies in a wave pattern
     g.clear();
@@ -384,17 +444,6 @@ export class PixelNinjaScene extends BaseScene {
         .setDepth(-5);
     }
 
-    // Sparse clouds at very low opacity — subtle atmosphere without blocking the desktop
-    for (let i = 0; i < 15; i++) {
-      const cx = i * 800 + Math.random() * 400;
-      const cy = 40 + Math.random() * 100;
-      this.add.image(cx, cy, 'clouds')
-        .setDisplaySize(240, 72)
-        .setAlpha(0.15)
-        .setScrollFactor(0.1)
-        .setDepth(-3);
-    }
-
     // Hills behind the ground — very subtle
     for (let i = 0; i < 20; i++) {
       const hx = i * 500 + Math.random() * 300;
@@ -464,10 +513,19 @@ export class PixelNinjaScene extends BaseScene {
             b.refreshBody();
           }
         }
+        // Coins above block row
+        for (let i = 0; i < n; i++) {
+          if (Math.random() < 0.4) {
+            const c = this.coinGroup.create(x + i * BLOCK + BLOCK / 2, y - BLOCK / 2, 'coin0') as any;
+            c.setDisplaySize(BLOCK * 0.5, BLOCK * 0.65);
+            c.body.setAllowGravity(false);
+            c.body.setSize(12, 18);
+          }
+        }
         x += n * BLOCK;
         // Enemy patrolling on top of the block row
-        if (Math.random() < 0.4) {
-          this.spawnEnemyAt('goomba', x - (n - 1) * BLOCK + BLOCK / 2, GROUND_Y - BLOCK * 2 - BLOCK / 2);
+        if (Math.random() < 0.5) {
+          this.spawnEnemyAt('goomba', x - Math.floor(n / 2) * BLOCK, y - BLOCK);
         }
       } else if (r < 0.17) {
         const q = this.qblockGroup.create(x + BLOCK / 2, GROUND_Y - BLOCK * 2 + BLOCK / 2, 'qblock_img') as any;
@@ -508,7 +566,7 @@ export class PixelNinjaScene extends BaseScene {
         // 50% chance enemy on the top step
         if (Math.random() < 0.5) {
           const topX = x + (h - 1) * BLOCK + BLOCK / 2;
-          const topY = GROUND_Y - h * BLOCK;
+          const topY = GROUND_Y - h * BLOCK - BLOCK;
           this.spawnEnemyAt('goomba', topX, topY);
         }
         x += h * BLOCK;
@@ -561,9 +619,22 @@ export class PixelNinjaScene extends BaseScene {
         (this.groundGroup.getChildren() as any[]).forEach((g: any) => {
           if (g.x >= x && g.x < x + gapW) g.destroy();
         });
+        // 50% chance: fire eruption hazard in the gap
+        if (Math.random() < 0.5) {
+          const fireX = x + gapW / 2;
+          const f = this.fireGroup.create(fireX, GROUND_Y + BLOCK * 2, 'fire_column') as any;
+          f.setDisplaySize(BLOCK * 0.8, BLOCK * 2);
+          f.setOrigin(0.5, 1);
+          f.body.setAllowGravity(false);
+          f.setData('baseY', GROUND_Y + BLOCK * 2);
+          f.setData('gapX', fireX);
+          f.setData('active', false);
+          f.setVisible(false);
+          f.body.enable = false;
+        }
         x += gapW;
       } else if (r < 0.90) {
-        // Elevated bridge with enemy — 3 blocks up (reachable with a jump)
+        // Elevated bridge with enemy
         const bridgeLen = 4 + Math.floor(Math.random() * 3);
         const bridgeY = GROUND_Y - BLOCK * 2;
         for (let i = 0; i < bridgeLen; i++) {
@@ -571,7 +642,14 @@ export class PixelNinjaScene extends BaseScene {
           b.setDisplaySize(BLOCK, BLOCK);
           b.refreshBody();
         }
-        this.spawnEnemyAt('goomba', x + BLOCK, bridgeY - BLOCK / 2);
+        // Coins along the bridge
+        for (let i = 0; i < bridgeLen; i += 2) {
+          const c = this.coinGroup.create(x + i * BLOCK + BLOCK / 2, bridgeY - BLOCK / 2, 'coin0') as any;
+          c.setDisplaySize(BLOCK * 0.5, BLOCK * 0.65);
+          c.body.setAllowGravity(false);
+          c.body.setSize(12, 18);
+        }
+        this.spawnEnemyAt('goomba', x + BLOCK, bridgeY - BLOCK);
         x += bridgeLen * BLOCK;
       } else if (r < 0.93) {
         // Multi-tier platform
@@ -611,9 +689,13 @@ export class PixelNinjaScene extends BaseScene {
           b.setDisplaySize(BLOCK, BLOCK);
           b.refreshBody();
         }
+        // Enemy on top
+        if (Math.random() < 0.4) {
+          this.spawnEnemyAt('goomba', x + BLOCK / 2, GROUND_Y - h * BLOCK - BLOCK);
+        }
         x += h * BLOCK;
       } else if (r < 0.97) {
-        // Mixed brick/qblock cluster
+        // Mixed brick/qblock cluster with enemy
         const clusterLen = 5;
         const clusterY = GROUND_Y - BLOCK * 2;
         const qPositions = new Set<number>();
@@ -634,10 +716,76 @@ export class PixelNinjaScene extends BaseScene {
           }
         }
         x += clusterLen * BLOCK;
+        // Enemy on top of the cluster
+        if (Math.random() < 0.5) {
+          this.spawnEnemyAt('goomba', x - 2 * BLOCK, clusterY - BLOCK);
+        }
+      } else {
+        // Bridge over gap — some tiles collapse!
+        const bridgeLen = 4 + Math.floor(Math.random() * 4); // 4-7 tiles
+        const gapW = bridgeLen * BLOCK;
+        this.gaps.push({ start: x, end: x + gapW });
+        (this.groundGroup.getChildren() as any[]).forEach((g: any) => {
+          if (g.x >= x && g.x < x + gapW) g.destroy();
+        });
+        for (let i = 0; i < bridgeLen; i++) {
+          const bx = x + i * BLOCK + BLOCK / 2;
+          const bt = this.bridgeGroup.create(bx, GROUND_Y + BLOCK / 2, 'bridge_tile') as any;
+          bt.setDisplaySize(BLOCK, BLOCK);
+          bt.refreshBody();
+          bt.setData('unstable', Math.random() < 0.4);
+          bt.setData('collapsing', false);
+        }
+        x += gapW;
       }
     }
     this.genX = Math.max(this.genX, x);
     this.extendGround(0, this.genX + W);
+
+    // Scatter decorative bushes in the new section
+    for (let bx = lo; bx < hi; bx += BLOCK * 6 + Math.floor(Math.random() * BLOCK * 4)) {
+      if (this.isInGap(bx)) continue;
+      const isBig = Math.random() < 0.3;
+      const tex = isBig ? 'big_bush' : 'small_bush';
+      const bush = this.add.image(bx, GROUND_Y, tex);
+      bush.setDisplaySize(isBig ? BLOCK * 1.5 : BLOCK, BLOCK * 0.5);
+      bush.setOrigin(0.5, 1);
+      bush.setDepth(1);
+      bush.setAlpha(0.8);
+    }
+
+    // Scatter ground-level coin trails between obstacles
+    for (let cx = lo; cx < hi; cx += BLOCK * 8 + Math.floor(Math.random() * BLOCK * 6)) {
+      if (this.isInGap(cx)) continue;
+      if (Math.random() < 0.4) continue; // skip some
+      const trailLen = 2 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < trailLen; i++) {
+        const coinX = cx + i * BLOCK;
+        if (this.isInGap(coinX)) break;
+        const c = this.coinGroup.create(coinX + BLOCK / 2, GROUND_Y - BLOCK * 0.8, 'coin0') as any;
+        c.setDisplaySize(BLOCK * 0.5, BLOCK * 0.65);
+        c.body.setAllowGravity(false);
+        c.body.setSize(12, 18);
+      }
+    }
+
+    // Flag checkpoint every ~2500px
+    this.distanceSinceFlag += (hi - lo);
+    if (this.distanceSinceFlag > 2500) {
+      this.distanceSinceFlag = 0;
+      const flagX = this.genX - BLOCK * 2;
+      if (!this.isInGap(flagX)) {
+        for (let i = 0; i < 3; i++) {
+          const pole = this.add.image(flagX, GROUND_Y - i * BLOCK - BLOCK / 2, 'brown_block');
+          pole.setDisplaySize(BLOCK * 0.3, BLOCK);
+          pole.setDepth(1);
+        }
+        const flag = this.flagGroup.create(flagX, GROUND_Y - BLOCK * 3 + BLOCK / 2, 'flag_tile') as any;
+        flag.setDisplaySize(BLOCK, BLOCK * 1.5);
+        flag.setOrigin(0.5, 1);
+        flag.refreshBody();
+      }
+    }
   }
 
   private spawnEnemy(kind: 'goomba' | 'koopa' | 'rkoopa', x: number) {
@@ -645,34 +793,44 @@ export class PixelNinjaScene extends BaseScene {
   }
 
   private spawnEnemyAt(kind: 'goomba' | 'koopa' | 'rkoopa', x: number, y: number) {
-    // Pick a random visual type: red monster, blue slime, or green bat
     const roll = Math.random();
     let tex: string;
+    let animKey: string;
     let enemyType: string;
     let speed: number;
-    let isBat = false;
+    let displayH = BLOCK;
 
-    if (roll < 0.45) {
-      // Red monster (original) — standard speed
+    if (roll < 0.30) {
+      // Red monster (original)
       tex = 'enemy';
+      animKey = 'enemy_walk';
       enemyType = 'monster';
       speed = -100;
-    } else if (roll < 0.75) {
-      // Blue slime — faster, squishier
-      tex = 'slime_0';
-      enemyType = 'slime';
-      speed = -150;
+    } else if (roll < 0.55) {
+      // Yellow bulldog — fast and aggressive
+      tex = 'enemy_short';
+      animKey = 'enemy_short_walk';
+      enemyType = 'bulldog';
+      speed = -140;
+    } else if (roll < 0.80) {
+      // Yellow snake — tall, slower
+      tex = 'enemy_tall';
+      animKey = 'enemy_tall_walk';
+      enemyType = 'snake';
+      speed = -80;
+      displayH = BLOCK * 1.5;
     } else {
       // Green bat — flies in a wave, no gravity
       tex = 'bat_0';
+      animKey = '';
       enemyType = 'bat';
       speed = -120;
-      isBat = true;
     }
 
+    const isBat = enemyType === 'bat';
     const e = this.enemyGroup.create(x, y, tex, 0) as any;
     e.setOrigin(0.5, 1);
-    e.setDisplaySize(BLOCK, BLOCK);
+    e.setDisplaySize(BLOCK, displayH);
     e.body.setGravityY(isBat ? 0 : 1800);
     e.body.setAllowGravity(!isBat);
     e.setVelocityX(speed);
@@ -684,15 +842,15 @@ export class PixelNinjaScene extends BaseScene {
     e.setData('timer', 0);
     e.setData('baseY', y);
 
-    if (tex === 'enemy') {
-      e.anims.play('enemy_walk', true);
+    if (animKey) {
+      e.anims.play(animKey, true);
     }
   }
 
   update(_t: number, dtMs: number) {
     if (this.dead) {
       this.deadTimer -= dtMs;
-      this.mario.setVelocityX(0);
+      this.player.setVelocityX(0);
       if (this.deadTimer <= 0) this.respawn();
       return;
     }
@@ -700,45 +858,43 @@ export class PixelNinjaScene extends BaseScene {
     if (this.warping) return;
 
     if (this.parachuteMode) {
-      // Stop camera from following Mario — lock it in place
-      this.cameras.main.stopFollow();
-
+      // Keep camera following but constrain player to visible screen
       if (this.parachuteSprite) {
-        this.parachuteSprite.x = this.mario.x;
-        // Bottom of parachute (origin 0.5,1) sits at Mario's head
-        const marioH = MARIO_H;
-        this.parachuteSprite.y = this.mario.y - marioH + 8;
+        this.parachuteSprite.x = this.player.x;
+        // Bottom of parachute sits at player's head
+        const playerH = PLAYER_H;
+        this.parachuteSprite.y = this.player.y - playerH + 8;
       }
 
       // Steer left/right within screen bounds (no camera movement)
       const camX = this.cameras.main.scrollX;
       if (this.cursors.left.isDown) {
-        this.mario.setVelocityX(-180);
+        this.player.setVelocityX(-180);
       } else if (this.cursors.right.isDown) {
-        this.mario.setVelocityX(180);
+        this.player.setVelocityX(180);
       } else {
         // Gentle wind drift
-        this.mario.setVelocityX(Math.sin(this.time.now / 1200) * 40);
+        this.player.setVelocityX(Math.sin(this.time.now / 1200) * 40);
       }
 
       // Up/down control: pull up (slow descent) or dive down (faster)
       if (this.cursors.up.isDown) {
-        this.mario.setVelocityY(-120);
+        this.player.setVelocityY(-150);
       } else if (this.cursors.down.isDown) {
-        this.mario.setVelocityY(200);
+        this.player.setVelocityY(350);
       }
 
-      // Keep Mario within visible screen
-      if (this.mario.x < camX + 30) this.mario.x = camX + 30;
-      if (this.mario.x > camX + W - 30) this.mario.x = camX + W - 30;
-      if (this.mario.y < 40) this.mario.y = 40;
+      // Keep Player within visible screen
+      if (this.player.x < camX + 30) this.player.x = camX + 30;
+      if (this.player.x > camX + W - 30) this.player.x = camX + W - 30;
+      if (this.player.y < 40) this.player.y = 40;
       this.parachuteTimer += dtMs;
       if (this.parachuteTimer > 1500) {
         this.parachuteTimer = 0;
         const fromLeft = Math.random() < 0.5;
         const camX = this.cameras.main.scrollX;
         const ex = fromLeft ? camX - 20 : camX + W + 20;
-        const ey = this.mario.y + (Math.random() - 0.3) * 200;
+        const ey = this.player.y + (Math.random() - 0.3) * 200;
         const fe = this.enemyGroup.create(ex, ey, 'enemy', 0) as any;
         fe.setOrigin(0.5, 0.5);
         fe.setDisplaySize(BLOCK, BLOCK);
@@ -755,15 +911,15 @@ export class PixelNinjaScene extends BaseScene {
         if (e.x < pCamLeft - 100 || e.x > pCamLeft + W + 100) { e.destroy(); return false; }
         return true;
       });
-      const pOnGround = this.mario.body.blocked.down || this.mario.body.touching.down;
-      if (pOnGround && this.mario.y >= GROUND_Y - 10) {
+      const pOnGround = this.player.body.blocked.down || this.player.body.touching.down;
+      if (pOnGround && this.player.y >= GROUND_Y - 10) {
         this.endParachute();
       }
-      this.mario.anims.stop();
-      this.mario.setFrame(4); // jump frame while parachuting
-      if (this.cursors.left.isDown) this.mario.flipX = true;
-      else if (this.cursors.right.isDown) this.mario.flipX = false;
-      this.mario.setDisplaySize(MARIO_W, MARIO_H);
+      this.player.anims.stop();
+      this.player.setFrame(4); // jump frame while parachuting
+      if (this.cursors.left.isDown) this.player.flipX = true;
+      else if (this.cursors.right.isDown) this.player.flipX = false;
+      this.player.setDisplaySize(PLAYER_W, PLAYER_H);
       this.syncScoreToHUD();
       return;
     }
@@ -773,29 +929,41 @@ export class PixelNinjaScene extends BaseScene {
     if (this.stompGrace > 0) this.stompGrace -= dtMs * 0.06;
     if (this.fireCooldown > 0) this.fireCooldown -= dtMs * 0.06;
 
+    if (this.isBig) {
+      this.powerTimer -= dtMs;
+      // Flash warning in last 3 seconds
+      if (this.powerTimer < 3000 && this.glowSprite) {
+        this.glowSprite.setVisible(Math.floor(this.time.now / 150) % 2 === 0);
+      }
+      if (this.powerTimer <= 0) {
+        this.isBig = false;
+        if (this.glowSprite) this.glowSprite.setVisible(false);
+      }
+    }
+
     const running = this.keys.shift.isDown;
     const maxSpeed = running ? 320 : 200;
     const accel = running ? 1100 : 800;
 
     if (this.cursors.left.isDown) {
-      this.mario.setAccelerationX(-accel);
+      this.player.setAccelerationX(-accel);
       this.facingRight = false;
-      if (this.mario.body.velocity.x > 0) this.mario.setVelocityX(this.mario.body.velocity.x * 0.7);
+      if (this.player.body.velocity.x > 0) this.player.setVelocityX(this.player.body.velocity.x * 0.7);
     } else if (this.cursors.right.isDown) {
-      this.mario.setAccelerationX(accel);
+      this.player.setAccelerationX(accel);
       this.facingRight = true;
-      if (this.mario.body.velocity.x < 0) this.mario.setVelocityX(this.mario.body.velocity.x * 0.7);
+      if (this.player.body.velocity.x < 0) this.player.setVelocityX(this.player.body.velocity.x * 0.7);
     } else {
-      this.mario.setAccelerationX(0);
-      const v = this.mario.body.velocity.x;
-      if (Math.abs(v) < 12) this.mario.setVelocityX(0);
-      else this.mario.setVelocityX(v * 0.9);
+      this.player.setAccelerationX(0);
+      const v = this.player.body.velocity.x;
+      if (Math.abs(v) < 12) this.player.setVelocityX(0);
+      else this.player.setVelocityX(v * 0.9);
     }
 
-    if (this.mario.body.velocity.x > maxSpeed) this.mario.setVelocityX(maxSpeed);
-    if (this.mario.body.velocity.x < -maxSpeed) this.mario.setVelocityX(-maxSpeed);
+    if (this.player.body.velocity.x > maxSpeed) this.player.setVelocityX(maxSpeed);
+    if (this.player.body.velocity.x < -maxSpeed) this.player.setVelocityX(-maxSpeed);
 
-    const onGround = this.mario.body.blocked.down || this.mario.body.touching.down;
+    const onGround = this.player.body.blocked.down || this.player.body.touching.down;
     if (onGround) {
       this.coyoteTime = 100;
       this.hasDoubleJumped = false;
@@ -817,20 +985,20 @@ export class PixelNinjaScene extends BaseScene {
 
     if (this.jumpBuffer > 0 && this.coyoteTime > 0) {
       // Normal jump
-      this.mario.setVelocityY(-820);
+      this.player.setVelocityY(-820);
       this.jumpBuffer = 0;
       this.coyoteTime = 0;
     } else if (jumpJustPressed && !onGround && this.canDoubleJump && !this.hasDoubleJumped) {
       // Double jump — slightly weaker boost
-      this.mario.setVelocityY(-700);
+      this.player.setVelocityY(-700);
       this.hasDoubleJumped = true;
     }
 
     // Variable jump height: low gravity while ascending and key held.
-    if (jumpKeyDown && this.mario.body.velocity.y < 0) {
-      this.mario.body.setGravityY(900);
+    if (jumpKeyDown && this.player.body.velocity.y < 0) {
+      this.player.body.setGravityY(900);
     } else {
-      this.mario.body.setGravityY(1800);
+      this.player.body.setGravityY(1800);
     }
 
     if (this.isBig && this.fireCooldown <= 0 &&
@@ -840,25 +1008,25 @@ export class PixelNinjaScene extends BaseScene {
     }
 
     const camLeft = this.cameras.main.scrollX;
-    if (this.mario.x < camLeft) {
-      this.mario.x = camLeft;
-      this.mario.setVelocityX(0);
+    if (this.player.x < camLeft) {
+      this.player.x = camLeft;
+      this.player.setVelocityX(0);
     }
 
-    if (onGround && !this.isInGap(this.mario.x)) {
-      this.lastSafeX = this.mario.x;
+    if (onGround && !this.isInGap(this.player.x)) {
+      this.lastSafeX = this.player.x;
     }
 
-    // Warp / golden pipe check — Mario must be standing ON TOP of the pipe
+    // Warp / golden pipe check — Player must be standing ON TOP of the pipe
     if (onGround && this.cursors.down.isDown && !this.warping) {
       const pipes = this.pipeGroup.getChildren() as any[];
       for (const p of pipes) {
         if (!p.getData('warp') && !p.getData('gold')) continue;
-        const pdx = Math.abs(this.mario.x - p.x);
-        // Mario's feet (y with origin 0.5,1) should be at the pipe top edge
+        const pdx = Math.abs(this.player.x - p.x);
+        // Player's feet (y with origin 0.5,1) should be at the pipe top edge
         const pipeTop = p.y - BLOCK / 2;
-        const feetDelta = Math.abs(this.mario.y - pipeTop);
-        // Also accept Mario standing at ground level next to a short pipe
+        const feetDelta = Math.abs(this.player.y - pipeTop);
+        // Also accept Player standing at ground level next to a short pipe
         if (pdx < BLOCK * 1.5 && feetDelta < BLOCK) {
           if (p.getData('gold') && !this.parachuteMode) {
             this.startParachute(p);
@@ -870,7 +1038,7 @@ export class PixelNinjaScene extends BaseScene {
       }
     }
 
-    if (this.mario.y > H + 50) {
+    if (this.player.y > H + 50) {
       this.die();
       return;
     }
@@ -878,7 +1046,7 @@ export class PixelNinjaScene extends BaseScene {
     const edge = this.cameras.main.scrollX + W + 600;
     if (edge > this.genX) this.generateLevel(this.genX, edge);
 
-    const vx = this.mario.body.velocity.x;
+    const vx = this.player.body.velocity.x;
     const speed = Math.abs(vx);
     // Player-intent direction this frame (from input). Used to detect skid.
     const left = this.cursors.left.isDown;
@@ -890,42 +1058,130 @@ export class PixelNinjaScene extends BaseScene {
     const sheetKey = 'player';
     const walkAnim = 'player_walk';
 
-    // Size is always the same (no big/small visual change)
-    this.mario.setDisplaySize(MARIO_W, MARIO_H);
+    // Scale — always same size, glow indicates power-up
+    this.player.setDisplaySize(PLAYER_W, PLAYER_H);
+
+    if (this.glowSprite) {
+      if (this.isBig) {
+        this.glowSprite.setVisible(true);
+        this.glowSprite.x = this.player.x;
+        this.glowSprite.y = this.player.y - PLAYER_H / 2;
+        // Pulse the glow
+        this.glowSprite.setAlpha(0.35 + Math.sin(this.time.now / 200) * 0.15);
+      } else {
+        this.glowSprite.setVisible(false);
+      }
+    }
 
     // Ensure correct texture
-    if (this.mario.texture.key !== sheetKey) {
-      this.mario.setTexture(sheetKey, 0);
+    if (this.player.texture.key !== sheetKey) {
+      this.player.setTexture(sheetKey, 0);
     }
 
     if (!onGround) {
-      this.mario.anims.stop();
-      this.mario.setFrame(4); // jump
+      this.player.anims.stop();
+      this.player.setFrame(4); // jump
     } else if (intent !== 0 && moveDir !== 0 && intent !== moveDir && speed > 60) {
-      this.mario.anims.stop();
-      this.mario.setFrame(0); // no skid frame in new set, use idle
+      this.player.anims.stop();
+      this.player.setFrame(0); // no skid frame in new set, use idle
     } else if (speed > 20) {
-      this.mario.anims.play(walkAnim, true);
+      this.player.anims.play(walkAnim, true);
       const animFps = Math.max(6, Math.min(20, speed / 20));
-      this.mario.anims.msPerFrame = 1000 / animFps;
+      this.player.anims.msPerFrame = 1000 / animFps;
     } else {
-      this.mario.anims.stop();
-      this.mario.setFrame(0); // idle
+      this.player.anims.stop();
+      this.player.setFrame(0); // idle
     }
 
     // Face the input direction while skidding (so skid sprite looks "back"
     // toward old motion); otherwise face current motion / last facing.
     if (intent !== 0) this.facingRight = intent > 0;
     else if (moveDir !== 0) this.facingRight = moveDir > 0;
-    this.mario.flipX = !this.facingRight;
+    this.player.flipX = !this.facingRight;
 
     const blink = (this.invincible > 0 || this.shrinkTimer > 0) && Math.floor(this.time.now / 80) % 2 === 0;
-    this.mario.setVisible(!blink);
+    this.player.setVisible(!blink);
 
     (this.coinGroup.getChildren() as any[]).forEach(c => {
       const i = Math.floor(this.time.now / 120) % 2;
       c.setTexture(i === 0 ? 'coin0' : 'coin1');
       if (c.x < camLeft - 100) c.destroy();
+    });
+
+    // Bridge collapse — unstable tiles start falling when player approaches
+    (this.bridgeGroup.getChildren() as any[]).forEach((bt: any) => {
+      if (!bt.active || !bt.getData('unstable') || bt.getData('collapsing')) return;
+      const dx = Math.abs(this.player.x - bt.x);
+      if (dx < BLOCK * 3) {
+        bt.setData('collapsing', true);
+        // Shake warning
+        this.tweens.add({
+          targets: bt,
+          x: bt.x + 2,
+          duration: 50,
+          yoyo: true,
+          repeat: 4,
+          onComplete: () => {
+            // Fall away
+            bt.body.enable = false;
+            this.tweens.add({
+              targets: bt,
+              y: bt.y + 300,
+              alpha: 0,
+              duration: 500,
+              onComplete: () => bt.destroy(),
+            });
+          },
+        });
+      }
+    });
+
+    // Fire eruptions — shoot up from gaps when player approaches
+    (this.fireGroup.getChildren() as any[]).forEach((f: any) => {
+      if (!f.active) return;
+      const dx = Math.abs(this.player.x - f.getData('gapX'));
+      const baseY = f.getData('baseY');
+      const isActive = f.getData('active');
+      
+      if (dx < BLOCK * 4 && !isActive) {
+        // Player approaching — erupt!
+        f.setData('active', true);
+        f.setVisible(true);
+        f.body.enable = true;
+        f.y = baseY;
+        this.tweens.add({
+          targets: f,
+          y: GROUND_Y - BLOCK * 2,
+          duration: 300,
+          ease: 'Quad.easeOut',
+          onComplete: () => {
+            // Hold briefly then retract
+            this.time.delayedCall(800, () => {
+              if (!f.active) return;
+              this.tweens.add({
+                targets: f,
+                y: baseY,
+                duration: 400,
+                onComplete: () => {
+                  f.setVisible(false);
+                  f.body.enable = false;
+                  // Reset after cooldown
+                  this.time.delayedCall(2000, () => {
+                    if (f.active) f.setData('active', false);
+                  });
+                },
+              });
+            });
+          },
+        });
+      }
+      
+      // Flicker effect while visible
+      if (f.visible) {
+        f.setAlpha(0.8 + Math.sin(this.time.now / 50) * 0.2);
+      }
+      
+      if (f.x < camLeft - 200) f.destroy();
     });
 
     // Piranha plant animation
@@ -935,7 +1191,7 @@ export class PixelNinjaScene extends BaseScene {
       const pipeTopY = p.getData('pipeTopY');
       const cycle = 4000;
       const phase = (timer % cycle) / cycle;
-      const dx = Math.abs(this.mario.x - p.getData('pipeX'));
+      const dx = Math.abs(this.player.x - p.getData('pipeX'));
       if (dx < BLOCK * 2) {
         p.setVisible(false);
         p.body.enable = false;
@@ -988,22 +1244,14 @@ export class PixelNinjaScene extends BaseScene {
 
     if (state === 'walk' || state === 'flying') {
       // Animate based on enemy type
-      if (enemyType === 'monster') {
-        if (!e.anims.isPlaying || e.anims.currentAnim?.key !== 'enemy_walk') {
-          e.anims.play('enemy_walk', true);
-        }
-      } else if (enemyType === 'slime') {
-        const frame = Math.floor(this.time.now / 200) % 2;
-        e.setTexture(frame === 0 ? 'slime_0' : 'slime_1');
-        e.setDisplaySize(BLOCK, BLOCK);
-      } else if (enemyType === 'bat') {
+      if (enemyType === 'bat') {
         const frame = Math.floor(this.time.now / 150) % 2;
         e.setTexture(frame === 0 ? 'bat_0' : 'bat_1');
         e.setDisplaySize(BLOCK, BLOCK);
-        // Wave pattern flight
         const baseY = e.getData('baseY') || GROUND_Y - BLOCK * 2;
         e.y = baseY + Math.sin(this.time.now / 400 + e.x * 0.01) * 40;
       }
+      // monster, bulldog, snake all use anims — no manual texture swap needed
 
       if (kind === 'rkoopa' && (e.body.blocked.down || e.body.touching.down)) {
         const ahead = e.x + (e.body.velocity.x > 0 ? BLOCK : -BLOCK);
@@ -1022,14 +1270,16 @@ export class PixelNinjaScene extends BaseScene {
     }
   }
 
-  private onMarioHitBrick(_mario: any, brick: any) {
-    if (!this.mario.body.touching.up) return;
-    if (Math.abs(brick.x - this.mario.x) > BLOCK * 0.55) return;
+  private onPlayerHitBrick(_player: any, brick: any) {
+    if (!this.player.body.touching.up) return;
+    if (Math.abs(brick.x - this.player.x) > BLOCK * 0.55) return;
+    // Collect any coins sitting above this block
+    this.collectCoinsAbove(brick.x, brick.y);
     if (this.isBig) {
       brick.destroy();
       this.addScore(50, brick.x, brick.y - 20);
     } else {
-      // Small Mario: bump animation only (no destruction)
+      // Small player: bump animation only (no destruction)
       if (!brick.getData('bumping')) {
         brick.setData('bumping', true);
         const origY = brick.y;
@@ -1041,10 +1291,12 @@ export class PixelNinjaScene extends BaseScene {
     }
   }
 
-  private onMarioHitQBlock(_mario: any, q: any) {
+  private onPlayerHitQBlock(_player: any, q: any) {
     if (q.getData('hit')) return;
-    if (!this.mario.body.touching.up) return;
-    if (Math.abs(q.x - this.mario.x) > BLOCK * 0.55) return;
+    if (!this.player.body.touching.up) return;
+    if (Math.abs(q.x - this.player.x) > BLOCK * 0.55) return;
+    // Collect any coins sitting above this block
+    this.collectCoinsAbove(q.x, q.y);
     q.setData('hit', true);
     q.setTexture('qblock_used');
     q.setDisplaySize(BLOCK, BLOCK);
@@ -1079,44 +1331,64 @@ export class PixelNinjaScene extends BaseScene {
     });
   }
 
-  private onMarioCoin(_mario: any, c: any) {
+  private onPlayerCoin(_player: any, c: any) {
     c.destroy();
     this.addScore(100, c.x, c.y);
   }
 
-  private onMarioMushroom(_mario: any, m: any) {
+  /** Collect any coins sitting directly above a block (within 1 block). */
+  private collectCoinsAbove(blockX: number, blockY: number) {
+    (this.coinGroup.getChildren() as any[]).forEach((c: any) => {
+      if (!c.active) return;
+      const dx = Math.abs(c.x - blockX);
+      const dy = blockY - c.y; // coin should be above (positive = above)
+      if (dx < BLOCK * 0.7 && dy > 0 && dy < BLOCK * 1.5) {
+        // Pop the coin upward then destroy
+        this.tweens.add({
+          targets: c,
+          y: c.y - BLOCK,
+          alpha: 0,
+          duration: 300,
+          onComplete: () => c.destroy(),
+        });
+        this.addScore(100, c.x, c.y);
+      }
+    });
+  }
+
+  private onPlayerMushroom(_player: any, m: any) {
     m.destroy();
     if (!this.isBig) {
       this.isBig = true;
-      this.addScore(1000, this.mario.x, this.mario.y - 20);
-      // Visual feedback: golden flash + scale pulse
-      this.mario.setTint(0xffdd00);
-      this.tweens.add({
-        targets: this.mario,
-        scaleX: this.mario.scaleX * 1.4,
-        scaleY: this.mario.scaleY * 1.4,
-        duration: 150,
-        yoyo: true,
-        onComplete: () => {
-          this.mario.setTint(0x44aaff); // blue tint = powered up
-          this.mario.setDisplaySize(MARIO_W, MARIO_H);
-        },
+      this.powerTimer = 15000; // 15 seconds
+      this.addScore(1000, this.player.x, this.player.y - 20);
+      // Growth flash — briefly golden then normal
+      this.player.setTint(0xffdd00);
+      this.time.delayedCall(300, () => {
+        if (this.isBig) this.player.clearTint();
       });
+      if (!this.glowSprite) {
+        this.glowSprite = this.add.sprite(this.player.x, this.player.y - PLAYER_H/2, 'glow');
+        this.glowSprite.setDisplaySize(PLAYER_W * 1.6, PLAYER_H * 1.6);
+        this.glowSprite.setAlpha(0.5);
+        this.glowSprite.setDepth(9);
+        this.glowSprite.setBlendMode(Phaser.BlendModes.ADD);
+      }
     }
   }
 
-  private onMarioEnemy(_mario: any, e: any) {
+  private onPlayerEnemy(_player: any, e: any) {
     if (this.invincible > 0 || this.stompGrace > 0 || this.shrinkTimer > 0) return;
     const state = e.getData('state');
     const kind = e.getData('kind');
 
-    const marioBottom = this.mario.y;
+    const playerBottom = this.player.y;
     const enemyTop = e.y - e.displayHeight;
-    const stomping = this.mario.body.velocity.y > 50 &&
-                     marioBottom < enemyTop + e.displayHeight * 0.5;
+    const stomping = this.player.body.velocity.y > 50 &&
+                     playerBottom < enemyTop + e.displayHeight * 0.5;
 
     if (stomping) {
-      this.mario.setVelocityY(-450);
+      this.player.setVelocityY(-450);
       this.stompGrace = 25;
       if (kind === 'goomba') {
         this.killGoomba(e);
@@ -1124,7 +1396,7 @@ export class PixelNinjaScene extends BaseScene {
         this.becomeShell(e);
         this.addScore(200, e.x, e.y - 20);
       } else if (state === 'shell_still') {
-        const dir = this.mario.x < e.x ? 1 : -1;
+        const dir = this.player.x < e.x ? 1 : -1;
         e.setData('state', 'shell');
         e.setVelocityX(dir * 400);
         this.addScore(100, e.x, e.y - 20);
@@ -1135,7 +1407,7 @@ export class PixelNinjaScene extends BaseScene {
         this.addScore(100, e.x, e.y - 20);
       }
     } else if (state === 'shell_still') {
-      const dir = this.mario.x < e.x ? 1 : -1;
+      const dir = this.player.x < e.x ? 1 : -1;
       e.setData('state', 'shell');
       e.setVelocityX(dir * 400);
       this.stompGrace = 15;
@@ -1170,7 +1442,12 @@ export class PixelNinjaScene extends BaseScene {
     e.setData('state', 'dying');
     e.disableBody(false, false);
     e.anims.stop();
-    e.setFrame(4); // dead frame in enemy strip
+    if (e.getData('enemyType') === 'snake') {
+      e.setFrame(4);
+      e.setDisplaySize(BLOCK, BLOCK * 0.5); // squished
+    } else {
+      e.setFrame(4); // dead frame in all strips
+    }
     this.addScore(200, e.x, e.y - 20);
     this.tweens.add({
       targets: e,
@@ -1223,7 +1500,7 @@ export class PixelNinjaScene extends BaseScene {
 
   private throwFireball() {
     const dir = this.facingRight ? 1 : -1;
-    const fb = this.fireballGroup.create(this.mario.x + dir * 20, this.mario.y + 20, 'fireball') as any;
+    const fb = this.fireballGroup.create(this.player.x + dir * 20, this.player.y + 20, 'fireball') as any;
     fb.body.setSize(14, 14);
     fb.setVelocityX(dir * 450);
     fb.setVelocityY(-100);
@@ -1233,8 +1510,9 @@ export class PixelNinjaScene extends BaseScene {
   private takeHit() {
     if (this.isBig) {
       this.isBig = false;
-      this.mario.clearTint();
+      this.player.clearTint();
       this.shrinkTimer = 60;
+      if (this.glowSprite) this.glowSprite.setVisible(false);
     } else {
       this.die();
     }
@@ -1246,31 +1524,49 @@ export class PixelNinjaScene extends BaseScene {
     this.syncLivesToHUD();
     this.dead = true;
     this.deadTimer = 1200;
-    this.mario.setVelocity(0, -500);
-    this.mario.body.checkCollision.none = true;
+    this.player.setVelocity(0, -500);
+    this.player.body.checkCollision.none = true;
     this.isBig = false;
-    this.mario.clearTint();
+    this.player.clearTint();
+    if (this.glowSprite) this.glowSprite.setVisible(false);
     if (this.parachuteMode) this.endParachute();
   }
 
   private respawn() {
     if (this.lives <= 0) {
-      // Game over — reset everything
-      this.lives = 3;
-      this.score = 0;
-      this.syncScoreToHUD();
-      this.syncLivesToHUD();
+      // Game over — show leaderboard
+      this.dead = false;
+      this.player.setVisible(false);
+      this.showGameOver(this.score, () => {
+        this.lives = 3;
+        this.score = 0;
+        this.syncScoreToHUD();
+        this.syncLivesToHUD();
+        this.player.setVisible(true);
+        let x = Math.max(this.lastSafeX, this.cameras.main.scrollX + 200);
+        while (this.isInGap(x)) x += BLOCK;
+        this.player.setPosition(x, GROUND_Y - 100);
+        this.player.setVelocity(0, 0);
+        this.player.body.checkCollision.none = false;
+        this.player.clearTint();
+        this.invincible = 90;
+        this.shrinkTimer = 0;
+        this.stompGrace = 0;
+        if (this.glowSprite) this.glowSprite.setVisible(false);
+      });
+      return;
     }
     this.dead = false;
     let x = Math.max(this.lastSafeX, this.cameras.main.scrollX + 200);
     while (this.isInGap(x)) x += BLOCK;
-    this.mario.setPosition(x, GROUND_Y - 100);
-    this.mario.setVelocity(0, 0);
-    this.mario.body.checkCollision.none = false;
-    this.mario.clearTint();
+    this.player.setPosition(x, GROUND_Y - 100);
+    this.player.setVelocity(0, 0);
+    this.player.body.checkCollision.none = false;
+    this.player.clearTint();
     this.invincible = 90;
     this.shrinkTimer = 0;
     this.stompGrace = 0;
+    if (this.glowSprite) this.glowSprite.setVisible(false);
   }
 
   private syncLivesToHUD() {
@@ -1278,12 +1574,60 @@ export class PixelNinjaScene extends BaseScene {
     if (el) el.textContent = String(this.lives);
   }
 
-  private onMarioPiranha(_mario: any, _p: any) {
+  private syncLevelToHUD() {
+    const el = document.getElementById('level-value');
+    if (el) el.textContent = String(this.currentLevel);
+  }
+
+  private onPlayerBridge(_player: any, _tile: any) {
+    // Collision still needed for standing — collapse is handled by proximity in update
+  }
+
+  private onPlayerFlag(_player: any, flag: any) {
+    flag.destroy();
+    this.currentLevel++;
+    this.syncLevelToHUD();
+    this.addScore(5000, flag.x, flag.y - 30);
+
+    const cam = this.cameras.main;
+    cam.flash(500, 255, 255, 255, false);
+
+    const txt = this.add.text(this.player.x, this.player.y - 80, `LEVEL ${this.currentLevel}!`, {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '24px',
+      color: '#ffdd00',
+      stroke: '#000',
+      strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(1000);
+
+    this.tweens.add({
+      targets: txt,
+      y: txt.y - 60,
+      alpha: 0,
+      duration: 2000,
+      onComplete: () => txt.destroy(),
+    });
+  }
+
+  private onPlayerPiranha(_player: any, _p: any) {
     if (this.invincible > 0 || this.shrinkTimer > 0) return;
     if (this.isBig) {
       this.isBig = false;
       this.shrinkTimer = 60;
       this.invincible = 90;
+      if (this.glowSprite) this.glowSprite.setVisible(false);
+    } else {
+      this.die();
+    }
+  }
+
+  private onPlayerFire(_player: any, _f: any) {
+    if (this.invincible > 0 || this.shrinkTimer > 0) return;
+    if (this.isBig) {
+      this.isBig = false;
+      this.shrinkTimer = 60;
+      this.invincible = 90;
+      if (this.glowSprite) this.glowSprite.setVisible(false);
     } else {
       this.die();
     }
@@ -1291,34 +1635,43 @@ export class PixelNinjaScene extends BaseScene {
 
   private startWarp(sourcePipe: any) {
     this.warping = true;
-    this.mario.setVelocity(0, 0);
-    this.mario.body.setAllowGravity(false);
+    this.player.setVelocity(0, 0);
+    this.player.body.setAllowGravity(false);
     this.tweens.add({
-      targets: this.mario,
+      targets: this.player,
       y: sourcePipe.y + BLOCK,
       duration: 500,
       onComplete: () => {
+        // Find the next pipe far enough ahead — skip segments of the same pipe
+        // Pipes are 2*BLOCK wide, so anything within 3*BLOCK is the same pipe
+        const minX = sourcePipe.x + BLOCK * 8;
         const pipes = (this.pipeGroup.getChildren() as any[])
-          .filter((p: any) => p.x > sourcePipe.x + BLOCK * 5)
+          .filter((p: any) => p.x > minX)
           .sort((a: any, b: any) => a.x - b.x);
+        // Pick the top segment of the next pipe (lowest y value at that x)
         const dest = pipes[0];
         if (dest) {
-          const destTop = dest.y - BLOCK / 2;
-          this.mario.setPosition(dest.x, destTop + BLOCK);
-          this.mario.setVisible(false);
+          // Find the topmost segment at this pipe's x position
+          const topSeg = pipes.filter((p: any) => Math.abs(p.x - dest.x) < BLOCK)
+            .sort((a: any, b: any) => a.y - b.y)[0];
+          const destTop = topSeg.y - BLOCK / 2;
+          this.player.setPosition(topSeg.x, destTop + BLOCK);
+          this.player.setVisible(false);
           this.tweens.add({
-            targets: this.mario,
+            targets: this.player,
             y: destTop - 10,
             duration: 400,
-            onStart: () => this.mario.setVisible(true),
+            onStart: () => this.player.setVisible(true),
             onComplete: () => {
-              this.mario.body.setAllowGravity(true);
+              this.player.body.setAllowGravity(true);
               this.warping = false;
-              this.addScore(200, this.mario.x, this.mario.y - 20);
+              this.addScore(200, this.player.x, this.player.y - 20);
             },
           });
         } else {
-          this.mario.body.setAllowGravity(true);
+          // No destination pipe — pop back up from source
+          this.player.setPosition(sourcePipe.x, sourcePipe.y - BLOCK);
+          this.player.body.setAllowGravity(true);
           this.warping = false;
         }
       },
@@ -1328,23 +1681,23 @@ export class PixelNinjaScene extends BaseScene {
   private startParachute(pipe: any) {
     this.warping = true;
     this.parachuteMode = true;
-    this.mario.setVelocity(0, 0);
-    this.mario.body.setAllowGravity(false);
+    this.player.setVelocity(0, 0);
+    this.player.body.setAllowGravity(false);
     this.tweens.add({
-      targets: this.mario,
+      targets: this.player,
       y: pipe.y + BLOCK,
       duration: 500,
       onComplete: () => {
         const targetX = this.cameras.main.scrollX + W / 2;
-        this.mario.setPosition(targetX, 60);
-        this.mario.setVisible(true);
-        this.mario.body.setAllowGravity(true);
-        this.mario.body.setGravityY(100);
-        this.mario.setMaxVelocity(200, 80);
+        this.player.setPosition(targetX, 60);
+        this.player.setVisible(true);
+        this.player.body.setAllowGravity(true);
+        this.player.body.setGravityY(100);
+        this.player.setMaxVelocity(200, 350);
         this.warping = false;
-        this.parachuteSprite = this.add.sprite(this.mario.x, this.mario.y - 80, 'parachute');
+        this.parachuteSprite = this.add.sprite(this.player.x, this.player.y - 80, 'parachute');
         this.parachuteSprite.setDisplaySize(96, 120);
-        this.parachuteSprite.setOrigin(0.5, 1); // bottom-center anchored to Mario's head
+        this.parachuteSprite.setOrigin(0.5, 1); // bottom-center anchored to player's head
         this.parachuteSprite.setDepth(9);
         for (let i = 0; i < 8; i++) {
           const cx = targetX + (Math.random() - 0.5) * W * 0.6;
@@ -1367,13 +1720,12 @@ export class PixelNinjaScene extends BaseScene {
       this.parachuteSprite.destroy();
       this.parachuteSprite = undefined;
     }
-    this.mario.body.setGravityY(1800);
-    this.mario.setMaxVelocity(700, 900);
-    this.mario.setAccelerationX(0);
-    // Re-enable camera follow
-    this.cameras.main.startFollow(this.mario, true, 0.15, 0.05, -W * 0.2, 0);
+    this.player.body.setGravityY(1800);
+    this.player.setMaxVelocity(700, 900);
+    this.player.setAccelerationX(0);
+    // Camera is already following — no need to restart
     this.parachuteFlyingEnemies.forEach(e => { if (e.active) e.destroy(); });
     this.parachuteFlyingEnemies = [];
-    this.addScore(500, this.mario.x, this.mario.y - 30);
+    this.addScore(500, this.player.x, this.player.y - 30);
   }
 }

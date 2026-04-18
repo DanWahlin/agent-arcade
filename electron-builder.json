@@ -1,6 +1,6 @@
 {
-  "appId": "com.danwahlin.agentbreak",
-  "productName": "Agent Break",
+  "appId": "com.danwahlin.agentarcade",
+  "productName": "Agent Arcade",
   "files": [
     "dist/**/*",
     "package.json"

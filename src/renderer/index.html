@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Agent Break</title>
+  <title>Agent Arcade</title>
   <style>
     html, body {
       margin: 0;
@@ -150,6 +150,31 @@
         0 2px 0 rgba(0, 0, 0, 0.6);
       min-width: 20px;
       text-align: center;
+    }
+
+    .level-value {
+      font-family: 'SF Mono', ui-monospace, Menlo, monospace;
+      font-size: 20px;
+      font-weight: 900;
+      color: #4fc3f7;
+      text-shadow:
+        0 0 8px rgba(79, 195, 247, 0.9),
+        0 0 14px rgba(33, 150, 243, 0.5),
+        0 2px 0 rgba(0, 0, 0, 0.6);
+      min-width: 20px;
+      text-align: center;
+    }
+
+    .hi-value {
+      font-family: 'SF Mono', ui-monospace, Menlo, monospace;
+      font-size: 16px;
+      font-weight: 900;
+      color: #aaa;
+      text-shadow:
+        0 0 6px rgba(170, 170, 170, 0.5),
+        0 2px 0 rgba(0, 0, 0, 0.6);
+      min-width: 50px;
+      text-align: right;
     }
 
     /* Help button */
@@ -336,7 +361,7 @@
 <body>
   <div id="hud">
     <div class="hud-section">
-      <span id="hud-title" class="title">AGENT BREAK</span>
+      <span id="hud-title" class="title">AGENT ARCADE</span>
     </div>
     <div class="hud-spacer"></div>
     <div class="hud-section">
@@ -361,11 +386,16 @@
       <span class="score-label">SCORE</span>
       <span id="score-value" class="score-value">0</span>
     </div>
+    <div class="hud-divider"></div>
+    <div class="hud-section score-wrap">
+      <span class="score-label">HI</span>
+      <span id="hi-value" class="hi-value">0</span>
+    </div>
   </div>
 
   <div id="help-overlay">
     <div id="help-modal" role="dialog" aria-labelledby="help-title">
-      <h2 id="help-title">🍄 AGENT BREAK</h2>
+      <h2 id="help-title">🎮 AGENT ARCADE</h2>
       <p class="subtitle">Controls</p>
       <div class="help-grid">
         <div class="keys"><kbd>←</kbd><kbd>→</kbd></div>
@@ -409,11 +439,11 @@
       function isPaused() { return hud.classList.contains('paused'); }
       function setPaused(p) {
         hud.classList.toggle('paused', p);
-        if (window.__agentBreakPause) {
-          try { window.__agentBreakPause(p); } catch (e) {}
-        } else if (window.agentBreak && window.agentBreak.setClickThrough) {
-          window.agentBreak.setClickThrough(p);
-          if (window.agentBreak.setPaused) window.agentBreak.setPaused(p);
+        if (window.__agentArcadePause) {
+          try { window.__agentArcadePause(p); } catch (e) {}
+        } else if (window.agentArcade && window.agentArcade.setClickThrough) {
+          window.agentArcade.setClickThrough(p);
+          if (window.agentArcade.setPaused) window.agentArcade.setPaused(p);
         }
       }
 

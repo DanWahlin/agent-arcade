@@ -1,4 +1,4 @@
-# 🥷 Agent Break
+# 🥷 Agent Arcade
 
 A stress-relief retro platformer that runs as a transparent overlay on your desktop. Play while waiting for your AI agents (Copilot CLI, Claude Code, Codex) to finish thinking.
 
@@ -42,3 +42,5 @@ git push origin v0.2.0
 ## Credits
 
 Sprite assets: [Simple Platformer 16](https://juhosprite.itch.io/simple-platformer-16) by JuhoSprite
+
+Space shooter assets: [Space Shooter Redux](https://opengameart.org/content/space-shooter-redux) by Kenney.nl
