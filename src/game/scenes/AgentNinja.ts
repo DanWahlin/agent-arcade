@@ -1009,7 +1009,7 @@ export class AgentNinjaScene extends BaseScene {
       if (this.player.x > camX + W - 30) this.player.x = camX + W - 30;
       if (this.player.y < 40) this.player.y = 40;
       this.parachuteTimer += dtMs;
-      if (this.parachuteTimer > 1500) {
+      if (this.parachuteTimer > 1500 && this.parachuteFlyingEnemies.length < 15) {
         this.parachuteTimer = 0;
         const fromLeft = Math.random() < 0.5;
         const camX = this.cameras.main.scrollX;

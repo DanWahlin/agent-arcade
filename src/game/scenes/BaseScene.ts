@@ -11,6 +11,7 @@ export abstract class BaseScene extends Phaser.Scene {
   protected score = 0;
   protected highScore = 0;
   private scoreAnimTimer?: number;
+  private gameOverKeyListener?: (ev: KeyboardEvent) => void;
 
   constructor(key: string) {
     super(key);
@@ -114,7 +115,11 @@ export abstract class BaseScene extends Phaser.Scene {
   protected getLeaderboard(): number[] {
     const stored = this.storageGet(`agentArcade_board_${this.scene.key}`);
     if (!stored) return [];
-    try { return JSON.parse(stored); } catch { return []; }
+    try {
+      const parsed = JSON.parse(stored);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter((n: unknown) => typeof n === 'number');
+    } catch { return []; }
   }
 
   /** Add a score to the leaderboard, keep top 10, return rank (1-based, 0 = not in top 10). */
@@ -293,6 +298,7 @@ export abstract class BaseScene extends Phaser.Scene {
     const onKey = (ev: KeyboardEvent) => {
       if (ev.code === 'Space' || ev.code === 'Enter') { ev.preventDefault(); dismiss(); }
     };
+    this.gameOverKeyListener = onKey;
     // Brief delay before accepting input (prevent accidental dismiss)
     this.time.delayedCall(500, () => {
       document.addEventListener('keydown', onKey);
@@ -310,6 +316,20 @@ export abstract class BaseScene extends Phaser.Scene {
   resumeGame() {
     this.scene.resume();
     this.sound.resumeAll();
+  }
+
+  /** Clean up timers and listeners on scene shutdown. */
+  shutdown() {
+    if (this.scoreAnimTimer) {
+      clearInterval(this.scoreAnimTimer);
+      this.scoreAnimTimer = undefined;
+    }
+    if (this.gameOverKeyListener) {
+      document.removeEventListener('keydown', this.gameOverKeyListener);
+      this.gameOverKeyListener = undefined;
+    }
+    const overlay = document.getElementById('gameover-overlay');
+    if (overlay) overlay.remove();
   }
 
   /** Return the display name for the HUD. */

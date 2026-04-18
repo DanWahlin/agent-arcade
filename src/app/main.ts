@@ -18,6 +18,7 @@ let win: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let visible = false;
 let paused = false;
+let escRegistered = false;
 
 function createWindow() {
   const display = screen.getPrimaryDisplay();
@@ -59,7 +60,9 @@ function createWindow() {
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
   win.loadFile(path.join(__dirname, '..', 'game', 'index.html'));
-  win.webContents.openDevTools({ mode: 'detach' });
+  if (!app.isPackaged) {
+    win.webContents.openDevTools({ mode: 'detach' });
+  }
 
   win.webContents.on('console-message', (_e, level, message, line, sourceId) => {
     log('renderer:', level, message, sourceId + ':' + line);
@@ -96,24 +99,28 @@ function createWindow() {
 function setPausedState(isPaused: boolean) {
   paused = !!isPaused;
   if (paused) {
-    // While paused, register Esc as a global shortcut so the user can resume
-    // even if focus has moved to another app (click-through is on while paused).
-    try {
-      globalShortcut.register('Escape', () => {
-        if (!win) return;
-        win.setIgnoreMouseEvents(false);
-        win.show();
-        app.focus({ steal: true });
-        win.focus();
-        win.webContents.focus();
-        win.webContents.send('agent-arcade:resume');
-        setPausedState(false);
-      });
-    } catch (e) {
-      log('failed to register global Escape:', String(e));
+    if (!escRegistered) {
+      try {
+        globalShortcut.register('Escape', () => {
+          if (!win) return;
+          win.setIgnoreMouseEvents(false);
+          win.show();
+          app.focus({ steal: true });
+          win.focus();
+          win.webContents.focus();
+          win.webContents.send('agent-arcade:resume');
+          setPausedState(false);
+        });
+        escRegistered = true;
+      } catch (e) {
+        log('failed to register global Escape:', String(e));
+      }
     }
   } else {
-    try { globalShortcut.unregister('Escape'); } catch {}
+    if (escRegistered) {
+      try { globalShortcut.unregister('Escape'); } catch {}
+      escRegistered = false;
+    }
   }
 }
 
@@ -191,13 +198,14 @@ if (!gotLock) {
     log('whenReady fired');
 
     ipcMain.on('agent-arcade:set-click-through', (_e, enabled: boolean) => {
-      if (!win) return;
+      if (!win || win.isDestroyed()) return;
       // forward: true keeps mouse-move events flowing for hover detection
       // while clicks pass through to apps below.
       win.setIgnoreMouseEvents(!!enabled, { forward: true });
     });
 
     ipcMain.on('agent-arcade:set-paused', (_e, isPaused: boolean) => {
+      if (!win || win.isDestroyed()) return;
       setPausedState(!!isPaused);
     });
 

@@ -402,6 +402,9 @@ export class AgentGalaxyScene extends BaseScene {
   private shieldSprite?: any;
   private shieldPickups: any[] = [];
 
+  /* particle cleanup */
+  private activeEmitters: any[] = [];
+
   /* enemies */
   private enemies: Enemy[] = [];
   private enemyBullets: Bullet[] = [];
@@ -460,6 +463,7 @@ export class AgentGalaxyScene extends BaseScene {
     this.bullets = [];
     this.enemyBullets = [];
     this.spawnQueue = [];
+    this.activeEmitters = [];
     this.enemyOffset = -50 * CONV_X;
     this.driftDirection = 1;
     this.driftTimer = 0;
@@ -1232,7 +1236,11 @@ export class AgentGalaxyScene extends BaseScene {
     });
     emitter.setDepth(50);
     emitter.explode(kind === 'player' ? 40 : 25);
-    this.time.delayedCall(800, () => { if (emitter && emitter.active) emitter.destroy(); });
+    this.activeEmitters.push(emitter);
+    this.time.delayedCall(800, () => {
+      if (emitter && emitter.active) emitter.destroy();
+      this.activeEmitters = this.activeEmitters.filter(e => e !== emitter);
+    });
   }
 
   /* ================================================================
@@ -1247,5 +1255,13 @@ export class AgentGalaxyScene extends BaseScene {
   private syncLevelToHUD() {
     const el = document.getElementById('level-value');
     if (el) el.textContent = String(this.wave);
+  }
+
+  shutdown() {
+    super.shutdown();
+    this.activeEmitters.forEach(e => { if (e && e.active) e.destroy(); });
+    this.activeEmitters = [];
+    const banner = document.getElementById('wave-banner');
+    if (banner) banner.remove();
   }
 }
