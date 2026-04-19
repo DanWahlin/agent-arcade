@@ -16,10 +16,13 @@ jobs:
         include:
           - os: macos-latest
             platform: mac
+            args: '--target universal-apple-darwin'
           - os: windows-latest
             platform: win
-          - os: ubuntu-latest
+            args: ''
+          - os: ubuntu-22.04
             platform: linux
+            args: ''
 
     runs-on: ${{ matrix.os }}
 
@@ -33,25 +36,42 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'mac' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Build & package
-        run: npm run dist:${{ matrix.platform }}
+      - name: Build frontend
+        run: npm run build:frontend
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: ${{ matrix.args }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: agent-arcade-${{ matrix.platform }}
           path: |
-            build/*.dmg
-            build/*.zip
-            build/*.exe
-            build/*.AppImage
-            build/*.deb
-          if-no-files-found: error
+            src-tauri/target/**/release/bundle/**/*.dmg
+            src-tauri/target/**/release/bundle/**/*.app
+            src-tauri/target/**/release/bundle/**/*.exe
+            src-tauri/target/**/release/bundle/**/*.msi
+            src-tauri/target/**/release/bundle/**/*.AppImage
+            src-tauri/target/**/release/bundle/**/*.deb
+          if-no-files-found: warn
 
   release:
     needs: build
@@ -80,23 +100,20 @@ jobs:
             ### 🍎 macOS
             | File | Description |
             |------|-------------|
-            | `agent-arcade_*_mac_arm64.dmg` | Apple Silicon (M1/M2/M3/M4) installer |
-            | `agent-arcade_*_mac_x64.dmg` | Intel Mac installer |
-            | `agent-arcade_*_mac_arm64.zip` | Apple Silicon portable |
-            | `agent-arcade_*_mac_x64.zip` | Intel Mac portable |
+            | `*.dmg` | macOS installer (Universal — Apple Silicon + Intel) |
 
             ### 🪟 Windows
             | File | Description |
             |------|-------------|
-            | `agent-arcade_*_win_x64_setup.exe` | Windows installer (x64) |
+            | `*.msi` | Windows installer (x64) |
 
             ### 🐧 Linux
             | File | Description |
             |------|-------------|
-            | `agent-arcade_*_linux_x64.AppImage` | Universal Linux (run anywhere) |
-            | `agent-arcade_*_linux_amd64.deb` | Debian/Ubuntu package |
+            | `*.AppImage` | Universal Linux (run anywhere) |
+            | `*.deb` | Debian/Ubuntu package |
 
             ---
-            *A stress-relief retro arcade overlay for your desktop — play while your AI agent is thinking!*
+            *A stress-relief retro arcade overlay for your desktop — play while your AI agent is thinking! Built with Tauri + Phaser + TypeScript.*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
