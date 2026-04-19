@@ -492,16 +492,8 @@
         if (e.target === helpOverlay) hideHelp();
       });
 
-      document.addEventListener('keydown', function (e) {
-        if (e.key !== 'Escape') return;
-        e.stopPropagation();
-        e.preventDefault();
-        if (helpOverlay.classList.contains('show')) {
-          hideHelp();
-          return;
-        }
-        setPaused(!isPaused());
-      }, true);
+      // Escape is handled by Rust's global shortcut so it works
+      // even when another app has focus. No in-page handler needed.
     })();
   </script>
   <script src="./phaser.min.js"></script>
