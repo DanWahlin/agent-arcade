@@ -322,10 +322,12 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building Agent Arcade")
         .run(|app, event| {
+            #[cfg(target_os = "macos")]
             if let tauri::RunEvent::Reopen { has_visible_windows, .. } = event {
                 if !has_visible_windows {
                     show_window(app);
                 }
             }
+            let _ = (app, event); // suppress unused warnings on non-macOS
         });
 }
