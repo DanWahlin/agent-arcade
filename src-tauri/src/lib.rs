@@ -27,20 +27,26 @@ fn set_paused(app: AppHandle, paused: bool) {
     PAUSED.store(paused, Ordering::SeqCst);
     if let Some(win) = app.get_webview_window("main") {
         if paused {
-            // Shrink to HUD bar height so apps behind are fully usable
+            // Shrink to HUD bar size so apps behind are fully usable
             let _ = win.set_ignore_cursor_events(false);
             if let Ok(Some(monitor)) = win.primary_monitor() {
-                let width = monitor.size().width;
                 let scale = monitor.scale_factor();
+                let hud_width = (1200.0 * scale) as u32;
                 let hud_height = (105.0 * scale) as u32;
-                let _ = win.set_size(tauri::PhysicalSize::new(width, hud_height));
+                // Center horizontally
+                let screen_w = monitor.size().width;
+                let x = ((screen_w - hud_width) / 2) as i32;
+                let _ = win.set_size(tauri::PhysicalSize::new(hud_width, hud_height));
+                let _ = win.set_position(tauri::PhysicalPosition::new(x, 0));
             }
         } else {
-            // Expand back to full screen
+            // Expand back to full screen and reset position
             if let Ok(Some(monitor)) = win.primary_monitor() {
                 let size = monitor.size();
+                let pos = monitor.position();
                 let scale = monitor.scale_factor();
                 let bottom_trim = (5.0 * scale) as u32;
+                let _ = win.set_position(tauri::PhysicalPosition::new(pos.x, pos.y));
                 let _ = win.set_size(tauri::PhysicalSize::new(size.width, size.height - bottom_trim));
             }
             let _ = win.set_ignore_cursor_events(true);

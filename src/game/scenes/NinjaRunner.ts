@@ -101,6 +101,14 @@ export class NinjaRunnerScene extends BaseScene {
     this.load.image('background', '../assets/agent-ninja/background.png');
     this.load.spritesheet('enemy_tall', '../assets/agent-ninja/enemy_tall_strip.png', { frameWidth: 16, frameHeight: 32 });
     this.load.spritesheet('enemy_short', '../assets/agent-ninja/enemy_short_strip.png', { frameWidth: 16, frameHeight: 16 });
+    // Sound effects (shared with Galaxy Shooter)
+    this.load.audio('sfx_jump', '../assets/agent-galaxy/sounds/sfx_laser2.ogg');
+    this.load.audio('sfx_coin', '../assets/agent-galaxy/sounds/sfx_twoTone.ogg');
+    this.load.audio('sfx_stomp', '../assets/agent-galaxy/sounds/sfx_zap.ogg');
+    this.load.audio('sfx_powerup', '../assets/agent-galaxy/sounds/sfx_shieldUp.ogg');
+    this.load.audio('sfx_hit', '../assets/agent-galaxy/sounds/sfx_shieldDown.ogg');
+    this.load.audio('sfx_die', '../assets/agent-galaxy/sounds/sfx_lose.ogg');
+    this.load.audio('sfx_flag', '../assets/agent-galaxy/sounds/sfx_twoTone.ogg');
   }
 
   create() {
@@ -1120,10 +1128,12 @@ export class NinjaRunnerScene extends BaseScene {
       this.player.setVelocityY(this.isBig ? -950 : -820);
       this.jumpBuffer = 0;
       this.coyoteTime = 0;
+      this.sound.play('sfx_jump', { volume: 0.2 });
     } else if (jumpJustPressed && !onGround && this.canDoubleJump && !this.hasDoubleJumped) {
       // Double jump — also boosted when powered
       this.player.setVelocityY(this.isBig ? -800 : -700);
       this.hasDoubleJumped = true;
+      this.sound.play('sfx_jump', { volume: 0.15 });
     }
 
     // Variable jump height: low gravity while ascending and key held.
@@ -1483,6 +1493,7 @@ export class NinjaRunnerScene extends BaseScene {
   private onPlayerCoin(_player: any, c: any) {
     c.destroy();
     this.addScore(100, c.x, c.y);
+    this.sound.play('sfx_coin', { volume: 0.2 });
   }
 
   /** Collect any coins sitting directly above a block (within 1 block). */
@@ -1529,6 +1540,7 @@ export class NinjaRunnerScene extends BaseScene {
     if (!this.isBig) {
       this.isBig = true;
       this.addScore(1000, this.player.x, this.player.y - 20);
+      this.sound.play('sfx_powerup', { volume: 0.3 });
       // Growth flash — briefly golden then normal
       this.player.setTint(0xffdd00);
       this.time.delayedCall(300, () => {
@@ -1565,6 +1577,7 @@ export class NinjaRunnerScene extends BaseScene {
     if (stomping) {
       this.player.setVelocityY(-450);
       this.stompGrace = 25;
+      this.sound.play('sfx_stomp', { volume: 0.25 });
       if (kind === 'goomba') {
         this.killGoomba(e);
       } else if (state === 'walk') {
@@ -1687,6 +1700,7 @@ export class NinjaRunnerScene extends BaseScene {
       this.isBig = false;
       this.player.clearTint();
       this.shrinkTimer = 60;
+      this.sound.play('sfx_hit', { volume: 0.3 });
       if (this.glowSprite) this.glowSprite.setVisible(false);
     } else {
       this.die();
@@ -1699,6 +1713,7 @@ export class NinjaRunnerScene extends BaseScene {
     this.syncLivesToHUD();
     this.dead = true;
     this.deadTimer = 1200;
+    this.sound.play('sfx_die', { volume: 0.4 });
     this.player.setVelocity(0, -500);
     this.player.body.checkCollision.none = true;
     this.isBig = false;
@@ -1774,6 +1789,7 @@ export class NinjaRunnerScene extends BaseScene {
     this.currentBiome = (this.currentBiome + 1) % 4;
     this.syncLevelToHUD();
     this.addScore(5000, flag.x, flag.y - 30);
+    this.sound.play('sfx_flag', { volume: 0.3 });
 
     const cam = this.cameras.main;
     cam.flash(500, 255, 255, 255, false);

@@ -10,9 +10,9 @@ declare const Phaser: any;
 
 // Registry of available games
 const GAMES = [
-  { key: 'ninja-runner', scene: NinjaRunnerScene, label: '🥷 Ninja Runner' },
-  { key: 'galaxy-shooter', scene: GalaxyShooterScene, label: '🚀 Galaxy Shooter' },
   { key: 'cosmic-rocks', scene: CosmicRocksScene, label: '☄️ Cosmic Rocks' },
+  { key: 'galaxy-shooter', scene: GalaxyShooterScene, label: '🚀 Galaxy Shooter' },
+  { key: 'ninja-runner', scene: NinjaRunnerScene, label: '🥷 Ninja Runner' },
 ];
 
 let currentGameKey: string;

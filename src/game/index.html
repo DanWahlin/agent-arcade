@@ -56,6 +56,7 @@
       font-size: 13px;
       pointer-events: none;
       user-select: none;
+      -webkit-user-select: none;
       z-index: 10;
       white-space: nowrap;
     }
@@ -346,6 +347,21 @@
       50%      { opacity: 0.25; }
     }
 
+    /* Drag handle — shown only when paused */
+    .drag-handle {
+      display: none;
+      pointer-events: auto;
+      cursor: grab;
+      align-items: center;
+      padding: 2px 4px;
+      color: rgba(255, 255, 255, 0.4);
+      font-size: 16px;
+      letter-spacing: 2px;
+      user-select: none;
+    }
+    .drag-handle:active { cursor: grabbing; }
+    #hud.paused .drag-handle { display: inline-flex; }
+
     /* Close button — shown only when paused */
     .close-btn {
       display: none;
@@ -399,6 +415,7 @@
 <body>
   <div id="hud">
     <div class="hud-section">
+      <span id="drag-handle" class="drag-handle" title="Drag to move">⠿</span>
       <span id="hud-title" class="title">AGENT ARCADE</span>
     </div>
     <div class="hud-spacer"></div>
@@ -540,6 +557,17 @@
       });
       helpOverlay.addEventListener('click', function (e) {
         if (e.target === helpOverlay) hideHelp();
+      });
+
+      // Drag handle moves the paused HUD window
+      var dragHandle = document.getElementById('drag-handle');
+      dragHandle.addEventListener('mousedown', function (e) {
+        if (!isPaused()) return;
+        if (e.buttons !== 1) return;
+        var ti = window.__TAURI_INTERNALS__;
+        if (ti) {
+          ti.invoke('plugin:window|start_dragging', { label: 'main' });
+        }
       });
 
       // Escape is handled by Rust's global shortcut so it works
