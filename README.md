@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="images/agent-arcade-banner.webp" alt="Agent Arcade" />
+  <img src="images/agent-arcade-banner-v3.webp" alt="Agent Arcade" />
 </p>
 
 # 🕹️🚀 Agent Arcade 
@@ -18,7 +18,7 @@ To install Agent Arcade, visit the [releases page](https://github.com/youruserna
 
 ## Controls
 
-### 🥷 Agent Ninja
+### 🥷 Ninja Runner
 
 | Key | Action |
 |-----|--------|
@@ -28,11 +28,19 @@ To install Agent Arcade, visit the [releases page](https://github.com/youruserna
 | <kbd>F</kbd> / <kbd>Z</kbd> | Fire (when powered up) |
 | <kbd>↓</kbd> | Enter warp/golden pipes |
 
-### 🚀 Agent Galaxy
+### 🚀 Galaxy Shooter
 
 | Key | Action |
 |-----|--------|
 | <kbd>←</kbd> <kbd>→</kbd> | Move |
+| <kbd>Space</kbd> | Fire |
+
+### ☄️ Cosmic Rocks
+
+| Key | Action |
+|-----|--------|
+| <kbd>←</kbd> <kbd>→</kbd> | Rotate |
+| <kbd>↑</kbd> | Thrust |
 | <kbd>Space</kbd> | Fire |
 
 ### General
