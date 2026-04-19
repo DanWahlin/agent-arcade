@@ -20,14 +20,39 @@ fn set_click_through(app: AppHandle, enabled: bool) {
 }
 
 /// Track the paused state from the renderer.
+/// When paused, shrink window to just the HUD bar so apps behind are usable.
+/// When resumed, expand back to full screen with click-through enabled.
 #[tauri::command]
 fn set_paused(app: AppHandle, paused: bool) {
     PAUSED.store(paused, Ordering::SeqCst);
-    if paused {
-        register_escape(&app);
-    } else {
-        unregister_escape(&app);
+    if let Some(win) = app.get_webview_window("main") {
+        if paused {
+            // Shrink to HUD bar height so apps behind are fully usable
+            let _ = win.set_ignore_cursor_events(false);
+            if let Ok(Some(monitor)) = win.primary_monitor() {
+                let width = monitor.size().width;
+                let scale = monitor.scale_factor();
+                let hud_height = (105.0 * scale) as u32;
+                let _ = win.set_size(tauri::PhysicalSize::new(width, hud_height));
+            }
+        } else {
+            // Expand back to full screen
+            if let Ok(Some(monitor)) = win.primary_monitor() {
+                let size = monitor.size();
+                let scale = monitor.scale_factor();
+                let bottom_trim = (5.0 * scale) as u32;
+                let _ = win.set_size(tauri::PhysicalSize::new(size.width, size.height - bottom_trim));
+            }
+            let _ = win.set_ignore_cursor_events(true);
+        }
     }
+    update_escape_shortcut(&app, paused);
+}
+
+/// Quit the application.
+#[tauri::command]
+fn quit_app(app: AppHandle) {
+    app.exit(0);
 }
 
 // ── Window helpers ────────────────────────────────────────────────────
@@ -63,48 +88,33 @@ fn toggle_window(app: &AppHandle) {
 }
 
 fn resume_game(app: &AppHandle) {
-    // Set state first to prevent race conditions with the shortcut handler
-    let was_paused = PAUSED.swap(false, Ordering::SeqCst);
-    if !was_paused {
-        return;
-    }
-    // Unregister global Escape so it doesn't capture Esc in other apps
-    unregister_escape(app);
     if let Some(win) = app.get_webview_window("main") {
         let _ = win.set_ignore_cursor_events(false);
         let _ = win.show();
         let _ = win.set_focus();
         let _ = win.eval("if(window.__agentArcadeResumeFromRust) window.__agentArcadeResumeFromRust();");
+        PAUSED.store(false, Ordering::SeqCst);
     }
 }
 
 fn pause_game(app: &AppHandle) {
-    // Set state first to prevent race conditions with the shortcut handler
-    let was_paused = PAUSED.swap(true, Ordering::SeqCst);
-    if was_paused {
-        return;
-    }
     if let Some(win) = app.get_webview_window("main") {
+        // Tell the webview to pause the game scene
         let _ = win.eval(
             "if(window.__agentArcadePause) window.__agentArcadePause(true); \
              var h=document.getElementById('hud'); if(h) h.classList.add('paused');"
         );
+        // Enable click-through so user can interact with apps behind
         let _ = win.set_ignore_cursor_events(true);
+        PAUSED.store(true, Ordering::SeqCst);
     }
-    // Register global Escape so user can unpause from any app
-    register_escape(app);
 }
 
-fn register_escape(app: &AppHandle) {
-    use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Shortcut};
-    let esc = Shortcut::new(None, Code::Escape);
-    let _ = app.global_shortcut().register(esc);
-}
+// ── Global shortcut management ────────────────────────────────────────
 
-fn unregister_escape(app: &AppHandle) {
-    use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Shortcut};
-    let esc = Shortcut::new(None, Code::Escape);
-    let _ = app.global_shortcut().unregister(esc);
+fn update_escape_shortcut(_app: &AppHandle, _register: bool) {
+    // No-op: Escape is handled entirely by the in-page keydown handler.
+    // When paused and user switches apps, Ctrl+Alt+M brings it back.
 }
 
 // ── App entry point ───────────────────────────────────────────────────
@@ -141,15 +151,16 @@ pub fn run() {
                 })
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![set_click_through, set_paused])
+        .invoke_handler(tauri::generate_handler![set_click_through, set_paused, quit_app])
         .setup(|app| {
-            // Register Ctrl+Alt+M global shortcut for toggle
-            // (Escape is registered dynamically only when paused)
+            // Register Ctrl+Alt+M and Escape global shortcuts
             {
                 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut};
                 let toggle =
                     Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::KeyM);
+                let esc = Shortcut::new(None, Code::Escape);
                 app.global_shortcut().register(toggle)?;
+                app.global_shortcut().register(esc)?;
             }
 
             // Build system tray

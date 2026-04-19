@@ -300,7 +300,7 @@ export class AgentDriftScene extends BaseScene {
     const rightWing = { x: Math.cos(this.shipAngle - 2.4) * s * 0.85, y: Math.sin(this.shipAngle - 2.4) * s * 0.85 };
 
     // Dark shadow backdrop for visibility on light backgrounds
-    g.lineStyle(14, 0x000000, 0.6);
+    g.lineStyle(6, 0x000000, 0.5);
     g.beginPath();
     g.moveTo(nose.x, nose.y);
     g.lineTo(leftWing.x, leftWing.y);
@@ -308,8 +308,8 @@ export class AgentDriftScene extends BaseScene {
     g.closePath();
     g.strokePath();
 
-    // Outer glow (wide, soft cyan)
-    g.lineStyle(10, 0x00ffff, 0.3);
+    // Outer glow (soft cyan)
+    g.lineStyle(4, 0x00ffff, 0.2);
     g.beginPath();
     g.moveTo(nose.x, nose.y);
     g.lineTo(leftWing.x, leftWing.y);
@@ -339,14 +339,14 @@ export class AgentDriftScene extends BaseScene {
       const tr = { x: Math.cos(this.shipAngle + Math.PI + spread) * s * 0.35, y: Math.sin(this.shipAngle + Math.PI + spread) * s * 0.35 };
 
       // Dark shadow for thrust
-      tg.lineStyle(12, 0x000000, 0.4);
+      tg.lineStyle(5, 0x000000, 0.3);
       tg.beginPath();
       tg.moveTo(tl.x, tl.y);
       tg.lineTo(tailX, tailY);
       tg.lineTo(tr.x, tr.y);
       tg.strokePath();
 
-      tg.lineStyle(8, 0xff8800, 0.3);
+      tg.lineStyle(3, 0xff8800, 0.25);
       tg.beginPath();
       tg.moveTo(tl.x, tl.y);
       tg.lineTo(tailX, tailY);
@@ -491,7 +491,7 @@ export class AgentDriftScene extends BaseScene {
   private drawAsteroid(gfx: any, vertices: { x: number; y: number }[]) {
     gfx.clear();
     // Dark shadow backdrop for visibility on light backgrounds
-    gfx.lineStyle(12, 0x000000, 0.6);
+    gfx.lineStyle(5, 0x000000, 0.5);
     gfx.beginPath();
     gfx.moveTo(vertices[0].x, vertices[0].y);
     for (let i = 1; i < vertices.length; i++) {
@@ -499,8 +499,8 @@ export class AgentDriftScene extends BaseScene {
     }
     gfx.closePath();
     gfx.strokePath();
-    // Outer glow (wide, soft green)
-    gfx.lineStyle(8, 0x44ff44, 0.35);
+    // Outer glow (soft green)
+    gfx.lineStyle(3, 0x44ff44, 0.25);
     gfx.beginPath();
     gfx.moveTo(vertices[0].x, vertices[0].y);
     for (let i = 1; i < vertices.length; i++) {
@@ -665,11 +665,11 @@ export class AgentDriftScene extends BaseScene {
     gfx.clear();
     const s = SHIP_SIZE * 1.2;
     // Dark shadow backdrop
-    gfx.lineStyle(12, 0x000000, 0.6);
+    gfx.lineStyle(5, 0x000000, 0.5);
     gfx.strokeEllipse(0, 0, s * 2, s * 0.7);
     gfx.strokeEllipse(0, -s * 0.2, s, s * 0.5);
-    // Outer glow (wide, soft magenta)
-    gfx.lineStyle(8, 0xff44ff, 0.35);
+    // Outer glow (soft magenta)
+    gfx.lineStyle(3, 0xff44ff, 0.25);
     gfx.strokeEllipse(0, 0, s * 2, s * 0.7);
     gfx.strokeEllipse(0, -s * 0.2, s, s * 0.5);
     // Solid

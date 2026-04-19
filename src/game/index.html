@@ -14,6 +14,15 @@
       overflow: hidden;
       cursor: default;
     }
+    body.paused {
+      background: transparent !important;
+    }
+    body.paused #game,
+    body.paused canvas,
+    body.paused #pause-overlay {
+      display: none !important;
+      visibility: hidden !important;
+    }
     #game {
       width: 100%;
       height: 100%;
@@ -336,6 +345,33 @@
       50%      { opacity: 0.25; }
     }
 
+    /* Close button — shown only when paused */
+    .close-btn {
+      display: none;
+      pointer-events: auto;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      background: linear-gradient(180deg, #e84040 0%, #b02020 100%);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1;
+      padding: 0;
+      transition: all 120ms ease;
+      box-shadow: 0 0 6px rgba(232, 64, 64, 0.5);
+    }
+    .close-btn:hover {
+      background: linear-gradient(180deg, #ff5050 0%, #d03030 100%);
+      box-shadow: 0 0 14px rgba(255, 80, 80, 0.8);
+      transform: scale(1.15);
+    }
+    #hud.paused .close-btn { display: inline-flex; }
+
     /* ---------- Game selector ---------- */
     .game-select {
       pointer-events: auto;
@@ -376,6 +412,7 @@
         <span class="badge">?</span>
       </button>
       <span class="pause-badge"><span class="dot"></span>PAUSED — <kbd>Esc</kbd> to resume</span>
+      <button id="close-btn" class="close-btn" type="button" title="Quit Agent Arcade">✕</button>
     </div>
     <div class="hud-divider"></div>
     <div class="hud-section score-wrap">
@@ -448,15 +485,18 @@
         },
         onResumeRequest: function(cb) {
           resumeCallbacks = [cb];
+        },
+        quitApp: function() {
+          ti.invoke('quit_app');
         }
       };
 
       // Called from Rust via win.eval() when global Escape fires
       window.__agentArcadeResumeFromRust = function() {
         resumeCallbacks.forEach(function(cb) { try { cb(); } catch(e) {} });
-        // Also unpause the HUD
         var hud = document.getElementById('hud');
         if (hud) hud.classList.remove('paused');
+        document.body.classList.remove('paused');
       };
     })();
   </script>
@@ -470,6 +510,7 @@
       function isPaused() { return hud.classList.contains('paused'); }
       function setPaused(p) {
         hud.classList.toggle('paused', p);
+        document.body.classList.toggle('paused', p);
         if (window.__agentArcadePause) {
           try { window.__agentArcadePause(p); } catch (e) {}
         } else if (window.agentArcade && window.agentArcade.setClickThrough) {
@@ -488,26 +529,20 @@
       }
       helpBtn.addEventListener('click', showHelp);
       helpClose.addEventListener('click', hideHelp);
+
+      // Close button — quit the app (only visible when paused)
+      var closeBtn = document.getElementById('close-btn');
+      closeBtn.addEventListener('click', function () {
+        if (window.agentArcade && window.agentArcade.quitApp) {
+          window.agentArcade.quitApp();
+        }
+      });
       helpOverlay.addEventListener('click', function (e) {
         if (e.target === helpOverlay) hideHelp();
       });
 
-      // Escape for pausing — only handles pause direction.
-      // Unpause is handled by Rust's global shortcut (registered only when paused).
-      document.addEventListener('keydown', function (e) {
-        if (e.key !== 'Escape') return;
-        if (helpOverlay.classList.contains('show')) {
-          e.stopPropagation();
-          e.preventDefault();
-          hideHelp();
-          return;
-        }
-        if (!isPaused()) {
-          e.stopPropagation();
-          e.preventDefault();
-          setPaused(true);
-        }
-      }, true);
+      // Escape is handled by Rust's global shortcut so it works
+      // even when another app has focus. No in-page handler needed.
     })();
   </script>
   <script src="./phaser.min.js"></script>
