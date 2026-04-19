@@ -2,31 +2,42 @@
 
 A stress-relief retro platformer that runs as a transparent overlay on your desktop. Play while waiting for your AI agents (Copilot CLI, Claude Code, Codex) to finish thinking and doing their work. Built with Electron + Phaser 3 + TypeScript.
 
-Agent Arcade was inspired by [Aman](https://x.com/Amank1412) and his [Desktop Mario project](https://github.com/bxf1001g/desktop_mario). I wanted something that could also run on Mac and Linux, so I built it with Electron + Phaser 3 + TypeScript.
+Agent Arcade was inspired by [Aman](https://x.com/Amank1412) and his [Desktop Mario project](https://github.com/bxf1001g/desktop_mario). I wanted something that could run on Mac, Windows, and Linux, so I built it with Electron + Phaser 3 + TypeScript.
 
 ## How This Was Made
 
-Idea ➡ RealiI started up [GitHub Copilot CLI](https://github.com/github/copilot-cli) (there's a [free course on it here](https://github.com/github/copilot-cli-for-beginners)), and it helped me quickly scaffold the initial Electron + Phaser 3 + TypeScript project structure. From there, I told it the overall goals and it iteratively built out the game mechanics, integrated the sprite assets, and added the overlay functionality. 
+Idea ➡ Reality in less than 24 hours. I used [GitHub Copilot CLI](https://github.com/github/copilot-cli) (there's a [free course on it here](https://github.com/github/copilot-cli-for-beginners)), and it helped me quickly scaffold the initial Electron + Phaser 3 + TypeScript project structure. From there I worked with copilot to plan the game mechanics and overall structure. I told it the overall goals and it iteratively built out the game mechanics, integrated the sprite assets, and added the overlay functionality.
 
-## Getting Started
+## Installing Agent Arcade
 
-```bash
-npm install
-npm start
-```
+To install Agent Arcade, visit the [releases page](https://github.com/yourusername/agent-arcade/releases) and download the appropriate installer for your operating system. Once installed, you can launch the game from your applications menu or desktop shortcut.
 
 ## Controls
 
+### 🥷 Agent Ninja
+
 | Key | Action |
 |-----|--------|
-| ← → | Move |
-| Space / ↑ | Jump (press twice for double jump) |
-| Shift | Run |
-| F / Z | Fire (when powered up) |
-| ↓ | Enter warp/golden pipes |
-| Esc | Pause |
-| ⌃⌥M | Toggle visibility |
-| ⌘Q | Quit |
+| <kbd>←</kbd> <kbd>→</kbd> | Move |
+| <kbd>Space</kbd> / <kbd>↑</kbd> | Jump (press twice for double jump) |
+| <kbd>Shift</kbd> | Run |
+| <kbd>F</kbd> / <kbd>Z</kbd> | Fire (when powered up) |
+| <kbd>↓</kbd> | Enter warp/golden pipes |
+
+### 🚀 Agent Galaxy
+
+| Key | Action |
+|-----|--------|
+| <kbd>←</kbd> <kbd>→</kbd> | Move |
+| <kbd>Space</kbd> | Fire |
+
+### General
+
+| Key | Action |
+|-----|--------|
+| <kbd>Esc</kbd> | Pause / Resume |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>M</kbd> | Toggle visibility (all platforms) |
+| <kbd>⌘Q</kbd> (Mac) / <kbd>Ctrl+Q</kbd> (Win/Linux) | Quit |
 
 ## Building Installers
 
@@ -45,10 +56,10 @@ git push origin v0.2.0
 
 ## Credits
 
-Inspired by [Aman](https://x.com/Amank1412) and his [Desktop Mario project](https://github.com/bxf1001g/desktop_mario/releases).
+Initially inspired by [Aman](https://x.com/Amank1412) and his [Desktop Mario project](https://github.com/bxf1001g/desktop_mario/releases).
 
 Sprite assets: [Simple Platformer 16](https://juhosprite.itch.io/simple-platformer-16) by JuhoSprite
 
 Space shooter assets: [Space Shooter Redux](https://opengameart.org/content/space-shooter-redux) by Kenney.nl
 
-Galaga game mechanics: [WesleyEdwards/galaga](https://github.com/WesleyEdwards/galaga) by Wesley Edwards
+Galaga-style game mechanics: [WesleyEdwards/galaga](https://github.com/WesleyEdwards/galaga) by Wesley Edwards

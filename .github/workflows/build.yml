@@ -80,21 +80,21 @@ jobs:
             ### 🍎 macOS
             | File | Description |
             |------|-------------|
-            | `Agent Arcade-*-arm64.dmg` | Apple Silicon (M1/M2/M3/M4) installer |
-            | `Agent Arcade-*.dmg` | Intel Mac installer |
-            | `Agent Arcade-*-arm64-mac.zip` | Apple Silicon portable |
-            | `Agent Arcade-*-mac.zip` | Intel Mac portable |
+            | `agent-arcade_*_mac_arm64.dmg` | Apple Silicon (M1/M2/M3/M4) installer |
+            | `agent-arcade_*_mac_x64.dmg` | Intel Mac installer |
+            | `agent-arcade_*_mac_arm64.zip` | Apple Silicon portable |
+            | `agent-arcade_*_mac_x64.zip` | Intel Mac portable |
 
             ### 🪟 Windows
             | File | Description |
             |------|-------------|
-            | `Agent Arcade Setup *.exe` | Windows installer (x64) |
+            | `agent-arcade_*_win_x64_setup.exe` | Windows installer (x64) |
 
             ### 🐧 Linux
             | File | Description |
             |------|-------------|
-            | `Agent Arcade-*.AppImage` | Universal Linux (run anywhere) |
-            | `agent-arcade_*_amd64.deb` | Debian/Ubuntu package |
+            | `agent-arcade_*_linux_x64.AppImage` | Universal Linux (run anywhere) |
+            | `agent-arcade_*_linux_amd64.deb` | Debian/Ubuntu package |
 
             ---
             *A stress-relief retro arcade overlay for your desktop — play while your AI agent is thinking!*
