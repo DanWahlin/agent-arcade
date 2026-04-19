@@ -11,12 +11,16 @@
     "dist": "cargo tauri build",
     "dist:mac": "cargo tauri build --target universal-apple-darwin",
     "dist:win": "cargo tauri build --target x86_64-pc-windows-msvc",
-    "dist:linux": "cargo tauri build --target x86_64-unknown-linux-gnu"
+    "dist:linux": "cargo tauri build --target x86_64-unknown-linux-gnu",
+    "test": "npm run build:frontend && npx playwright test",
+    "test:headed": "npm run build:frontend && npx playwright test --headed"
   },
   "author": "Dan Wahlin",
   "license": "MIT",
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@tauri-apps/cli": "^2.0.0",
+    "serve": "^14.2.6",
     "typescript": "^5.6.0"
   },
   "dependencies": {

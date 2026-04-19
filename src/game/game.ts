@@ -1,7 +1,7 @@
 // Agent Arcade — game bootstrap and scene registry.
 // Each mini-game is a Phaser Scene extending BaseScene.
 
-import { W, H } from './scenes/BaseScene.js';
+import { W, H, refreshDimensions } from './scenes/BaseScene.js';
 import { NinjaRunnerScene } from './scenes/NinjaRunner.js';
 import { GalaxyShooterScene } from './scenes/GalaxyShooter.js';
 import { CosmicRocksScene } from './scenes/CosmicRocks.js';
@@ -21,7 +21,12 @@ catch { currentGameKey = 'ninja-runner'; }
 // Validate stored key exists in registry
 if (!GAMES.find(g => g.key === currentGameKey)) currentGameKey = 'ninja-runner';
 
-const game = new Phaser.Game({
+// Wait for the window to be properly sized by Tauri before creating the game.
+// Rust resizes the window in setup(), which may complete after JS loads.
+function initGame() {
+  refreshDimensions();
+
+  const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
   width: W,
@@ -35,18 +40,21 @@ const game = new Phaser.Game({
   },
   render: { pixelArt: true, antialias: false, transparent: true },
   fps: { target: 60 },
-});
-
-// Start the saved game (stop the default first scene if it's different)
-if (currentGameKey !== GAMES[0].key) {
-  game.events.once('ready', () => {
-    game.scene.stop(GAMES[0].key);
-    game.scene.start(currentGameKey);
   });
-}
 
-// Expose game switcher for the HUD dropdown
-(window as any).__agentArcadeSwitchGame = (key: string) => {
+  // Expose game instance for Playwright testing (no production impact)
+  (window as any).__phaserGame = game;
+
+  // Start the saved game (stop the default first scene if it's different)
+  if (currentGameKey !== GAMES[0].key) {
+    game.events.once('ready', () => {
+      game.scene.stop(GAMES[0].key);
+      game.scene.start(currentGameKey);
+    });
+  }
+
+  // Expose game switcher for the HUD dropdown
+  (window as any).__agentArcadeSwitchGame = (key: string) => {
   const entry = GAMES.find(g => g.key === key);
   if (!entry || key === currentGameKey) return;
 
@@ -74,6 +82,7 @@ if (currentGameKey !== GAMES[0].key) {
   if (sel) sel.blur();
   game.canvas.focus();
 };
+} // end initGame
 
 // Populate game selector dropdown
 function populateGameSelector() {
@@ -99,3 +108,7 @@ if (document.readyState === 'loading') {
 } else {
   populateGameSelector();
 }
+
+// Delay game init so Tauri's Rust setup has time to resize the window.
+// Without this, window.innerHeight may reflect the default config size.
+setTimeout(initGame, 150);

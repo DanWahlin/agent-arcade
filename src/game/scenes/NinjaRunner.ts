@@ -9,8 +9,11 @@ import { BaseScene, W, H } from './BaseScene.js';
 const BLOCK = 48;                // logical world tile size
 const PLAYER_W = 48;              // player draw size
 const PLAYER_H = 48;              // player draw size
-const GROUND_Y = H - 64;         // top of ground row
 const SPAWN_X = 600;
+
+// Computed dynamically so it uses the correct H after refreshDimensions()
+function getGroundY() { return H - BLOCK; }
+let GROUND_Y = H - BLOCK;        // will be updated in create()
 
 export class NinjaRunnerScene extends BaseScene {
   // Input
@@ -128,6 +131,10 @@ export class NinjaRunnerScene extends BaseScene {
   }
 
   create() {
+    // Recompute GROUND_Y from the actual game height (H may have been
+    // refreshed after module load by refreshDimensions in game.ts)
+    GROUND_Y = H - BLOCK;
+
     this.makeBlockTextures();
 
     this.physics.world.setBounds(0, 0, 1_000_000, H);
@@ -583,10 +590,23 @@ export class NinjaRunnerScene extends BaseScene {
 
   private generateLevel(lo: number, hi: number) {
     let x = Math.max(lo, this.genX);
+    let lastPattern = -1;
     while (x < hi) {
-      x += (2 + Math.floor(Math.random() * 5)) * BLOCK;
-      const r = Math.random();
-      if (r < 0.06) {
+      // Varied spacing: mix short (2-3), medium (4-6), and occasional long (7-10) gaps
+      const spacingRoll = Math.random();
+      const spacing = spacingRoll < 0.3 ? (2 + Math.floor(Math.random() * 2))
+                     : spacingRoll < 0.75 ? (4 + Math.floor(Math.random() * 3))
+                     : (7 + Math.floor(Math.random() * 4));
+      x += spacing * BLOCK;
+
+      // Pick a pattern using shuffle-style selection (avoid repeating last pattern)
+      let pattern: number;
+      do {
+        pattern = Math.floor(Math.random() * 19);
+      } while (pattern === lastPattern);
+      lastPattern = pattern;
+
+      if (pattern === 0) {
         // Coin arch — 5-6 coins in a parabolic arc
         const arcLen = 5 + Math.floor(Math.random() * 2);
         for (let i = 0; i < arcLen; i++) {
@@ -598,7 +618,7 @@ export class NinjaRunnerScene extends BaseScene {
           c.body.setSize(12, 18);
         }
         x += arcLen * BLOCK;
-      } else if (r < 0.14) {
+      } else if (pattern === 1) {
         // Block row with ?-block
         const n = 3 + Math.floor(Math.random() * 2);
         const y = GROUND_Y - BLOCK * 2;
@@ -637,7 +657,7 @@ export class NinjaRunnerScene extends BaseScene {
             e.setData('patrolRight', enemyX + BLOCK * (n / 2 - 0.5));
           }
         }
-      } else if (r < 0.19) {
+      } else if (pattern === 2) {
         // Bounce pad — spring block that launches the player
         const pad = this.bounceGroup.create(x + BLOCK / 2, GROUND_Y - BLOCK / 2, 'bounce_pad') as any;
         pad.setDisplaySize(BLOCK, BLOCK);
@@ -650,7 +670,7 @@ export class NinjaRunnerScene extends BaseScene {
           c.body.setSize(12, 18);
         }
         x += BLOCK * 2;
-      } else if (r < 0.27) {
+      } else if (pattern === 3) {
         // Pipe — 1-2 blocks tall (jumpable)
         const pipeBlocks = 1 + Math.floor(Math.random() * 2);
         const ph = pipeBlocks * BLOCK;
@@ -684,12 +704,12 @@ export class NinjaRunnerScene extends BaseScene {
           p.setVisible(false);
         }
         x += pw;
-      } else if (r < 0.37) {
+      } else if (pattern === 4) {
         // Enemy — single (combined enemy types, random pick)
         const types: ('goomba' | 'koopa' | 'rkoopa')[] = ['goomba', 'goomba', 'koopa', 'rkoopa'];
         this.spawnEnemy(types[Math.floor(Math.random() * types.length)], x);
         x += BLOCK * 2;
-      } else if (r < 0.42) {
+      } else if (pattern === 5) {
         // Enemy pair — two different enemies spawned close together
         const types: ('goomba' | 'koopa' | 'rkoopa')[] = ['goomba', 'koopa', 'rkoopa'];
         const t1 = types[Math.floor(Math.random() * types.length)];
@@ -698,7 +718,7 @@ export class NinjaRunnerScene extends BaseScene {
         this.spawnEnemy(t1, x);
         this.spawnEnemy(t2, x + BLOCK * 2);
         x += BLOCK * 4;
-      } else if (r < 0.48) {
+      } else if (pattern === 6) {
         // Combined ?-block — mushroom or coin reward
         const reward = Math.random() < 0.35 ? 'mushroom' : 'coin';
         const q = this.qblockGroup.create(x + BLOCK / 2, GROUND_Y - BLOCK * 2 + BLOCK / 2, 'qblock_img') as any;
@@ -706,7 +726,7 @@ export class NinjaRunnerScene extends BaseScene {
         q.setDisplaySize(BLOCK, BLOCK);
         q.refreshBody();
         x += BLOCK;
-      } else if (r < 0.54) {
+      } else if (pattern === 7) {
         // Ascending staircase with enemy on top (max 3 steps for reachability)
         const h = 2 + Math.floor(Math.random() * 2);
         for (let step = 0; step < h; step++) {
@@ -725,7 +745,7 @@ export class NinjaRunnerScene extends BaseScene {
           this.spawnEnemyAt('goomba', topX, topY);
         }
         x += h * BLOCK;
-      } else if (r < 0.60) {
+      } else if (pattern === 8) {
         // Water gap
         const gapW = (3 + Math.floor(Math.random() * 2)) * BLOCK;
         this.gaps.push({ start: x, end: x + gapW });
@@ -747,7 +767,7 @@ export class NinjaRunnerScene extends BaseScene {
           f.body.enable = false;
         }
         x += gapW;
-      } else if (r < 0.66) {
+      } else if (pattern === 9) {
         // Collapsing bridge over gap
         const bridgeLen = 4 + Math.floor(Math.random() * 4);
         const gapW = bridgeLen * BLOCK;
@@ -756,17 +776,30 @@ export class NinjaRunnerScene extends BaseScene {
           if (g.x >= x && g.x < x + gapW) g.destroy();
         });
         this.fillWater(x, gapW);
+        // Decide which tiles are unstable: first & last always stable,
+        // never two consecutive unstable, max ~40% unstable
+        const unstableMap: boolean[] = new Array(bridgeLen).fill(false);
+        const maxUnstable = Math.floor(bridgeLen * 0.4);
+        let unstableCount = 0;
+        for (let i = 1; i < bridgeLen - 1; i++) {
+          if (unstableCount >= maxUnstable) break;
+          if (unstableMap[i - 1]) continue; // previous was unstable, skip
+          if (Math.random() < 0.35) {
+            unstableMap[i] = true;
+            unstableCount++;
+          }
+        }
         for (let i = 0; i < bridgeLen; i++) {
           const bx = x + i * BLOCK + BLOCK / 2;
           const bt = this.bridgeGroup.create(bx, GROUND_Y + BLOCK / 2, 'bridge_tile') as any;
           bt.setDisplaySize(BLOCK, BLOCK);
           bt.refreshBody();
-          bt.setData('unstable', Math.random() < 0.4);
+          bt.setData('unstable', unstableMap[i]);
           bt.setData('collapsing', false);
         }
         x += gapW;
-      } else if (r < 0.72) {
-        // Multi-tier platform
+      } else if (pattern === 10) {
+        // Multi-tier platform — 2 levels with room to run
         const lowerY = GROUND_Y - BLOCK * 2;
         for (let i = 0; i < 4; i++) {
           if (i === 1) {
@@ -780,7 +813,7 @@ export class NinjaRunnerScene extends BaseScene {
             b.refreshBody();
           }
         }
-        const upperY = GROUND_Y - BLOCK * 5;
+        const upperY = GROUND_Y - BLOCK * 5.5;
         for (let i = 1; i <= 2; i++) {
           const b = this.brickGroup.create(x + i * BLOCK + BLOCK / 2, upperY + BLOCK / 2, 'brown_block') as any;
           b.setDisplaySize(BLOCK, BLOCK);
@@ -791,7 +824,7 @@ export class NinjaRunnerScene extends BaseScene {
         c.body.setAllowGravity(false);
         c.body.setSize(12, 18);
         x += 4 * BLOCK;
-      } else if (r < 0.78) {
+      } else if (pattern === 11) {
         // Mixed brick/qblock cluster with enemy
         const clusterLen = 5;
         const clusterY = GROUND_Y - BLOCK * 2;
@@ -817,7 +850,7 @@ export class NinjaRunnerScene extends BaseScene {
         if (Math.random() < 0.5) {
           this.spawnEnemyAt('goomba', x - 2 * BLOCK, clusterY - BLOCK);
         }
-      } else if (r < 0.83) {
+      } else if (pattern === 12) {
         // Elevated bridge with enemy
         const bridgeLen = 4 + Math.floor(Math.random() * 3);
         const bridgeY = GROUND_Y - BLOCK * 2;
@@ -835,7 +868,7 @@ export class NinjaRunnerScene extends BaseScene {
         }
         this.spawnEnemyAt('goomba', x + BLOCK, bridgeY - BLOCK);
         x += bridgeLen * BLOCK;
-      } else if (r < 0.88) {
+      } else if (pattern === 13) {
         // Descending staircase
         const h = 2 + Math.floor(Math.random() * 2);
         for (let step = 0; step < h; step++) {
@@ -852,7 +885,7 @@ export class NinjaRunnerScene extends BaseScene {
           this.spawnEnemyAt('goomba', x + BLOCK / 2, GROUND_Y - h * BLOCK - BLOCK);
         }
         x += h * BLOCK;
-      } else if (r < 0.94) {
+      } else if (pattern === 14) {
         // Floating coins — zigzag pattern
         const zigLen = 4 + Math.floor(Math.random() * 2);
         for (let i = 0; i < zigLen; i++) {
@@ -863,7 +896,7 @@ export class NinjaRunnerScene extends BaseScene {
           c.body.setSize(12, 18);
         }
         x += zigLen * BLOCK;
-      } else {
+      } else if (pattern === 15) {
         // Spike gauntlet — spike, platform, spike, platform pattern
         const pairs = 2 + Math.floor(Math.random() * 2); // 2-3 spike-platform pairs
         const spacing = BLOCK * 1.6;
@@ -879,19 +912,114 @@ export class NinjaRunnerScene extends BaseScene {
             hitZone.setAlpha(0);
             hitZone.body.setAllowGravity(false);
             hitZone.body.enable = true;
+            // Warm glow behind spikes (Ellipse Shape — WebGL batched)
+            const spikeGlow = this.add.ellipse(
+              sx + BLOCK / 2, GROUND_Y - BLOCK * 0.4,
+              BLOCK * 1.8, BLOCK * 1.6, 0xff4400, 1.0
+            );
+            spikeGlow.setDepth(1);
+            spikeGlow.setAlpha(0.2);
+            spikeGlow.setBlendMode(Phaser.BlendModes.ADD);
+            hitZone.setData('manualGlow', spikeGlow);
+            hitZone.setData('hasGlow', true);
+            // Sparks that shoot UP high above the spikes
+            const sparks = this.add.particles(sx + BLOCK / 2, GROUND_Y - BLOCK * 0.6, 'coin0', {
+              speed: { min: 40, max: 100 },
+              angle: { min: 250, max: 290 },
+              scale: { start: 0.2, end: 0 },
+              alpha: { start: 0.9, end: 0 },
+              lifespan: { min: 500, max: 1200 },
+              frequency: 120,
+              quantity: 2,
+              tint: [0xff2200, 0xff4400, 0xff6600, 0xffaa00, 0xffff00],
+              blendMode: 'ADD',
+              gravityY: 30,
+            });
+            sparks.setDepth(3);
+            hitZone.setData('sparks', sparks);
           } else {
             // Small raised platform to land on between spikes
             const plat = this.groundGroup.create(sx + BLOCK / 2, GROUND_Y - BLOCK * 0.5 + BLOCK / 2, 'grass_block') as any;
             plat.setDisplaySize(BLOCK, BLOCK);
             plat.refreshBody();
-            // Coin above platform
-            const c = this.coinGroup.create(sx + BLOCK / 2, GROUND_Y - BLOCK * 2, 'coin0') as any;
-            c.setDisplaySize(BLOCK * 0.5, BLOCK * 0.65);
-            c.body.setAllowGravity(false);
-            c.body.setSize(12, 18);
           }
         }
         x += (pairs * 2 + 1) * spacing;
+      } else if (pattern === 16) {
+        // Staircase up — 3 tiers ascending, enough clearance to run on each
+        for (let tier = 0; tier < 3; tier++) {
+          const tierY = GROUND_Y - BLOCK * (2 + tier * 3);
+          const tierX = x + tier * BLOCK * 2.5;
+          const width = 4 - tier; // wider at bottom
+          for (let i = 0; i < width; i++) {
+            // Top tier, first block → ?-block with reward
+            if (tier === 2 && i === 0) {
+              const q = this.qblockGroup.create(tierX + i * BLOCK + BLOCK / 2, tierY + BLOCK / 2, 'qblock_img') as any;
+              q.setData('hit', false); q.setData('reward', Math.random() < 0.4 ? 'mushroom' : 'coin');
+              q.setDisplaySize(BLOCK, BLOCK);
+              q.refreshBody();
+            } else {
+              const b = this.brickGroup.create(tierX + i * BLOCK + BLOCK / 2, tierY + BLOCK / 2, 'brown_block') as any;
+              b.setDisplaySize(BLOCK, BLOCK);
+              b.refreshBody();
+            }
+          }
+          // Coin on each tier
+          const c = this.coinGroup.create(tierX + BLOCK / 2, tierY - BLOCK / 2, 'coin0') as any;
+          c.setDisplaySize(BLOCK * 0.5, BLOCK * 0.65);
+          c.body.setAllowGravity(false);
+          c.body.setSize(12, 18);
+        }
+        x += 8 * BLOCK;
+      } else if (pattern === 17) {
+        // Tower — 3-high column with platforms branching off, room to run
+        const towerX = x + BLOCK * 3;
+        for (let level = 0; level < 3; level++) {
+          const ly = GROUND_Y - BLOCK * (2 + level * 3);
+          // Central column block
+          const b = this.brickGroup.create(towerX + BLOCK / 2, ly + BLOCK / 2, 'brown_block') as any;
+          b.setDisplaySize(BLOCK, BLOCK);
+          b.refreshBody();
+          // Side platform (alternating left/right)
+          const side = level % 2 === 0 ? -1 : 1;
+          for (let s = 1; s <= 2; s++) {
+            const sb = this.brickGroup.create(towerX + side * s * BLOCK + BLOCK / 2, ly + BLOCK / 2, 'brown_block') as any;
+            sb.setDisplaySize(BLOCK, BLOCK);
+            sb.refreshBody();
+          }
+          // Coin on the platform
+          const c = this.coinGroup.create(towerX + side * BLOCK + BLOCK / 2, ly - BLOCK / 2, 'coin0') as any;
+          c.setDisplaySize(BLOCK * 0.5, BLOCK * 0.65);
+          c.body.setAllowGravity(false);
+          c.body.setSize(12, 18);
+        }
+        x += 8 * BLOCK;
+      } else if (pattern === 18) {
+        // Pyramid — wide base narrowing up, 3 levels with running room
+        const baseW = 5;
+        for (let level = 0; level < 3; level++) {
+          const ly = GROUND_Y - BLOCK * (2 + level * 3);
+          const lw = baseW - level * 2;
+          const lx = x + level * BLOCK;
+          for (let i = 0; i < lw; i++) {
+            const isQ = level === 2 && i === Math.floor(lw / 2);
+            if (isQ) {
+              const q = this.qblockGroup.create(lx + i * BLOCK + BLOCK / 2, ly + BLOCK / 2, 'qblock_img') as any;
+              q.setData('hit', false); q.setData('reward', Math.random() < 0.3 ? 'mushroom' : 'coin');
+              q.setDisplaySize(BLOCK, BLOCK);
+              q.refreshBody();
+            } else {
+              const b = this.brickGroup.create(lx + i * BLOCK + BLOCK / 2, ly + BLOCK / 2, 'brown_block') as any;
+              b.setDisplaySize(BLOCK, BLOCK);
+              b.refreshBody();
+            }
+          }
+        }
+        // Enemy patrolling the base
+        if (Math.random() < 0.5) {
+          this.spawnEnemyAt('goomba', x + BLOCK, GROUND_Y - BLOCK);
+        }
+        x += (baseW + 1) * BLOCK;
       }
     }
     this.genX = Math.max(this.genX, x);
@@ -1097,6 +1225,12 @@ export class NinjaRunnerScene extends BaseScene {
       if (pOnGround && this.player.y >= GROUND_Y - 10) {
         this.endParachute();
       }
+      // Die if player drifts into water/gap below ground level
+      if (this.player.y > GROUND_Y + BLOCK) {
+        this.endParachute();
+        this.die();
+        return;
+      }
       this.player.anims.stop();
       this.player.setFrame(4); // jump frame while parachuting
       if (this.cursors.left.isDown) this.player.flipX = true;
@@ -1257,15 +1391,11 @@ export class NinjaRunnerScene extends BaseScene {
     // Scale — always same size, glow indicates power-up
     this.player.setDisplaySize(PLAYER_W, PLAYER_H);
 
-    if (this.glowSprite) {
-      if (this.isBig) {
-        this.glowSprite.setVisible(true);
-        this.glowSprite.x = this.player.x;
-        this.glowSprite.y = this.player.y - PLAYER_H / 2;
-        // Pulse the glow
-        this.glowSprite.setAlpha(0.35 + Math.sin(this.time.now / 200) * 0.15);
-      } else {
-        this.glowSprite.setVisible(false);
+    // Pulse the built-in glow FX when powered up
+    if (this.player.getData('hasGlow')) {
+      const glowFx = this.player.getData('glowFx');
+      if (glowFx) {
+        glowFx.outerStrength = this.isBig ? 2 + Math.sin(this.time.now / 200) * 1.5 : 0;
       }
     }
 
@@ -1297,6 +1427,22 @@ export class NinjaRunnerScene extends BaseScene {
 
     const blink = (this.invincible > 0 || this.shrinkTimer > 0) && Math.floor(this.time.now / 80) % 2 === 0;
     this.player.setVisible(!blink);
+
+    // Track player glow (mushroom powerup) — centered on player body, not feet
+    const playerGlow = this.player.getData('glowFx') as any;
+    if (playerGlow) {
+      if (this.isBig && this.player.visible) {
+        playerGlow.setPosition(this.player.x, this.player.y - PLAYER_H / 2);
+        playerGlow.setAlpha(0.15 + Math.sin(this.time.now / 100) * 0.1);
+        playerGlow.setVisible(true);
+      } else if (!this.isBig) {
+        playerGlow.destroy();
+        this.player.setData('glowFx', null);
+        this.player.setData('hasGlow', false);
+      } else {
+        playerGlow.setVisible(false);
+      }
+    }
 
     (this.coinGroup.getChildren() as any[]).forEach(c => {
       const i = Math.floor(this.time.now / 120) % 2;
@@ -1372,39 +1518,62 @@ export class NinjaRunnerScene extends BaseScene {
         });
       }
       
-      // Flicker effect while visible + glow
-      if (f.visible) {
+      // Flicker effect while visible + full fire FX
+      const fireVisible = f.visible && f.alpha > 0;
+      if (fireVisible) {
         f.setAlpha(0.8 + Math.sin(this.time.now / 50) * 0.2);
-        // Add/update glow circle underneath
-        if (!f.getData('glow')) {
-          const glow = this.add.graphics().setDepth(f.depth - 1);
-          f.setData('glow', glow);
+        if (!f.getData('hasGlow')) {
+          // Tall glow column from fire down to bottom of scene — additive blend
+          const glowH = H - f.y + BLOCK * 2;
+          const columnGlow = this.add.ellipse(f.x, f.y + glowH / 2, BLOCK * 1.4, glowH, 0xff4400, 1.0);
+          columnGlow.setDepth(f.depth - 1);
+          columnGlow.setAlpha(0.15);
+          columnGlow.setBlendMode(Phaser.BlendModes.ADD);
+          f.setData('hasGlow', true);
+          f.setData('manualGlow', columnGlow);
+          // Rising ember particles
+          const embers = this.add.particles(f.x, f.y, 'coin0', {
+            speed: { min: 15, max: 50 },
+            angle: { min: 250, max: 290 },
+            scale: { start: 0.15, end: 0 },
+            alpha: { start: 0.7, end: 0 },
+            lifespan: { min: 300, max: 600 },
+            frequency: 60,
+            quantity: 1,
+            tint: [0xff2200, 0xff6600, 0xffaa00, 0xffff00],
+            blendMode: 'ADD',
+          });
+          embers.setDepth(f.depth + 1);
+          f.setData('embers', embers);
         }
-        const glow = f.getData('glow') as any;
-        if (glow) {
-          glow.clear();
-          const glowAlpha = 0.15 + Math.sin(this.time.now / 80) * 0.08;
-          // Warm orange glow spreading from fire base
-          glow.fillStyle(0xff4400, glowAlpha);
-          glow.fillEllipse(f.x, f.y + BLOCK * 0.3, BLOCK * 2.5, BLOCK * 1.5);
-          glow.fillStyle(0xffaa00, glowAlpha * 0.6);
-          glow.fillEllipse(f.x, f.y, BLOCK * 1.5, BLOCK * 3);
-          // Ember particles — small bright dots
-          for (let i = 0; i < 3; i++) {
-            const ex = f.x + (Math.random() - 0.5) * BLOCK;
-            const ey = f.y - Math.random() * BLOCK * 2;
-            const ea = 0.3 + Math.random() * 0.5;
-            glow.fillStyle(0xffdd00, ea);
-            glow.fillCircle(ex, ey, 1 + Math.random() * 2);
-          }
+      }
+      // Animate fire glow + embers — resize/reposition column as fire moves
+      const mg = f.getData('manualGlow') as any;
+      const em = f.getData('embers') as any;
+      if (mg) {
+        if (fireVisible) {
+          const glowH = H - f.y + BLOCK * 2;
+          mg.setPosition(f.x, f.y + glowH / 2);
+          mg.setSize(BLOCK * 1.4, glowH);
+          mg.setAlpha(0.12 + Math.sin(this.time.now / 60) * 0.08);
+        } else {
+          mg.setAlpha(0);
         }
-      } else {
-        // Clean up glow when fire hidden
-        const glow = f.getData('glow') as any;
-        if (glow) { glow.clear(); }
+      }
+      if (em) {
+        em.setPosition(f.x, f.y);
+        if (fireVisible) { em.start(); } else { em.stop(); }
       }
       
-      if (f.x < camLeft - 200) f.destroy();
+      if (f.x < camLeft - 200) {
+        const gl = f.getData('manualGlow') as any;
+        if (gl) gl.destroy();
+        const sp = f.getData('sparks') as any;
+        if (sp) sp.destroy();
+        const emb = f.getData('embers') as any;
+        if (emb) emb.destroy();
+        f.destroy();
+      }
     });
 
     // Piranha plant animation
@@ -1550,7 +1719,10 @@ export class NinjaRunnerScene extends BaseScene {
       m.body.setMaxVelocity(200, 600);
     } else {
       this.popCoin(q.x, q.y);
-      this.addScore(200, q.x, q.y - 20);
+      // Height bonus — higher ?-blocks reward more points for the effort
+      const heightAboveGround = GROUND_Y - q.y;
+      const heightBonus = heightAboveGround > BLOCK * 4 ? 300 : heightAboveGround > BLOCK * 2 ? 100 : 0;
+      this.addScore(200 + heightBonus, q.x, q.y - 20);
     }
   }
 
@@ -1629,12 +1801,14 @@ export class NinjaRunnerScene extends BaseScene {
       this.time.delayedCall(300, () => {
         if (this.isBig) this.player.clearTint();
       });
-      if (!this.glowSprite) {
-        this.glowSprite = this.add.sprite(this.player.x, this.player.y - PLAYER_H/2, 'glow');
-        this.glowSprite.setDisplaySize(PLAYER_W * 1.6, PLAYER_H * 1.6);
-        this.glowSprite.setAlpha(0.5);
-        this.glowSprite.setDepth(9);
-        this.glowSprite.setBlendMode(Phaser.BlendModes.ADD);
+      // Add visible glow effect around the player (Ellipse — preFX doesn't render in WebKit)
+      if (!this.player.getData('hasGlow')) {
+        const glow = this.add.ellipse(this.player.x, this.player.y - PLAYER_H / 2, PLAYER_W * 1.4, PLAYER_H * 1.4, 0xffdd00, 1.0);
+        glow.setDepth(this.player.depth - 1);
+        glow.setAlpha(0.2);
+        glow.setBlendMode(Phaser.BlendModes.ADD);
+        this.player.setData('hasGlow', true);
+        this.player.setData('glowFx', glow);
       }
     }
   }
@@ -1795,7 +1969,7 @@ export class NinjaRunnerScene extends BaseScene {
       this.player.clearTint();
       this.shrinkTimer = 60;
       this.sfx('nr_hit');
-      if (this.glowSprite) this.glowSprite.setVisible(false);
+      // glow handled by preFX
     } else {
       this.die();
     }
@@ -1812,31 +1986,40 @@ export class NinjaRunnerScene extends BaseScene {
     this.player.body.checkCollision.none = true;
     this.isBig = false;
     this.player.clearTint();
-    if (this.glowSprite) this.glowSprite.setVisible(false);
+    // glow handled by preFX
     if (this.parachuteMode) this.endParachute();
   }
 
   private doRespawn() {
     this.dead = false;
-    let x = Math.max(this.lastSafeX, this.cameras.main.scrollX + 200);
-    // Find a safe spot — avoid gaps, spikes, pipes, and other hazards
+    const deathX = Math.max(this.lastSafeX, this.cameras.main.scrollX + 200);
+    // Find a safe spot — search BACKWARD first to respawn before the hazard
     const isSafe = (wx: number): boolean => {
       if (this.isInGap(wx)) return false;
       if (this.isNearObstacle(wx)) return false;
-      // Check fire/spike group
       const fires = this.fireGroup.getChildren() as any[];
       for (const f of fires) {
         if (f.active && Math.abs(wx - f.x) < BLOCK * 1.5) return false;
       }
-      // Check enemies nearby
       const enemies = this.enemyGroup.getChildren() as any[];
       for (const e of enemies) {
         if (e.active && Math.abs(wx - e.x) < BLOCK * 3) return false;
       }
       return true;
     };
-    let tries = 0;
-    while (!isSafe(x) && tries < 50) { x += BLOCK; tries++; }
+    // Search backward first (up to 15 blocks behind death point)
+    let x = deathX;
+    const minX = Math.max(this.cameras.main.scrollX + 100, deathX - BLOCK * 15);
+    let backX = deathX - BLOCK;
+    while (backX >= minX) {
+      if (isSafe(backX)) { x = backX; break; }
+      backX -= BLOCK;
+    }
+    // If no safe spot behind, search forward as fallback
+    if (x === deathX && !isSafe(x)) {
+      let tries = 0;
+      while (!isSafe(x) && tries < 50) { x += BLOCK; tries++; }
+    }
     this.player.setPosition(x, GROUND_Y - 100);
     this.player.setVelocity(0, 0);
     this.player.body.checkCollision.none = false;
@@ -1844,7 +2027,7 @@ export class NinjaRunnerScene extends BaseScene {
     this.invincible = 90;
     this.shrinkTimer = 0;
     this.stompGrace = 0;
-    if (this.glowSprite) this.glowSprite.setVisible(false);
+    // glow handled by preFX
   }
 
   private respawn() {
@@ -1931,7 +2114,7 @@ export class NinjaRunnerScene extends BaseScene {
       this.isBig = false;
       this.shrinkTimer = 60;
       this.invincible = 90;
-      if (this.glowSprite) this.glowSprite.setVisible(false);
+      // glow handled by preFX
     } else {
       this.die();
     }
@@ -1943,7 +2126,7 @@ export class NinjaRunnerScene extends BaseScene {
       this.isBig = false;
       this.shrinkTimer = 60;
       this.invincible = 90;
-      if (this.glowSprite) this.glowSprite.setVisible(false);
+      // glow handled by preFX
     } else {
       this.die();
     }
@@ -1954,11 +2137,33 @@ export class NinjaRunnerScene extends BaseScene {
     this.sfx('nr_warp');
     this.player.setVelocity(0, 0);
     this.player.body.setAllowGravity(false);
+
+    // Sparkle particle burst at pipe entrance
+    const particles = this.add.particles(this.player.x, this.player.y, 'coin0', {
+      speed: { min: 40, max: 120 },
+      angle: { min: 200, max: 340 },
+      scale: { start: 0.3, end: 0 },
+      lifespan: 600,
+      quantity: 12,
+      emitting: false,
+      tint: [0x00ff00, 0x44ff44, 0xffff00, 0xffffff],
+    });
+    particles.setDepth(15);
+    particles.explode(12);
+    this.time.delayedCall(800, () => particles.destroy());
+
+    // Fade + shrink player as they enter the pipe
     this.tweens.add({
       targets: this.player,
       y: sourcePipe.y + BLOCK,
+      scaleX: 0.3,
+      scaleY: 0.3,
+      alpha: 0,
       duration: 500,
       onComplete: () => {
+        // Reset player scale/alpha for exit
+        this.player.setScale(1);
+        this.player.setAlpha(1);
         // Ensure terrain is generated far enough ahead for a destination
         const aheadX = sourcePipe.x + BLOCK * 30;
         if (this.genX < aheadX) {
@@ -1966,16 +2171,40 @@ export class NinjaRunnerScene extends BaseScene {
           this.extendGround(this.genX, aheadX + W);
         }
 
-        // Find a warp-eligible pipe well ahead of the source
+        // Safety check — is a landing spot free of hazards?
+        const isLandingSafe = (wx: number): boolean => {
+          if (this.isInGap(wx)) return false;
+          if (this.isNearObstacle(wx)) return false;
+          const fires = this.fireGroup.getChildren() as any[];
+          for (const f of fires) {
+            if (f.active && Math.abs(wx - f.x) < BLOCK * 2) return false;
+          }
+          const enemies = this.enemyGroup.getChildren() as any[];
+          for (const e of enemies) {
+            if (e.active && Math.abs(wx - e.x) < BLOCK * 3) return false;
+          }
+          return true;
+        };
+
+        // Find a warp-eligible pipe well ahead of the source in a safe spot
         const minX = sourcePipe.x + BLOCK * 15;
         const pipes = (this.pipeGroup.getChildren() as any[])
           .filter((p: any) => p.x > minX && !p.getData('warp') && !p.getData('gold'))
           .sort((a: any, b: any) => a.x - b.x);
-        // Pick the top segment of the next pipe (lowest y value at that x)
-        const dest = pipes[0];
-        if (dest) {
+
+        // Group pipes by x-position to find distinct pipe columns
+        let destPipe: any = null;
+        const visited = new Set<number>();
+        for (const p of pipes) {
+          const col = Math.round(p.x / BLOCK);
+          if (visited.has(col)) continue;
+          visited.add(col);
+          if (isLandingSafe(p.x)) { destPipe = p; break; }
+        }
+
+        if (destPipe) {
           // Find the topmost segment at this pipe's x position
-          const topSeg = pipes.filter((p: any) => Math.abs(p.x - dest.x) < BLOCK)
+          const topSeg = pipes.filter((p: any) => Math.abs(p.x - destPipe.x) < BLOCK)
             .sort((a: any, b: any) => a.y - b.y)[0];
           const destTop = topSeg.y - BLOCK / 2;
           this.player.setPosition(topSeg.x, destTop + BLOCK);
@@ -1984,7 +2213,22 @@ export class NinjaRunnerScene extends BaseScene {
             targets: this.player,
             y: destTop - 10,
             duration: 400,
-            onStart: () => this.player.setVisible(true),
+            onStart: () => {
+              this.player.setVisible(true);
+              // Sparkle burst at exit pipe
+              const exitParticles = this.add.particles(this.player.x, this.player.y, 'coin0', {
+                speed: { min: 40, max: 120 },
+                angle: { min: 200, max: 340 },
+                scale: { start: 0.3, end: 0 },
+                lifespan: 600,
+                quantity: 10,
+                emitting: false,
+                tint: [0x00ff00, 0x44ff44, 0xffff00, 0xffffff],
+              });
+              exitParticles.setDepth(15);
+              exitParticles.explode(10);
+              this.time.delayedCall(800, () => exitParticles.destroy());
+            },
             onComplete: () => {
               this.player.body.setAllowGravity(true);
               this.warping = false;
@@ -1992,8 +2236,10 @@ export class NinjaRunnerScene extends BaseScene {
             },
           });
         } else {
-          // No pipe found — warp the player forward to clear ground
-          const landX = sourcePipe.x + BLOCK * 18;
+          // No safe pipe found — warp to safe ground ahead
+          let landX = sourcePipe.x + BLOCK * 18;
+          let tries = 0;
+          while (!isLandingSafe(landX) && tries < 30) { landX += BLOCK; tries++; }
           this.player.setPosition(landX, GROUND_Y - BLOCK);
           this.player.setVisible(true);
           this.player.body.setAllowGravity(true);
@@ -2010,11 +2256,33 @@ export class NinjaRunnerScene extends BaseScene {
     this.sfx('nr_warp');
     this.player.setVelocity(0, 0);
     this.player.body.setAllowGravity(false);
+
+    // Sparkle particle burst at golden pipe entrance
+    const particles = this.add.particles(this.player.x, this.player.y, 'coin0', {
+      speed: { min: 50, max: 140 },
+      angle: { min: 200, max: 340 },
+      scale: { start: 0.4, end: 0 },
+      lifespan: 700,
+      quantity: 16,
+      emitting: false,
+      tint: [0xffdd00, 0xffaa00, 0xffffff, 0xff8800],
+    });
+    particles.setDepth(15);
+    particles.explode(16);
+    this.time.delayedCall(900, () => particles.destroy());
+
+    // Fade + shrink into pipe
     this.tweens.add({
       targets: this.player,
       y: pipe.y + BLOCK,
+      scaleX: 0.3,
+      scaleY: 0.3,
+      alpha: 0,
       duration: 500,
       onComplete: () => {
+        // Reset scale and alpha from pipe entry animation
+        this.player.setScale(1);
+        this.player.setAlpha(1);
         const targetX = this.cameras.main.scrollX + W / 2;
         this.player.setPosition(targetX, 60);
         this.player.setVisible(true);

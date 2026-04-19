@@ -4,8 +4,14 @@
 
 declare const Phaser: any;
 
-export const W = window.innerWidth;
-export const H = window.innerHeight;
+export let W = window.innerWidth;
+export let H = window.innerHeight;
+
+/** Call before creating the Phaser game to ensure dimensions are current. */
+export function refreshDimensions() {
+  W = window.innerWidth;
+  H = window.innerHeight;
+}
 
 export abstract class BaseScene extends Phaser.Scene {
   protected score = 0;
@@ -291,9 +297,9 @@ export abstract class BaseScene extends Phaser.Scene {
 
     const dismiss = () => {
       this.gameOverShown = false;
-      overlay.style.animation = 'go-fadeIn 0.3s ease-in reverse';
-      setTimeout(() => { overlay.remove(); restartFn(); }, 250);
       document.removeEventListener('keydown', onKey);
+      overlay.remove();
+      restartFn();
     };
     const onKey = (ev: KeyboardEvent) => {
       if (ev.code === 'Space' || ev.code === 'Enter') { ev.preventDefault(); dismiss(); }

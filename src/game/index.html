@@ -490,6 +490,18 @@
 
   <div id="game"></div>
   <script>
+    // Prevent the app from taking over macOS media/volume controls.
+    // Clear the media session so the OS doesn't treat game audio as "Now Playing".
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.metadata = null;
+      navigator.mediaSession.playbackState = 'none';
+      // Remove all media session action handlers
+      ['play','pause','stop','seekbackward','seekforward','previoustrack','nexttrack'].forEach(function(a) {
+        try { navigator.mediaSession.setActionHandler(a, null); } catch(e) {}
+      });
+    }
+  </script>
+  <script>
     // ── Tauri compatibility bridge ──
     // Creates window.agentArcade matching the Electron preload API so game
     // scenes work identically on both runtimes.

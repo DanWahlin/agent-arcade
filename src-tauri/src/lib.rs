@@ -69,12 +69,18 @@ fn set_paused(app: AppHandle, paused: bool) {
                 let _ = win.set_position(tauri::PhysicalPosition::new(pos.x, pos.y));
                 let _ = win.set_size(tauri::PhysicalSize::new(size.width, size.height - bottom_trim));
             }
-            // THEN restore overlays so they position based on full screen
+            // Remove paused class and restore overlays after window resize settles
             let _ = win.eval(
-                "document.body.classList.remove('paused'); \
-                 var go=document.getElementById('gameover-overlay'); if(go) go.style.display=''; \
-                 var wb=document.getElementById('wave-banner'); if(wb) wb.style.display=''; \
-                 var c=document.querySelector('canvas'); if(c) c.focus();"
+                "setTimeout(function() { \
+                   document.body.classList.remove('paused'); \
+                   var go=document.getElementById('gameover-overlay'); \
+                   if(go) go.setAttribute('style', \
+                     'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;' + \
+                     'display:flex;align-items:center;justify-content:center;' + \
+                     'background:rgba(0,0,0,0.75);pointer-events:auto;'); \
+                   var wb=document.getElementById('wave-banner'); if(wb) wb.style.display=''; \
+                   var c=document.querySelector('canvas'); if(c) c.focus(); \
+                 }, 300);"
             );
             let _ = win.set_ignore_cursor_events(true);
         }
@@ -125,10 +131,27 @@ fn resume_game(app: &AppHandle) {
         let _ = win.set_ignore_cursor_events(false);
         let _ = win.show();
         let _ = win.set_focus();
+        // Expand window first
+        if let Ok(Some(monitor)) = win.primary_monitor() {
+            let size = monitor.size();
+            let pos = monitor.position();
+            let scale = monitor.scale_factor();
+            let bottom_trim = (5.0 * scale) as u32;
+            let _ = win.set_position(tauri::PhysicalPosition::new(pos.x, pos.y));
+            let _ = win.set_size(tauri::PhysicalSize::new(size.width, size.height - bottom_trim));
+        }
+        // Resume game immediately, but delay overlay restoration until
+        // after the window resize has fully settled (300ms)
         let _ = win.eval("if(window.__agentArcadeResumeFromRust) window.__agentArcadeResumeFromRust(); \
-             var go=document.getElementById('gameover-overlay'); if(go) go.style.display=''; \
-             var wb=document.getElementById('wave-banner'); if(wb) wb.style.display=''; \
-             var c=document.querySelector('canvas'); if(c) c.focus();");
+             setTimeout(function() { \
+               var go=document.getElementById('gameover-overlay'); \
+               if(go) go.setAttribute('style', \
+                 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;' + \
+                 'display:flex;align-items:center;justify-content:center;' + \
+                 'background:rgba(0,0,0,0.75);pointer-events:auto;'); \
+               var wb=document.getElementById('wave-banner'); if(wb) wb.style.display=''; \
+               var c=document.querySelector('canvas'); if(c) c.focus(); \
+             }, 300);");
         PAUSED.store(false, Ordering::SeqCst);
     }
 }
@@ -246,16 +269,18 @@ pub fn run() {
 
             // Size and position the window to cover the full screen
             if let Some(win) = app.get_webview_window("main") {
-                if let Ok(Some(monitor)) = win.primary_monitor() {
-                    let size = monitor.size();
-                    let pos = monitor.position();
-                    let scale = monitor.scale_factor();
-                    // Trim a few logical pixels from the bottom so the game
-                    // ground is flush with the visible screen edge.
-                    let bottom_trim = (5.0 * scale) as u32;
-                    let _ = win.set_position(tauri::PhysicalPosition::new(pos.x, pos.y));
-                    let _ = win.set_size(tauri::PhysicalSize::new(size.width, size.height - bottom_trim));
-                }
+                let resize_window = |w: &tauri::WebviewWindow| {
+                    if let Ok(Some(monitor)) = w.primary_monitor() {
+                        let size = monitor.size();
+                        let pos = monitor.position();
+                        let scale = monitor.scale_factor();
+                        let bottom_trim = (5.0 * scale) as u32;
+                        let _ = w.set_position(tauri::PhysicalPosition::new(pos.x, pos.y));
+                        let _ = w.set_size(tauri::PhysicalSize::new(size.width, size.height - bottom_trim));
+                    }
+                };
+
+                resize_window(&win);
 
                 // Always on top at screen-saver level
                 let _ = win.set_always_on_top(true);
@@ -270,6 +295,20 @@ pub fn run() {
                 let _ = win.show();
                 let _ = win.set_focus();
                 VISIBLE.store(true, Ordering::SeqCst);
+
+                // Re-apply size after a brief delay to handle monitor detection race
+                let win_clone = win.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_millis(500));
+                    if let Ok(Some(monitor)) = win_clone.primary_monitor() {
+                        let size = monitor.size();
+                        let pos = monitor.position();
+                        let scale = monitor.scale_factor();
+                        let bottom_trim = (5.0 * scale) as u32;
+                        let _ = win_clone.set_position(tauri::PhysicalPosition::new(pos.x, pos.y));
+                        let _ = win_clone.set_size(tauri::PhysicalSize::new(size.width, size.height - bottom_trim));
+                    }
+                });
             }
 
             Ok(())
