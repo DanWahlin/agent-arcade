@@ -65,6 +65,14 @@ if (currentGameKey !== GAMES[0].key) {
   game.scene.start(key);
   currentGameKey = key;
   try { localStorage.setItem('agentArcade_lastGame', key); } catch { /* ignore */ }
+
+  // Re-enable click-through and focus the game canvas
+  const ab = (window as any).agentArcade;
+  if (ab && ab.setClickThrough) ab.setClickThrough(true);
+  // Blur the dropdown so keyboard goes to the game
+  const sel = document.getElementById('game-select') as HTMLSelectElement | null;
+  if (sel) sel.blur();
+  game.canvas.focus();
 };
 
 // Populate game selector dropdown

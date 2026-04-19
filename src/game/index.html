@@ -310,11 +310,8 @@
     /* ---------- Pause: HUD bar variant ---------- */
     #hud.paused {
       border-color: #ffd54a;
-      box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.08) inset,
-        0 6px 24px rgba(0, 0, 0, 0.7),
-        0 0 22px rgba(255, 213, 74, 0.55);
-      animation: hudPulse 1.6s ease-in-out infinite;
+      box-shadow: none;
+      animation: none;
     }
     @keyframes hudPulse {
       0%, 100% { box-shadow: 0 0 0 1px rgba(255,255,255,0.08) inset, 0 6px 24px rgba(0,0,0,0.7), 0 0 18px rgba(255, 213, 74, 0.45); }

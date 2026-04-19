@@ -41,20 +41,26 @@ fn set_paused(app: AppHandle, paused: bool) {
     PAUSED.store(paused, Ordering::SeqCst);
     if let Some(win) = app.get_webview_window("main") {
         if paused {
+            // Hide overlays and add paused state via JS
+            let _ = win.eval(
+                "document.body.classList.add('paused'); \
+                 var go=document.getElementById('gameover-overlay'); if(go) go.style.display='none'; \
+                 var wb=document.getElementById('wave-banner'); if(wb) wb.style.display='none'; \
+                 var ho=document.getElementById('help-overlay'); if(ho) ho.classList.remove('show');"
+            );
             // Shrink to HUD bar size so apps behind are fully usable
             let _ = win.set_ignore_cursor_events(false);
             if let Ok(Some(monitor)) = win.primary_monitor() {
                 let scale = monitor.scale_factor();
                 let hud_width = (1200.0 * scale) as u32;
                 let hud_height = (105.0 * scale) as u32;
-                // Center horizontally
                 let screen_w = monitor.size().width;
                 let x = ((screen_w - hud_width) / 2) as i32;
                 let _ = win.set_size(tauri::PhysicalSize::new(hud_width, hud_height));
                 let _ = win.set_position(tauri::PhysicalPosition::new(x, 0));
             }
         } else {
-            // Expand back to full screen and reset position
+            // Expand back to full screen and reset position FIRST
             if let Ok(Some(monitor)) = win.primary_monitor() {
                 let size = monitor.size();
                 let pos = monitor.position();
@@ -63,6 +69,13 @@ fn set_paused(app: AppHandle, paused: bool) {
                 let _ = win.set_position(tauri::PhysicalPosition::new(pos.x, pos.y));
                 let _ = win.set_size(tauri::PhysicalSize::new(size.width, size.height - bottom_trim));
             }
+            // THEN restore overlays so they position based on full screen
+            let _ = win.eval(
+                "document.body.classList.remove('paused'); \
+                 var go=document.getElementById('gameover-overlay'); if(go) go.style.display=''; \
+                 var wb=document.getElementById('wave-banner'); if(wb) wb.style.display=''; \
+                 var c=document.querySelector('canvas'); if(c) c.focus();"
+            );
             let _ = win.set_ignore_cursor_events(true);
         }
     }
@@ -114,7 +127,8 @@ fn resume_game(app: &AppHandle) {
         let _ = win.set_focus();
         let _ = win.eval("if(window.__agentArcadeResumeFromRust) window.__agentArcadeResumeFromRust(); \
              var go=document.getElementById('gameover-overlay'); if(go) go.style.display=''; \
-             var wb=document.getElementById('wave-banner'); if(wb) wb.style.display='';");
+             var wb=document.getElementById('wave-banner'); if(wb) wb.style.display=''; \
+             var c=document.querySelector('canvas'); if(c) c.focus();");
         PAUSED.store(false, Ordering::SeqCst);
     }
 }

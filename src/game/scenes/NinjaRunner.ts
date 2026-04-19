@@ -51,6 +51,7 @@ export class NinjaRunnerScene extends BaseScene {
   private pipeGroup!: any;
   private coinGroup!: any;
   private mushroomGroup!: any;
+  private heartGroup!: any;
   private fireballGroup!: any;
   private enemyGroup!: any;
 
@@ -68,6 +69,7 @@ export class NinjaRunnerScene extends BaseScene {
   private parachuteSprite?: any;
   private parachuteFlyingEnemies: any[] = [];
   private parachuteTimer = 0;
+  private windSound?: any;
   private glowSprite?: any;
 
   constructor() { super('ninja-runner'); }
@@ -115,6 +117,14 @@ export class NinjaRunnerScene extends BaseScene {
     this.load.audio('nr_flag', '../assets/ninja-runner/sounds/SoundReachGoal.m4a');
     this.load.audio('nr_bounce', '../assets/ninja-runner/sounds/SoundBounce.m4a');
     this.load.audio('nr_startlevel', '../assets/ninja-runner/sounds/SoundStartLevel.m4a');
+    this.load.audio('nr_gameover', '../assets/ninja-runner/sounds/SoundGameOver.m4a');
+    this.load.audio('nr_land', '../assets/ninja-runner/sounds/SoundLand1.m4a');
+    this.load.audio('nr_flap', '../assets/ninja-runner/sounds/SoundFlapLight.m4a');
+    this.load.audio('nr_warp', '../assets/ninja-runner/sounds/SoundOpenDoor.m4a');
+    this.load.audio('nr_fireball', '../assets/ninja-runner/sounds/SoundShootRegular.m4a');
+    this.load.audio('nr_explosion', '../assets/ninja-runner/sounds/SoundExplosionSmall.m4a');
+    this.load.audio('nr_extralife', '../assets/ninja-runner/sounds/SoundSpecialSkill.m4a');
+    this.load.audio('nr_wind', '../assets/ninja-runner/sounds/SoundWind.m4a');
   }
 
   create() {
@@ -128,6 +138,7 @@ export class NinjaRunnerScene extends BaseScene {
     this.pipeGroup = this.physics.add.staticGroup();
     this.coinGroup = this.physics.add.group({ allowGravity: false });
     this.mushroomGroup = this.physics.add.group();
+    this.heartGroup = this.physics.add.group({ allowGravity: false });
     this.fireballGroup = this.physics.add.group();
     this.enemyGroup = this.physics.add.group();
     this.piranhaGroup = this.physics.add.group({ allowGravity: false });
@@ -167,6 +178,13 @@ export class NinjaRunnerScene extends BaseScene {
       key: 'coin_spin',
       frames: this.anims.generateFrameNumbers('coin_anim', { start: 0, end: 3 }),
       frameRate: 8,
+      repeat: -1,
+    });
+    // Heart pulse animation
+    this.anims.create({
+      key: 'heart_pulse',
+      frames: this.anims.generateFrameNumbers('heart_anim', { start: 0, end: 3 }),
+      frameRate: 4,
       repeat: -1,
     });
     // Enemy walk
@@ -218,6 +236,7 @@ export class NinjaRunnerScene extends BaseScene {
 
     this.physics.add.overlap(this.player, this.coinGroup, this.onPlayerCoin, undefined, this);
     this.physics.add.overlap(this.player, this.mushroomGroup, this.onPlayerMushroom, undefined, this);
+    this.physics.add.overlap(this.player, this.heartGroup, this.onPlayerHeart, undefined, this);
     this.physics.add.overlap(this.player, this.enemyGroup, this.onPlayerEnemy, undefined, this);
     this.physics.add.overlap(this.fireballGroup, this.enemyGroup, this.onFireballEnemy, undefined, this);
     this.physics.add.overlap(this.player, this.piranhaGroup, this.onPlayerPiranha, undefined, this);
@@ -273,6 +292,7 @@ export class NinjaRunnerScene extends BaseScene {
     this.distanceSinceFlag = 0;
     this.currentLevel = 1;
     this.syncLevelToHUD();
+    this.sfx('nr_startlevel', 0.25);
   }
 
   // ---------- Brick / block textures generated at runtime via Graphics ----------
@@ -905,6 +925,28 @@ export class NinjaRunnerScene extends BaseScene {
       }
     }
 
+    // Rare heart pickup — extra life, hard to reach (2% chance per section)
+    if (Math.random() < 0.02) {
+      // Place high above a random non-gap spot — needs bounce pad or double-jump
+      const hx = lo + Math.floor(Math.random() * (hi - lo - BLOCK * 4)) + BLOCK * 2;
+      if (!this.isInGap(hx)) {
+        const hy = GROUND_Y - BLOCK * 6; // very high up
+        const h = this.heartGroup.create(hx, hy, 'heart_anim', 0) as any;
+        h.setDisplaySize(BLOCK * 0.7, BLOCK * 0.7);
+        h.body.setAllowGravity(false);
+        h.anims.play('heart_pulse', true);
+        // Subtle float animation
+        this.tweens.add({
+          targets: h,
+          y: hy - BLOCK * 0.3,
+          duration: 1200,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        });
+      }
+    }
+
     // Flag checkpoint every ~2500px
     this.distanceSinceFlag += (hi - lo);
     if (this.distanceSinceFlag > 2500) {
@@ -1330,9 +1372,36 @@ export class NinjaRunnerScene extends BaseScene {
         });
       }
       
-      // Flicker effect while visible
+      // Flicker effect while visible + glow
       if (f.visible) {
         f.setAlpha(0.8 + Math.sin(this.time.now / 50) * 0.2);
+        // Add/update glow circle underneath
+        if (!f.getData('glow')) {
+          const glow = this.add.graphics().setDepth(f.depth - 1);
+          f.setData('glow', glow);
+        }
+        const glow = f.getData('glow') as any;
+        if (glow) {
+          glow.clear();
+          const glowAlpha = 0.15 + Math.sin(this.time.now / 80) * 0.08;
+          // Warm orange glow spreading from fire base
+          glow.fillStyle(0xff4400, glowAlpha);
+          glow.fillEllipse(f.x, f.y + BLOCK * 0.3, BLOCK * 2.5, BLOCK * 1.5);
+          glow.fillStyle(0xffaa00, glowAlpha * 0.6);
+          glow.fillEllipse(f.x, f.y, BLOCK * 1.5, BLOCK * 3);
+          // Ember particles — small bright dots
+          for (let i = 0; i < 3; i++) {
+            const ex = f.x + (Math.random() - 0.5) * BLOCK;
+            const ey = f.y - Math.random() * BLOCK * 2;
+            const ea = 0.3 + Math.random() * 0.5;
+            glow.fillStyle(0xffdd00, ea);
+            glow.fillCircle(ex, ey, 1 + Math.random() * 2);
+          }
+        }
+      } else {
+        // Clean up glow when fire hidden
+        const glow = f.getData('glow') as any;
+        if (glow) { glow.clear(); }
       }
       
       if (f.x < camLeft - 200) f.destroy();
@@ -1570,6 +1639,16 @@ export class NinjaRunnerScene extends BaseScene {
     }
   }
 
+  private onPlayerHeart(_player: any, h: any) {
+    h.destroy();
+    this.lives++;
+    this.syncLivesToHUD();
+    this.addScore(2000, h.x, h.y - 10);
+    this.sfx('nr_extralife');
+    // Green flash to indicate extra life
+    this.cameras.main.flash(300, 100, 255, 100, false);
+  }
+
   private onPlayerEnemy(_player: any, e: any) {
     if (this.invincible > 0 || this.stompGrace > 0 || this.shrinkTimer > 0) return;
     const state = e.getData('state');
@@ -1707,6 +1786,7 @@ export class NinjaRunnerScene extends BaseScene {
     fb.setVelocityX(dir * 450);
     fb.setVelocityY(-100);
     fb.setBounceY(0.6);
+    this.sfx('nr_fireball', 0.2);
   }
 
   private takeHit() {
@@ -1739,7 +1819,24 @@ export class NinjaRunnerScene extends BaseScene {
   private doRespawn() {
     this.dead = false;
     let x = Math.max(this.lastSafeX, this.cameras.main.scrollX + 200);
-    while (this.isInGap(x)) x += BLOCK;
+    // Find a safe spot — avoid gaps, spikes, pipes, and other hazards
+    const isSafe = (wx: number): boolean => {
+      if (this.isInGap(wx)) return false;
+      if (this.isNearObstacle(wx)) return false;
+      // Check fire/spike group
+      const fires = this.fireGroup.getChildren() as any[];
+      for (const f of fires) {
+        if (f.active && Math.abs(wx - f.x) < BLOCK * 1.5) return false;
+      }
+      // Check enemies nearby
+      const enemies = this.enemyGroup.getChildren() as any[];
+      for (const e of enemies) {
+        if (e.active && Math.abs(wx - e.x) < BLOCK * 3) return false;
+      }
+      return true;
+    };
+    let tries = 0;
+    while (!isSafe(x) && tries < 50) { x += BLOCK; tries++; }
     this.player.setPosition(x, GROUND_Y - 100);
     this.player.setVelocity(0, 0);
     this.player.body.checkCollision.none = false;
@@ -1752,11 +1849,13 @@ export class NinjaRunnerScene extends BaseScene {
 
   private respawn() {
     if (this.lives <= 0) {
+      this.sfx('nr_gameover');
       // Keep dead=true so update() doesn't run while overlay is showing
       this.player.setVisible(false);
       this.player.setVelocity(0, 0);
       this.player.body.checkCollision.none = true;
       this.showGameOver(this.score, () => {
+        this.sfx('nr_startlevel');
         this.lives = 3;
         this.score = 0;
         this.syncScoreToHUD();
@@ -1852,6 +1951,7 @@ export class NinjaRunnerScene extends BaseScene {
 
   private startWarp(sourcePipe: any) {
     this.warping = true;
+    this.sfx('nr_warp');
     this.player.setVelocity(0, 0);
     this.player.body.setAllowGravity(false);
     this.tweens.add({
@@ -1907,6 +2007,7 @@ export class NinjaRunnerScene extends BaseScene {
   private startParachute(pipe: any) {
     this.warping = true;
     this.parachuteMode = true;
+    this.sfx('nr_warp');
     this.player.setVelocity(0, 0);
     this.player.body.setAllowGravity(false);
     this.tweens.add({
@@ -1936,12 +2037,22 @@ export class NinjaRunnerScene extends BaseScene {
         }
         this.parachuteTimer = 0;
         this.parachuteFlyingEnemies = [];
+        // Start looping wind sound
+        try {
+          this.windSound = this.sound.add('nr_wind', { volume: 0.15, loop: true });
+          this.windSound.play();
+        } catch {}
       },
     });
   }
 
   private endParachute() {
     this.parachuteMode = false;
+    // Stop wind sound
+    if (this.windSound) {
+      try { this.windSound.stop(); } catch {}
+      this.windSound = undefined;
+    }
     if (this.parachuteSprite) {
       this.parachuteSprite.destroy();
       this.parachuteSprite = undefined;
