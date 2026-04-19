@@ -2,21 +2,21 @@
   "name": "agent-arcade",
   "version": "0.1.0",
   "description": "Agent Arcade — stress-relief retro platformer overlay to use while your AI agent is working",
-  "main": "dist/app/main.js",
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json && cp src/game/index.html dist/game/ && cp node_modules/phaser/dist/phaser.min.js dist/game/ && cp -R assets dist/assets",
-    "start": "npm run build && electron .",
-    "dist": "npm run build && electron-builder --config electron-builder.json",
-    "dist:mac": "npm run build && electron-builder --mac --config electron-builder.json",
-    "dist:win": "npm run build && electron-builder --win --config electron-builder.json",
-    "dist:linux": "npm run build && electron-builder --linux --config electron-builder.json"
+    "build:frontend": "rm -rf dist/game && tsc -p tsconfig.renderer.json && cp src/game/index.html dist/game/ && cp node_modules/phaser/dist/phaser.min.js dist/game/ && cp -R assets dist/assets",
+    "build": "npm run build:frontend && cd src-tauri && cargo build",
+    "tauri": "tauri",
+    "start": "npm run build:frontend && cd src-tauri && cargo tauri dev",
+    "dev": "cargo tauri dev",
+    "dist": "cargo tauri build",
+    "dist:mac": "cargo tauri build --target universal-apple-darwin",
+    "dist:win": "cargo tauri build --target x86_64-pc-windows-msvc",
+    "dist:linux": "cargo tauri build --target x86_64-unknown-linux-gnu"
   },
   "author": "Dan Wahlin",
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "electron": "^33.0.0",
-    "electron-builder": "^25.0.0",
+    "@tauri-apps/cli": "^2.0.0",
     "typescript": "^5.6.0"
   },
   "dependencies": {

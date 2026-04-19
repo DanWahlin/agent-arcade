@@ -27,7 +27,11 @@ logs/
 .DS_Store
 Thumbs.db
 
-# Electron packaging output
+# Tauri packaging output
 release/
+
+# Rust / Cargo
+src-tauri/target/
+src-tauri/gen/
 
 .plans

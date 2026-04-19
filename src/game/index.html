@@ -27,7 +27,7 @@
     /* ---------- HUD bar ---------- */
     #hud {
       position: fixed;
-      top: 12px;
+      top: 37px;
       left: 50%;
       transform: translateX(-50%);
       display: flex;
@@ -430,6 +430,36 @@
   <div id="pause-overlay" style="display:none"></div>
 
   <div id="game"></div>
+  <script>
+    // ── Tauri compatibility bridge ──
+    // Creates window.agentArcade matching the Electron preload API so game
+    // scenes work identically on both runtimes.
+    (function() {
+      var ti = window.__TAURI_INTERNALS__;
+      if (!ti) return; // Not running in Tauri
+
+      var resumeCallbacks = [];
+      window.agentArcade = {
+        setClickThrough: function(enabled) {
+          ti.invoke('set_click_through', { enabled: !!enabled });
+        },
+        setPaused: function(paused) {
+          ti.invoke('set_paused', { paused: !!paused });
+        },
+        onResumeRequest: function(cb) {
+          resumeCallbacks = [cb];
+        }
+      };
+
+      // Called from Rust via win.eval() when global Escape fires
+      window.__agentArcadeResumeFromRust = function() {
+        resumeCallbacks.forEach(function(cb) { try { cb(); } catch(e) {} });
+        // Also unpause the HUD
+        var hud = document.getElementById('hud');
+        if (hud) hud.classList.remove('paused');
+      };
+    })();
+  </script>
   <script>
     (function () {
       var helpBtn = document.getElementById('help-btn');

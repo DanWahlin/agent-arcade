@@ -4,13 +4,13 @@
 
 # 🕹️🚀 Agent Arcade 
 
-A stress-relief retro platformer that runs as a transparent overlay on your desktop. Play while waiting for your AI agents (Copilot CLI, Claude Code, Codex, etc.) to finish thinking and doing their work. Built with Electron + Phaser 3 + TypeScript.
+A stress-relief retro platformer that runs as a transparent overlay on your desktop. Play while waiting for your AI agents (Copilot CLI, Claude Code, Codex, etc.) to finish thinking and doing their work. Built with Tauri + Phaser + TypeScript.
 
-Agent Arcade was inspired by [Aman](https://x.com/Amank1412) and his [Desktop Mario project](https://github.com/bxf1001g/desktop_mario). I wanted something that could run on Mac, Windows, and Linux, so I built it with Electron + Phaser 3 + TypeScript.
+Agent Arcade was inspired by [Aman](https://x.com/Amank1412) and his [Desktop Mario project](https://github.com/bxf1001g/desktop_mario). I wanted something that could run on Mac, Windows, and Linux, so I built it with Tauri + Phaser + TypeScript.
 
 ## How This Was Made
 
-Idea ➡ Reality in less than 24 hours. I used [GitHub Copilot CLI](https://github.com/github/copilot-cli) (there's a [free course on it here](https://github.com/github/copilot-cli-for-beginners)), and it helped me quickly scaffold the initial Electron + Phaser 3 + TypeScript project structure. From there I worked with copilot to plan the game mechanics and overall structure. I told it the overall goals and it iteratively built out the game mechanics, integrated the sprite assets, and added the overlay functionality.
+Idea ➡ Reality in less than 24 hours. I used [GitHub Copilot CLI](https://github.com/github/copilot-cli) (there's a [free course on it here](https://github.com/github/copilot-cli-for-beginners)), and it helped me quickly scaffold the initial Tauri + Phaser + TypeScript project structure. From there I worked with copilot to plan the game mechanics and overall structure. I told it the overall goals and it iteratively built out the game mechanics, integrated the sprite assets, and added the overlay functionality.
 
 ## Installing Agent Arcade
 

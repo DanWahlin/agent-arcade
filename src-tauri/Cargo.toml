@@ -1,0 +1,22 @@
+[package]
+name = "agent-arcade"
+version = "0.1.0"
+description = "Agent Arcade — stress-relief retro platformer overlay to use while your AI agent is working"
+authors = ["Dan Wahlin"]
+edition = "2021"
+
+[lib]
+name = "agent_arcade_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["macos-private-api", "tray-icon"] }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-single-instance = "2"
+tauri-plugin-log = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+log = "0.4"
