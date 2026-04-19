@@ -19,6 +19,20 @@ fn set_click_through(app: AppHandle, enabled: bool) {
     }
 }
 
+/// Get cursor position relative to the window. Returns (x, y) or null.
+#[tauri::command]
+fn get_cursor_in_window(app: AppHandle) -> Option<(f64, f64)> {
+    if let Some(win) = app.get_webview_window("main") {
+        if let (Ok(pos), Ok(win_pos)) = (win.cursor_position(), win.outer_position()) {
+            let scale = win.scale_factor().unwrap_or(1.0);
+            let x = (pos.x - win_pos.x as f64) / scale;
+            let y = (pos.y - win_pos.y as f64) / scale;
+            return Some((x, y));
+        }
+    }
+    None
+}
+
 /// Track the paused state from the renderer.
 /// When paused, shrink window to just the HUD bar so apps behind are usable.
 /// When resumed, expand back to full screen with click-through enabled.
@@ -162,7 +176,7 @@ pub fn run() {
                 })
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![set_click_through, set_paused, quit_app])
+        .invoke_handler(tauri::generate_handler![set_click_through, set_paused, quit_app, get_cursor_in_window])
         .setup(|app| {
             // Register Ctrl+Alt+M and Escape global shortcuts
             {

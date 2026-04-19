@@ -519,6 +519,27 @@
         if (hud) hud.classList.remove('paused');
         document.body.classList.remove('paused');
       };
+
+      // Poll cursor position to toggle click-through over the HUD bar.
+      // When cursor is over the HUD, disable click-through so buttons work.
+      // When cursor is elsewhere, enable click-through so clicks pass through.
+      var isOverHud = false;
+      setInterval(function() {
+        // Skip polling when paused or window is hidden
+        if (document.hidden || document.body.classList.contains('paused')) return;
+        var hud = document.getElementById('hud');
+        if (!hud) return;
+        ti.invoke('get_cursor_in_window').then(function(pos) {
+          if (!pos) return;
+          var rect = hud.getBoundingClientRect();
+          var over = pos[0] >= rect.left && pos[0] <= rect.right &&
+                     pos[1] >= rect.top && pos[1] <= rect.bottom;
+          if (over !== isOverHud) {
+            isOverHud = over;
+            ti.invoke('set_click_through', { enabled: !over });
+          }
+        }).catch(function() {});
+      }, 100);
     })();
   </script>
   <script>
