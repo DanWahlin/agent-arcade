@@ -98,17 +98,22 @@ fn resume_game(app: &AppHandle) {
         let _ = win.set_ignore_cursor_events(false);
         let _ = win.show();
         let _ = win.set_focus();
-        let _ = win.eval("if(window.__agentArcadeResumeFromRust) window.__agentArcadeResumeFromRust();");
+        let _ = win.eval("if(window.__agentArcadeResumeFromRust) window.__agentArcadeResumeFromRust(); \
+             var go=document.getElementById('gameover-overlay'); if(go) go.style.display=''; \
+             var wb=document.getElementById('wave-banner'); if(wb) wb.style.display='';");
         PAUSED.store(false, Ordering::SeqCst);
     }
 }
 
 fn pause_game(app: &AppHandle) {
     if let Some(win) = app.get_webview_window("main") {
-        // Tell the webview to pause the game scene
+        // Tell the webview to pause the game scene and hide overlays
         let _ = win.eval(
             "if(window.__agentArcadePause) window.__agentArcadePause(true); \
-             var h=document.getElementById('hud'); if(h) h.classList.add('paused');"
+             var h=document.getElementById('hud'); if(h) h.classList.add('paused'); \
+             document.body.classList.add('paused'); \
+             var go=document.getElementById('gameover-overlay'); if(go) go.style.display='none'; \
+             var wb=document.getElementById('wave-banner'); if(wb) wb.style.display='none';"
         );
         // Enable click-through so user can interact with apps behind
         let _ = win.set_ignore_cursor_events(true);

@@ -19,7 +19,9 @@
     }
     body.paused #game,
     body.paused #game *,
-    body.paused #pause-overlay {
+    body.paused #pause-overlay,
+    body.paused #gameover-overlay,
+    body.paused #wave-banner {
       display: none !important;
       visibility: hidden !important;
       opacity: 0 !important;
@@ -362,7 +364,7 @@
     .drag-handle:active { cursor: grabbing; }
     #hud.paused .drag-handle { display: inline-flex; }
 
-    /* Close button — shown only when paused */
+    /* Close button — shown only when paused, positioned top-right corner */
     .close-btn {
       display: none;
       pointer-events: auto;
@@ -381,6 +383,10 @@
       padding: 0;
       transition: all 120ms ease;
       box-shadow: 0 0 6px rgba(232, 64, 64, 0.5);
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      z-index: 20;
     }
     .close-btn:hover {
       background: linear-gradient(180deg, #ff5050 0%, #d03030 100%);
@@ -426,12 +432,9 @@
     </div>
     <div class="hud-divider"></div>
     <div class="hud-section">
-      <button id="help-btn" class="help-btn when-running" type="button">
-        <span class="badge">?</span>
-      </button>
       <span class="pause-badge"><span class="dot"></span>PAUSED — <kbd>Esc</kbd> to resume</span>
-      <button id="close-btn" class="close-btn" type="button" title="Quit Agent Arcade">✕</button>
     </div>
+    <button id="close-btn" class="close-btn" type="button" title="Quit Agent Arcade">✕</button>
     <div class="hud-divider"></div>
     <div class="hud-section score-wrap">
       <span class="score-label">LIVES</span>
@@ -520,9 +523,6 @@
   </script>
   <script>
     (function () {
-      var helpBtn = document.getElementById('help-btn');
-      var helpOverlay = document.getElementById('help-overlay');
-      var helpClose = document.getElementById('help-close');
       var hud = document.getElementById('hud');
 
       function isPaused() { return hud.classList.contains('paused'); }
@@ -537,26 +537,12 @@
         }
       }
 
-      function showHelp() {
-        if (!isPaused()) setPaused(true);
-        helpOverlay.classList.add('show');
-      }
-      function hideHelp() {
-        helpOverlay.classList.remove('show');
-        // Leave game paused after closing Controls — user presses Esc to resume.
-      }
-      helpBtn.addEventListener('click', showHelp);
-      helpClose.addEventListener('click', hideHelp);
-
       // Close button — quit the app (only visible when paused)
       var closeBtn = document.getElementById('close-btn');
       closeBtn.addEventListener('click', function () {
         if (window.agentArcade && window.agentArcade.quitApp) {
           window.agentArcade.quitApp();
         }
-      });
-      helpOverlay.addEventListener('click', function (e) {
-        if (e.target === helpOverlay) hideHelp();
       });
 
       // Drag handle moves the paused HUD window
