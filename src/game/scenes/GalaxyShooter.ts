@@ -1,4 +1,4 @@
-// AgentGalaxy — Galaga-style space shooter.
+// GalaxyShooter — Galaga-style space shooter.
 // Direct port of WesleyEdwards/galaga mechanics: manual position math,
 // De Casteljau bezier smoothing, hop+figure-eight attack patterns.
 // Phaser sprites used ONLY for rendering (setPosition, setRotation, destroy).
@@ -387,7 +387,7 @@ function getAttackPath(currPos: { x: number; y: number }): { x: number; y: numbe
 /*  SCENE                                                              */
 /* ================================================================== */
 
-export class AgentGalaxyScene extends BaseScene {
+export class GalaxyShooterScene extends BaseScene {
   /* player */
   private ship!: any;
   private shipX = W / 2;
@@ -436,8 +436,8 @@ export class AgentGalaxyScene extends BaseScene {
   /* game over */
   private gameOver = false;
 
-  constructor() { super('agent-galaxy'); }
-  get displayName() { return 'Agent Galaxy'; }
+  constructor() { super('galaxy-shooter'); }
+  get displayName() { return 'Galaxy Shooter'; }
 
   /* ================================================================
      LIFECYCLE

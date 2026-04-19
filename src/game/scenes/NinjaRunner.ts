@@ -1,4 +1,4 @@
-// AgentNinja — side-scrolling platformer with free JuhoSprite assets.
+// NinjaRunner — side-scrolling platformer with free JuhoSprite assets.
 // Extracted from the original monolithic game.ts and refactored to
 // extend BaseScene for the multi-game architecture.
 
@@ -12,7 +12,7 @@ const PLAYER_H = 48;              // player draw size
 const GROUND_Y = H - 64;         // top of ground row
 const SPAWN_X = 600;
 
-export class AgentNinjaScene extends BaseScene {
+export class NinjaRunnerScene extends BaseScene {
   // Input
   private cursors!: any;
   private keys!: { space: any; shift: any; f: any; z: any };
@@ -70,9 +70,9 @@ export class AgentNinjaScene extends BaseScene {
   private parachuteTimer = 0;
   private glowSprite?: any;
 
-  constructor() { super('agent-ninja'); }
+  constructor() { super('ninja-runner'); }
 
-  get displayName() { return 'Agent Ninja'; }
+  get displayName() { return 'Ninja Runner'; }
 
   preload() {
     // Player spritesheet: 7 frames of 16×16

@@ -2,24 +2,24 @@
 // Each mini-game is a Phaser Scene extending BaseScene.
 
 import { W, H } from './scenes/BaseScene.js';
-import { AgentNinjaScene } from './scenes/AgentNinja.js';
-import { AgentGalaxyScene } from './scenes/AgentGalaxy.js';
-import { AgentDriftScene } from './scenes/AgentDrift.js';
+import { NinjaRunnerScene } from './scenes/NinjaRunner.js';
+import { GalaxyShooterScene } from './scenes/GalaxyShooter.js';
+import { CosmicRocksScene } from './scenes/CosmicRocks.js';
 
 declare const Phaser: any;
 
 // Registry of available games
 const GAMES = [
-  { key: 'agent-ninja', scene: AgentNinjaScene, label: '🥷 Agent Ninja' },
-  { key: 'agent-galaxy', scene: AgentGalaxyScene, label: '🚀 Agent Galaxy' },
-  { key: 'agent-drift', scene: AgentDriftScene, label: '☄️ Agent Drift' },
+  { key: 'ninja-runner', scene: NinjaRunnerScene, label: '🥷 Ninja Runner' },
+  { key: 'galaxy-shooter', scene: GalaxyShooterScene, label: '🚀 Galaxy Shooter' },
+  { key: 'cosmic-rocks', scene: CosmicRocksScene, label: '☄️ Cosmic Rocks' },
 ];
 
 let currentGameKey: string;
-try { currentGameKey = localStorage.getItem('agentArcade_lastGame') || 'agent-ninja'; }
-catch { currentGameKey = 'agent-ninja'; }
+try { currentGameKey = localStorage.getItem('agentArcade_lastGame') || 'ninja-runner'; }
+catch { currentGameKey = 'ninja-runner'; }
 // Validate stored key exists in registry
-if (!GAMES.find(g => g.key === currentGameKey)) currentGameKey = 'agent-ninja';
+if (!GAMES.find(g => g.key === currentGameKey)) currentGameKey = 'ninja-runner';
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -49,6 +49,16 @@ if (currentGameKey !== GAMES[0].key) {
 (window as any).__agentArcadeSwitchGame = (key: string) => {
   const entry = GAMES.find(g => g.key === key);
   if (!entry || key === currentGameKey) return;
+
+  // If paused, unpause first
+  const hud = document.getElementById('hud');
+  if (hud && hud.classList.contains('paused')) {
+    hud.classList.remove('paused');
+    document.body.classList.remove('paused');
+    const ab = (window as any).agentArcade;
+    if (ab && ab.setClickThrough) ab.setClickThrough(false);
+    if (ab && ab.setPaused) ab.setPaused(false);
+  }
 
   // Stop current scene, start new one
   game.scene.stop(currentGameKey);

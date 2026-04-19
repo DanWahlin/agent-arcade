@@ -1,4 +1,4 @@
-// AgentDrift — Asteroids-style space shooter.
+// CosmicRocks — Asteroids-style space shooter.
 // Ship rotates and thrusts through space, destroying asteroids that split
 // into smaller fragments. Vector-style graphics drawn with Phaser Graphics.
 
@@ -56,7 +56,7 @@ interface Bullet {
 /* ------------------------------------------------------------------ */
 /*  Scene                                                              */
 /* ------------------------------------------------------------------ */
-export class AgentDriftScene extends BaseScene {
+export class CosmicRocksScene extends BaseScene {
   /* ship state */
   private shipGfx!: any;
   private shipX = 0;
@@ -91,12 +91,19 @@ export class AgentDriftScene extends BaseScene {
   private spaceKey!: any;
   private spaceWasDown = false;
 
-  constructor() { super('agent-drift'); }
-  get displayName() { return 'Agent Drift'; }
+  constructor() { super('cosmic-rocks'); }
+  get displayName() { return 'Cosmic Rocks'; }
 
   /* ================================================================
      LIFECYCLE
      ================================================================ */
+
+  preload() {
+    this.load.audio('sfx_laser', '../assets/agent-galaxy/sounds/sfx_laser1.ogg');
+    this.load.audio('sfx_zap', '../assets/agent-galaxy/sounds/sfx_explosion.ogg');
+    this.load.audio('sfx_lose', '../assets/agent-galaxy/sounds/sfx_lose.ogg');
+    this.load.audio('sfx_twoTone', '../assets/agent-galaxy/sounds/sfx_twoTone.ogg');
+  }
 
   create() {
     this.score = 0;
@@ -379,6 +386,7 @@ export class AgentDriftScene extends BaseScene {
      ================================================================ */
 
   private fireBullet() {
+    this.sound.play('sfx_laser', { volume: 0.3 });
     const color = BULLET_COLORS[Math.floor(Math.random() * BULLET_COLORS.length)];
     const gfx = this.add.graphics().setDepth(8);
     // Dark backdrop
@@ -542,6 +550,7 @@ export class AgentDriftScene extends BaseScene {
 
     this.addScore(info.score, a.x, a.y - 10);
     this.spawnExplosion(a.x, a.y);
+    this.sound.play('sfx_zap', { volume: 0.3 });
 
     // Spawn children
     if (a.sizeIdx < 2) {
@@ -604,6 +613,8 @@ export class AgentDriftScene extends BaseScene {
     this.lives--;
     this.syncLivesToHUD();
     this.spawnExplosion(this.shipX, this.shipY);
+    this.sound.play('sfx_zap', { volume: 0.5 });
+    this.sound.play('sfx_lose', { volume: 0.4 });
 
     if (this.lives <= 0) {
       this.shipAlive = false;
@@ -755,6 +766,7 @@ export class AgentDriftScene extends BaseScene {
         this.bullets.splice(bi, 1);
         this.addScore(500, u.x, u.y - 10);
         this.spawnExplosion(u.x, u.y);
+        this.sound.play('sfx_zap', { volume: 0.4 });
         u.gfx.destroy();
         this.ufo = null;
         return;
@@ -796,6 +808,7 @@ export class AgentDriftScene extends BaseScene {
   private startWave() {
     this.wave++;
     this.syncLevelToHUD();
+    this.sound.play('sfx_twoTone', { volume: 0.3 });
 
     const count = INITIAL_ASTEROIDS + (this.wave - 1) * 2;
     for (let i = 0; i < count; i++) {

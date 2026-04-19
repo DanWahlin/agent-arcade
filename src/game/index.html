@@ -18,10 +18,11 @@
       background: transparent !important;
     }
     body.paused #game,
-    body.paused canvas,
+    body.paused #game *,
     body.paused #pause-overlay {
       display: none !important;
       visibility: hidden !important;
+      opacity: 0 !important;
     }
     #game {
       width: 100%;
@@ -216,7 +217,7 @@
       width: 18px;
       height: 18px;
       border-radius: 50%;
-      background: #ffd54a;
+      background: #4caf50;
       color: #fff;
       font-weight: 800;
       font-size: 12px;
