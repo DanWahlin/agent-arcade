@@ -46,7 +46,7 @@
       display: flex;
       align-items: center;
       gap: 18px;
-      padding: 8px 16px;
+      padding: 12px 16px;
       background: linear-gradient(180deg, #1a1f3a 0%, #0a0e22 100%);
       border: 2px solid #ffd54a;
       border-radius: 12px;
@@ -309,6 +309,7 @@
 
     /* ---------- Pause: HUD bar variant ---------- */
     #hud.paused {
+      top: 8px;
       border-color: #ffd54a;
       box-shadow: none;
       animation: none;
@@ -392,6 +393,36 @@
       transform: scale(1.15);
     }
 
+    /* Minimize button — to the left of close */
+    .minimize-btn {
+      display: inline-flex;
+      pointer-events: auto;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      background: linear-gradient(180deg, #f0c040 0%, #c09020 100%);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 800;
+      line-height: 1;
+      padding: 0;
+      transition: all 120ms ease;
+      box-shadow: 0 0 6px rgba(240, 192, 64, 0.5);
+      position: absolute;
+      top: -8px;
+      right: 18px;
+      z-index: 20;
+    }
+    .minimize-btn:hover {
+      background: linear-gradient(180deg, #ffdd55 0%, #d0a030 100%);
+      box-shadow: 0 0 14px rgba(255, 213, 74, 0.8);
+      transform: scale(1.15);
+    }
+
 
     /* ---------- Game selector ---------- */
     .game-select {
@@ -435,6 +466,7 @@
       </button>
       <span class="pause-badge"><span class="dot"></span>PAUSED — <kbd>Esc</kbd> to resume</span>
     </div>
+    <button id="minimize-btn" class="minimize-btn" type="button" title="Hide Agent Arcade">−</button>
     <button id="close-btn" class="close-btn" type="button" title="Quit Agent Arcade">✕</button>
     <div class="hud-divider"></div>
     <div class="hud-section score-wrap">
@@ -522,6 +554,9 @@
         },
         quitApp: function() {
           ti.invoke('quit_app');
+        },
+        hideApp: function() {
+          ti.invoke('hide_app');
         }
       };
 
@@ -591,11 +626,19 @@
         if (e.target === helpOverlay) hideHelp();
       });
 
-      // Close button — quit the app (only visible when paused)
+      // Close button — quit the app
       var closeBtn = document.getElementById('close-btn');
       closeBtn.addEventListener('click', function () {
         if (window.agentArcade && window.agentArcade.quitApp) {
           window.agentArcade.quitApp();
+        }
+      });
+
+      // Minimize button — hide the app (show again via Ctrl+Alt+M or tray)
+      var minimizeBtn = document.getElementById('minimize-btn');
+      minimizeBtn.addEventListener('click', function () {
+        if (window.agentArcade && window.agentArcade.hideApp) {
+          window.agentArcade.hideApp();
         }
       });
 

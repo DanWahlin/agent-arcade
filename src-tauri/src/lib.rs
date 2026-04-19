@@ -53,7 +53,7 @@ fn set_paused(app: AppHandle, paused: bool) {
             if let Ok(Some(monitor)) = win.primary_monitor() {
                 let scale = monitor.scale_factor();
                 let hud_width = (1200.0 * scale) as u32;
-                let hud_height = (105.0 * scale) as u32;
+                let hud_height = (115.0 * scale) as u32;
                 let screen_w = monitor.size().width;
                 let x = ((screen_w - hud_width) / 2) as i32;
                 let _ = win.set_size(tauri::PhysicalSize::new(hud_width, hud_height));
@@ -92,6 +92,12 @@ fn set_paused(app: AppHandle, paused: bool) {
 #[tauri::command]
 fn quit_app(app: AppHandle) {
     app.exit(0);
+}
+
+/// Hide the application window (minimize to tray).
+#[tauri::command]
+fn hide_app(app: AppHandle) {
+    hide_window(&app);
 }
 
 // ── Window helpers ────────────────────────────────────────────────────
@@ -213,7 +219,7 @@ pub fn run() {
                 })
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![set_click_through, set_paused, quit_app, get_cursor_in_window])
+        .invoke_handler(tauri::generate_handler![set_click_through, set_paused, quit_app, hide_app, get_cursor_in_window])
         .setup(|app| {
             // Register Ctrl+Alt+M and Escape global shortcuts
             {
@@ -313,6 +319,13 @@ pub fn run() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running Agent Arcade");
+        .build(tauri::generate_context!())
+        .expect("error while building Agent Arcade")
+        .run(|app, event| {
+            if let tauri::RunEvent::Reopen { has_visible_windows, .. } = event {
+                if !has_visible_windows {
+                    show_window(app);
+                }
+            }
+        });
 }

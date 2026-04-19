@@ -112,6 +112,11 @@ img { max-width: 100%; height: auto; }
   color: #1a1000 !important;
 }
 
+.btn-nav:hover {
+  color: #1a1000 !important;
+  background: linear-gradient(135deg, var(--gold), var(--gold-bright)) !important;
+}
+
 .navbar-github {
   display: flex;
   align-items: center;
