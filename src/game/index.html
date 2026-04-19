@@ -21,7 +21,8 @@
     body.paused #game *,
     body.paused #pause-overlay,
     body.paused #gameover-overlay,
-    body.paused #wave-banner {
+    body.paused #wave-banner,
+    body.paused #help-overlay {
       display: none !important;
       visibility: hidden !important;
       opacity: 0 !important;
@@ -366,7 +367,7 @@
 
     /* Close button — shown only when paused, positioned top-right corner */
     .close-btn {
-      display: none;
+      display: inline-flex;
       pointer-events: auto;
       cursor: pointer;
       align-items: center;
@@ -393,7 +394,7 @@
       box-shadow: 0 0 14px rgba(255, 80, 80, 0.8);
       transform: scale(1.15);
     }
-    #hud.paused .close-btn { display: inline-flex; }
+
 
     /* ---------- Game selector ---------- */
     .game-select {
@@ -432,6 +433,9 @@
     </div>
     <div class="hud-divider"></div>
     <div class="hud-section">
+      <button id="help-btn" class="help-btn when-running" type="button">
+        <span class="badge">?</span>
+      </button>
       <span class="pause-badge"><span class="dot"></span>PAUSED — <kbd>Esc</kbd> to resume</span>
     </div>
     <button id="close-btn" class="close-btn" type="button" title="Quit Agent Arcade">✕</button>
@@ -454,7 +458,7 @@
 
   <div id="help-overlay">
     <div id="help-modal" role="dialog" aria-labelledby="help-title">
-      <h2 id="help-title">🎮 AGENT ARCADE</h2>
+      <h2 id="help-title">🕹️ AGENT ARCADE</h2>
       <p class="subtitle">Controls</p>
       <div class="help-grid">
         <div class="keys"><kbd>←</kbd><kbd>→</kbd></div>
@@ -528,12 +532,15 @@
         // Skip polling when paused or window is hidden
         if (document.hidden || document.body.classList.contains('paused')) return;
         var hud = document.getElementById('hud');
+        var helpOv = document.getElementById('help-overlay');
         if (!hud) return;
         ti.invoke('get_cursor_in_window').then(function(pos) {
           if (!pos) return;
           var rect = hud.getBoundingClientRect();
           var over = pos[0] >= rect.left && pos[0] <= rect.right &&
                      pos[1] >= rect.top && pos[1] <= rect.bottom;
+          // Also check if help overlay is showing
+          if (helpOv && helpOv.classList.contains('show')) over = true;
           if (over !== isOverHud) {
             isOverHud = over;
             ti.invoke('set_click_through', { enabled: !over });
@@ -557,6 +564,23 @@
           if (window.agentArcade.setPaused) window.agentArcade.setPaused(p);
         }
       }
+
+      // Help button — show controls overlay
+      var helpBtn = document.getElementById('help-btn');
+      var helpOverlay = document.getElementById('help-overlay');
+      var helpClose = document.getElementById('help-close');
+
+      function showHelp() {
+        helpOverlay.classList.add('show');
+      }
+      function hideHelp() {
+        helpOverlay.classList.remove('show');
+      }
+      helpBtn.addEventListener('click', showHelp);
+      helpClose.addEventListener('click', hideHelp);
+      helpOverlay.addEventListener('click', function (e) {
+        if (e.target === helpOverlay) hideHelp();
+      });
 
       // Close button — quit the app (only visible when paused)
       var closeBtn = document.getElementById('close-btn');
