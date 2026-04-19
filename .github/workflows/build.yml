@@ -49,10 +49,8 @@ jobs:
             build/*.dmg
             build/*.zip
             build/*.exe
-            build/*.blockmap
             build/*.AppImage
             build/*.deb
-            build/*.yml
           if-no-files-found: error
 
   release:
@@ -68,14 +66,37 @@ jobs:
           merge-multiple: true
 
       - name: List artifacts
-        run: find artifacts -type f | head -20
+        run: find artifacts -type f | sort
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: artifacts/**/*
-          generate_release_notes: true
           draft: false
           prerelease: false
+          body: |
+            ## 🎮 Download Agent Arcade
+
+            ### 🍎 macOS
+            | File | Description |
+            |------|-------------|
+            | `Agent Arcade-*-arm64.dmg` | Apple Silicon (M1/M2/M3/M4) installer |
+            | `Agent Arcade-*.dmg` | Intel Mac installer |
+            | `Agent Arcade-*-arm64-mac.zip` | Apple Silicon portable |
+            | `Agent Arcade-*-mac.zip` | Intel Mac portable |
+
+            ### 🪟 Windows
+            | File | Description |
+            |------|-------------|
+            | `Agent Arcade Setup *.exe` | Windows installer (x64) |
+
+            ### 🐧 Linux
+            | File | Description |
+            |------|-------------|
+            | `Agent Arcade-*.AppImage` | Universal Linux (run anywhere) |
+            | `agent-arcade_*_amd64.deb` | Debian/Ubuntu package |
+
+            ---
+            *A stress-relief retro arcade overlay for your desktop — play while your AI agent is thinking!*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
