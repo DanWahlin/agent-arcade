@@ -4,6 +4,7 @@
 import { W, H } from './scenes/BaseScene.js';
 import { AgentNinjaScene } from './scenes/AgentNinja.js';
 import { AgentGalaxyScene } from './scenes/AgentGalaxy.js';
+import { AgentDriftScene } from './scenes/AgentDrift.js';
 
 declare const Phaser: any;
 
@@ -11,6 +12,7 @@ declare const Phaser: any;
 const GAMES = [
   { key: 'agent-ninja', scene: AgentNinjaScene, label: '🥷 Agent Ninja' },
   { key: 'agent-galaxy', scene: AgentGalaxyScene, label: '🚀 Agent Galaxy' },
+  { key: 'agent-drift', scene: AgentDriftScene, label: '☄️ Agent Drift' },
 ];
 
 let currentGameKey: string;

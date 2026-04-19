@@ -1,6 +1,10 @@
-# 🥷 Agent Arcade
+<p align="center">
+  <img src="images/agent-arcade-banner.webp" alt="Agent Arcade" />
+</p>
 
-A stress-relief retro platformer that runs as a transparent overlay on your desktop. Play while waiting for your AI agents (Copilot CLI, Claude Code, Codex) to finish thinking and doing their work. Built with Electron + Phaser 3 + TypeScript.
+# 🕹️🚀 Agent Arcade 
+
+A stress-relief retro platformer that runs as a transparent overlay on your desktop. Play while waiting for your AI agents (Copilot CLI, Claude Code, Codex, etc.) to finish thinking and doing their work. Built with Electron + Phaser 3 + TypeScript.
 
 Agent Arcade was inspired by [Aman](https://x.com/Amank1412) and his [Desktop Mario project](https://github.com/bxf1001g/desktop_mario). I wanted something that could run on Mac, Windows, and Linux, so I built it with Electron + Phaser 3 + TypeScript.
 
@@ -63,3 +67,5 @@ Sprite assets: [Simple Platformer 16](https://juhosprite.itch.io/simple-platform
 Space shooter assets: [Space Shooter Redux](https://opengameart.org/content/space-shooter-redux) by Kenney.nl
 
 Galaga-style game mechanics: [WesleyEdwards/galaga](https://github.com/WesleyEdwards/galaga) by Wesley Edwards
+
+Asteroids-style game mechanics: [phaser3-typescript](https://github.com/digitsensitive/phaser3-typescript) by digitsensitive
