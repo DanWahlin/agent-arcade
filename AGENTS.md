@@ -1,0 +1,62 @@
+# AGENTS.md
+
+## Project Overview
+
+Agent Arcade is a retro arcade game that runs as a transparent desktop overlay, built with **Tauri v2** (Rust backend) + **Phaser 4** (game engine) + **TypeScript**. It includes three mini-games: Ninja Runner, Galaxy Shooter, and Cosmic Rocks.
+
+## Repository Structure
+
+```
+src/game/          — Frontend game code (TypeScript, Phaser scenes)
+src/game/scenes/   — Game scenes: BaseScene.ts, NinjaRunner.ts, GalaxyShooter.ts, CosmicRocks.ts
+src/game/game.ts   — Game bootstrap, scene registry, and game switcher
+src-tauri/         — Tauri v2 Rust backend (window management, tray icon, overlay)
+docs/              — GitHub Pages website (static HTML/CSS/JS)
+assets/            — Sprite sheets, sounds, and game assets
+tests/             — Playwright end-to-end tests
+.github/workflows/ — CI: build.yml (Build & Release on tags), deploy-pages.yml (Pages deploy on docs/ changes)
+```
+
+## Tech Stack
+
+- **Desktop shell:** Tauri v2 — transparent, always-on-top, click-through window
+- **Game engine:** Phaser 4 with Arcade physics
+- **Language:** TypeScript (ES2022 target, `tsconfig.renderer.json`)
+- **Rust:** `src-tauri/` — handles window config, tray icon, system APIs
+- **Website:** Static HTML/CSS/JS in `docs/`, deployed to GitHub Pages
+- **Tests:** Playwright (Chromium, headless)
+
+## Build & Run
+
+```bash
+npm install                     # Install dependencies
+npm run build:frontend          # Build TypeScript + copy HTML/Phaser/assets to dist/
+npm run build                   # Build frontend + Rust (cargo build)
+npm start                       # Build frontend + launch Tauri dev mode
+```
+
+## Testing
+
+```bash
+npm run build:frontend          # Required before tests
+npx playwright test             # Run all tests
+npx playwright test --headed    # Run with visible browser
+```
+
+The Playwright `webServer` config serves `dist/` via `python3 -m http.server 4173`. The score HUD has a 450ms count-up animation — tests should wait ~500ms after score-triggering actions before asserting score values.
+
+## Website
+
+The `docs/` directory contains the project landing page deployed to [danwahlin.github.io/agent-arcade](https://danwahlin.github.io/agent-arcade). It is a single-page static site (`index.html`, `style.css`, `script.js`) with no build step. Changes to `docs/` on `main` trigger the `deploy-pages.yml` workflow.
+
+## Key Patterns
+
+- All game scenes extend `BaseScene` which provides shared HUD, scoring, pause/resume, and lifecycle logic.
+- `game.ts` maintains a `GAMES` registry array; adding a game means adding a scene class and a registry entry.
+- The Phaser game instance is exposed on `window.__phaserGame` for Playwright test access.
+- Tauri window is configured as transparent, undecorated, always-on-top, and non-resizable (see `tauri.conf.json`).
+
+## CI/CD
+
+- **Build & Release** (`build.yml`): Triggered by `v*` tags. Builds for macOS (universal), Windows, and Linux, then creates a GitHub Release with installers.
+- **Deploy Pages** (`deploy-pages.yml`): Triggered by pushes to `main` that change `docs/`. Deploys `docs/` to GitHub Pages.
