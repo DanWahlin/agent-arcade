@@ -6,6 +6,8 @@
 
 A retro platformer that runs as a transparent overlay on your desktop built with [GitHub Copilot CLI](https://github.com/github/copilot-cli). Play while waiting for your AI agents (Copilot CLI, Claude Code, Codex, etc.) to finish thinking and doing their work. Built with Tauri + Phaser + TypeScript.
 
+🔗 Website: [https://danwahlin.github.io/agent-arcade](https://danwahlin.github.io/agent-arcade)
+
 <p align="center">
   <img src="docs/images/agent-arcade-ninja.gif" alt="Ninja Runner" width="600" /><br/>
   <em>🥷 Ninja Runner</em>
