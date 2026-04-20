@@ -584,7 +584,7 @@ img { max-width: 100%; height: auto; }
 .section {
   position: relative;
   z-index: 1;
-  padding: 100px 0;
+  padding: 50px 0;
   scroll-margin-top: 60px;
 }
 
@@ -1079,7 +1079,7 @@ kbd {
   .hero { padding: 40px 16px 30px; min-height: auto; }
   .hero-title { font-size: 1.8rem; }
   .hero-desc { font-size: 1rem; }
-  .section { padding: 60px 0; }
+  .section { padding: 30px 0; }
   .section-title { font-size: 1.5rem; margin-bottom: 36px; }
   .games-grid { grid-template-columns: 1fr; }
   .game-card-content { padding: 28px 20px; }
@@ -1114,7 +1114,7 @@ kbd {
   .gif-showcase { max-width: 100%; }
   .gif-frame { border-radius: 8px; }
   .gif-game-label { font-size: 0.7rem; }
-  .section { padding: 44px 0; }
+  .section { padding: 22px 0; }
   .section-title { font-size: 1.3rem; margin-bottom: 28px; }
   .game-header { gap: 10px; }
   .game-icon-sprite { width: 48px; height: 48px; }
