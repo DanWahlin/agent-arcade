@@ -123,6 +123,12 @@ jobs:
             | `*.AppImage` | Universal Linux (run anywhere) |
             | `*.deb` | Debian/Ubuntu package |
 
+            > **Note:** For the AppImage, make it executable first:
+            > ```
+            > chmod +x Agent-Arcade_*.AppImage
+            > ./Agent-Arcade_*.AppImage
+            > ```
+
             ---
             *A retro arcade overlay for your desktop — play while your AI agent is thinking! Built with Tauri + Phaser + TypeScript.*
         env:
