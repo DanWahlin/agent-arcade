@@ -14,7 +14,25 @@ Idea ➡ Reality in less than 24 hours. I used [GitHub Copilot CLI](https://gith
 
 ## Installing Agent Arcade
 
-To install Agent Arcade, visit the [releases page](https://github.com/yourusername/agent-arcade/releases) and download the appropriate installer for your operating system. Once installed, you can launch the game from your applications menu or desktop shortcut.
+Visit the [releases page](https://github.com/DanWahlin/agent-arcade/releases) and download the installer for your OS.
+
+### 🍎 macOS
+
+1. Download the `.dmg` file and open it
+2. Drag **Agent Arcade** to your Applications folder
+3. **Important:** The app is not code-signed, so macOS will block it on first launch. Open Terminal and run:
+   ```
+   sudo xattr -rd com.apple.quarantine /Applications/Agent\ Arcade.app
+   ```
+4. Open Agent Arcade from your Applications folder
+
+### 🪟 Windows
+
+Download and run the `.msi` installer.
+
+### 🐧 Linux
+
+Download the `.AppImage` (universal) or `.deb` (Debian/Ubuntu) package.
 
 ## Controls
 
