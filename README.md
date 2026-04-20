@@ -25,7 +25,7 @@ A retro platformer that runs as a transparent overlay on your desktop built with
 
 ## How This Was Made
 
-Idea ➡ Reality over a weekend! I used [GitHub Copilot CLI](https://github.com/github/copilot-cli) (there's a [free course on it here](https://github.com/github/copilot-cli-for-beginners)), and it helped me quickly scaffold the initial Tauri + Phaser + TypeScript project structure. From there I worked with copilot to plan the game mechanics and overall structure. I told it the overall goals and it iteratively built out the game mechanics, integrated the sprite assets, and added the overlay functionality. Still an experimental project, but making good progress.
+Idea ➡ Reality over a weekend! I used [GitHub Copilot CLI](https://github.com/features/copilot/cli/) (there's a [free course on it here](https://github.com/github/copilot-cli-for-beginners)), and it helped me quickly scaffold the initial Tauri + Phaser + TypeScript project structure. From there I worked with copilot to plan the game mechanics and overall structure. I told it the overall goals and it iteratively built out the game mechanics, integrated the sprite assets, and added the overlay functionality. Still an experimental project, but making good progress.
 
 ## Installing Agent Arcade
 
