@@ -1,6 +1,6 @@
 # From Idea to Reality in a Weekend: Building Agent Arcade with GitHub Copilot CLI
 
-![Agent Arcade Banner](images/agent-arcade-banner-v3.webp)
+![Agent Arcade Banner](images/agent-arcade-banner-v3.png)
 
 You know that feeling when you're waiting for your AI agent to finish a task and you've got nothing to do but stare at the terminal? If you're like me, you then jump to yet another agent you have running, interact with it if needed, and then stare at the terminal some more. I spend a lot of my day working with [GitHub Copilot CLI](https://github.com/features/copilot/cli/) and other AI coding tools, and there are stretches where you're just...waiting. I had seen a few ideas shared online and a recent one by [Aman](https://x.com/Amank1412/status/2044489263799275722) really caught my attention. I wanted something that could run on Mac, Linux, and Windows (and had some other games in mind), so I thought, "What if I tried building a little retro arcade game that ran as a transparent overlay right on my desktop?". That way I could quickly switch to it between tasks, give my mind a short break, while still staying on top of what my agents are doing.
 
