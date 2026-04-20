@@ -112,6 +112,11 @@ jobs:
             |------|-------------|
             | `*.msi` | Windows installer (x64) |
 
+            > **Note:** The app is not code-signed, so Windows may flag it:
+            > 1. If your browser warns about the download, select **"Keep"**
+            > 2. When you see "Windows protected your PC", click **"More info"**
+            > 3. Then click **"Run anyway"**
+
             ### 🐧 Linux
             | File | Description |
             |------|-------------|
