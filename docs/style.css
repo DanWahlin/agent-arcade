@@ -353,6 +353,7 @@ img { max-width: 100%; height: auto; }
   align-items: center;
   gap: 8px;
   padding: 8px 20px;
+  margin-bottom: 20px;
   border-radius: 50px;
   background: rgba(155,77,255,0.08);
   border: 1px solid rgba(255,198,41,0.15);
