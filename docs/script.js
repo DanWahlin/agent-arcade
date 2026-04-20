@@ -134,6 +134,137 @@
     ctx.stroke();
   }
 
+  // ---------- GIF Carousel ----------
+  const GIF_DATA = [
+    { src: 'images/agent-arcade-ninja.gif',  label: '🥷 Ninja Runner',   duration: 14670 },
+    { src: 'images/agent-arcade-galaxy.gif', label: '🚀 Galaxy Shooter', duration: 10070 },
+    { src: 'images/agent-arcade-rocks.gif',  label: '☄️ Cosmic Rocks',   duration: 9800 },
+  ];
+
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function initGifCarousel() {
+    const display = document.getElementById('gif-display');
+    const label = document.getElementById('gif-label');
+    const indicatorWrap = document.getElementById('gif-indicators');
+    if (!display || !label || !indicatorWrap) return;
+
+    const order = shuffle([...Array(GIF_DATA.length).keys()]);
+    let currentIdx = 0;
+
+    // Build dot indicators
+    order.forEach((_, i) => {
+      const dot = document.createElement('span');
+      dot.className = 'gif-dot' + (i === 0 ? ' active' : '');
+      dot.addEventListener('click', () => goTo(i));
+      indicatorWrap.appendChild(dot);
+    });
+
+    // Add progress bar after toolbar
+    const toolbar = document.querySelector('.gif-toolbar');
+    const progressBar = document.createElement('div');
+    progressBar.className = 'gif-progress';
+    toolbar.parentNode.insertBefore(progressBar, toolbar.nextSibling);
+
+    const FADE_MS = 350;
+    let timer = null;
+
+    function showGif(idx) {
+      currentIdx = idx;
+      const data = GIF_DATA[order[idx]];
+      const dur = data.duration;
+
+      // Fade out
+      display.classList.remove('visible');
+      label.style.opacity = '0';
+
+      // Reset progress
+      progressBar.style.transition = 'none';
+      progressBar.style.width = '0%';
+
+      setTimeout(() => {
+        // Force GIF restart by appending a cache-bust then removing it
+        display.src = data.src + '?t=' + Date.now();
+        label.textContent = data.label;
+
+        const onLoad = () => {
+          display.classList.add('visible');
+          label.style.opacity = '1';
+
+          // Animate progress bar to match GIF duration
+          requestAnimationFrame(() => {
+            progressBar.style.transition = `width ${dur}ms linear`;
+            progressBar.style.width = '100%';
+          });
+
+          display.removeEventListener('load', onLoad);
+        };
+        display.addEventListener('load', onLoad);
+
+        if (display.complete && display.naturalWidth > 0) {
+          display.removeEventListener('load', onLoad);
+          onLoad();
+        }
+
+        // Update dots
+        indicatorWrap.querySelectorAll('.gif-dot').forEach((d, i) => {
+          d.classList.toggle('active', i === idx);
+        });
+
+        // Schedule next after full GIF plays
+        clearTimeout(timer);
+        timer = setTimeout(next, dur + FADE_MS);
+      }, FADE_MS);
+    }
+
+    function next() {
+      showGif((currentIdx + 1) % order.length);
+    }
+
+    function goTo(idx) {
+      clearTimeout(timer);
+      showGif(idx);
+    }
+
+    // Start
+    showGif(0);
+
+    // ---------- Lightbox ----------
+    const lightbox = document.getElementById('lightbox');
+    const lbImg = document.getElementById('lightbox-img');
+    const lbLabel = document.getElementById('lightbox-label');
+
+    display.addEventListener('click', () => {
+      const data = GIF_DATA[order[currentIdx]];
+      lbImg.src = data.src + '?t=' + Date.now();
+      lbLabel.textContent = data.label;
+      lightbox.classList.add('open');
+      clearTimeout(timer); // pause carousel
+    });
+
+    function closeLightbox() {
+      lightbox.classList.remove('open');
+      lbImg.src = '';
+      showGif(currentIdx); // resume carousel
+    }
+
+    document.querySelector('.lightbox-close').addEventListener('click', closeLightbox);
+    lightbox.addEventListener('click', (e) => {
+      if (e.target === lightbox) closeLightbox();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && lightbox.classList.contains('open')) closeLightbox();
+    });
+  }
+
+  initGifCarousel();
+
   // ---------- Main loop ----------
   function loop(t) {
     drawStars(t);
@@ -158,7 +289,6 @@
       navToggle.classList.toggle('open');
       navLinks.classList.toggle('open');
     });
-    // Close menu when a link is clicked
     navLinks.querySelectorAll('a').forEach(link => {
       link.addEventListener('click', () => {
         navToggle.classList.remove('open');

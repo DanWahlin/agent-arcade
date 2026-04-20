@@ -13,6 +13,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Exo+2:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
+  <!-- Preload game GIFs -->
+  <link rel="preload" as="image" href="images/agent-arcade-ninja.gif" />
+  <link rel="preload" as="image" href="images/agent-arcade-galaxy.gif" />
+  <link rel="preload" as="image" href="images/agent-arcade-rocks.gif" />
 </head>
 <body>
 
@@ -21,6 +25,9 @@
 
   <!-- Floating particles -->
   <div id="particles"></div>
+
+  <!-- Scanline overlay for CRT retro vibe -->
+  <div class="scanlines"></div>
 
   <!-- Navbar -->
   <nav class="navbar" id="navbar">
@@ -41,36 +48,74 @@
     </div>
   </nav>
 
-  <!-- Hero -->
+  <!-- ======== NEW HERO ======== -->
   <header class="hero">
     <div class="hero-glow"></div>
+
+    <!-- Banner stays -->
     <div class="hero-banner-wrap">
       <picture>
         <source srcset="images/agent-arcade-banner-v3.webp" type="image/webp" />
         <img src="images/agent-arcade-banner-v3.png" alt="Agent Arcade Banner" class="hero-banner" />
       </picture>
     </div>
-    <div class="hero-content">
-      <p class="hero-tagline">A retro platformer that runs as a <span class="highlight">transparent overlay</span> on your desktop.</p>
-      <div class="built-with">
-        <span class="built-with-icon">⚡</span>
-        Built with <a href="https://github.com/github/copilot-cli" target="_blank">GitHub Copilot CLI</a>
-        <span class="built-with-separator">·</span>
-        <a href="https://github.com/github/copilot-cli-for-beginners" target="_blank">Free course →</a>
+
+    <!-- Two-column layout: copy + stage -->
+    <div class="container hero-grid">
+      <!-- Left: copy -->
+      <div class="hero-copy">
+        <div class="hero-kicker"><span class="kicker-dot"></span> Transparent desktop arcade</div>
+        <h1 class="hero-title">Turn <span class="highlight">agent wait time</span><br/>into <span class="highlight">arcade time</span></h1>
+        <p class="hero-desc">Retro games float on your desktop while AI agents think in the background. Built with Tauri, Phaser&nbsp;4, and TypeScript.</p>
+
+        <div class="hero-cta">
+          <a href="https://github.com/DanWahlin/agent-arcade/releases" class="btn btn-primary btn-glow">
+            <span class="btn-icon">⬇</span> Download Now
+          </a>
+          <a href="#games" class="btn btn-secondary">
+            <span class="btn-icon">🎮</span> See the Games
+          </a>
+        </div>
+
+        <div class="hero-badges">
+          <span class="badge">Tauri v2</span>
+          <span class="badge">Phaser 4</span>
+          <span class="badge">TypeScript</span>
+          <span class="badge">Mac · Win · Linux</span>
+        </div>
+
+        <div class="built-with">
+          <span class="built-with-icon">⚡</span>
+          Built with <a href="https://github.com/github/copilot-cli" target="_blank">GitHub Copilot CLI</a>
+          <span class="built-with-separator">·</span>
+          <a href="https://github.com/github/copilot-cli-for-beginners" target="_blank">Free course →</a>
+        </div>
       </div>
-      <div class="hero-cta">
-        <a href="https://github.com/DanWahlin/agent-arcade/releases" class="btn btn-primary">
-          <span class="btn-icon">⬇</span> Download Now
-        </a>
-      </div>
-      <div class="hero-badges">
-        <span class="badge">Tauri v2</span>
-        <span class="badge">Phaser 4</span>
-        <span class="badge">TypeScript</span>
-        <span class="badge">Mac · Win · Linux</span>
+
+      <!-- Right: game GIF carousel -->
+      <div class="hero-stage">
+        <div class="gif-showcase">
+          <div class="gif-frame">
+            <div class="gif-toolbar">
+              <div class="traffic-lights"><span></span><span></span><span></span></div>
+              <span class="gif-game-label" id="gif-label">Loading…</span>
+            </div>
+            <div class="gif-viewport">
+              <img id="gif-display" src="" alt="Game preview" class="gif-img" />
+            </div>
+          </div>
+          <div class="gif-indicators" id="gif-indicators"></div>
+        </div>
       </div>
     </div>
   </header>
+
+  <!-- Lightbox -->
+  <div class="lightbox" id="lightbox">
+    <button class="lightbox-close" aria-label="Close">&times;</button>
+    <img id="lightbox-img" src="" alt="Full-size game preview" />
+    <span class="lightbox-label" id="lightbox-label"></span>
+  </div>
 
   <!-- Games Section -->
   <section class="section games" id="games">
@@ -80,8 +125,12 @@
         <div class="game-card ninja">
           <div class="game-card-glow"></div>
           <div class="game-card-content">
-            <div class="game-icon">🥷</div>
-            <h3>Ninja Runner</h3>
+            <div class="game-header">
+              <div class="game-icon-sprite">
+                <div class="ninja-anim"></div>
+              </div>
+              <h3>Ninja Runner</h3>
+            </div>
             <p>Classic platformer action with double jumps, power-ups, warp pipes, and enemies. Run, jump, and slash your way through levels!</p>
             <div class="controls-mini">
               <div class="control-row"><kbd>← →</kbd><span>Move</span></div>
@@ -95,8 +144,12 @@
         <div class="game-card cosmic">
           <div class="game-card-glow"></div>
           <div class="game-card-content">
-            <div class="game-icon">☄️</div>
-            <h3>Cosmic Rocks</h3>
+            <div class="game-header">
+              <div class="game-icon-sprite">
+                <img src="meteor-sprite.png" alt="Asteroid" class="sprite-icon meteor-spin" />
+              </div>
+              <h3>Cosmic Rocks</h3>
+            </div>
             <p>Asteroids-style vector shooter with rotating ship, thrust physics, splitting asteroids, and UFO encounters. Survive the void!</p>
             <div class="controls-mini">
               <div class="control-row"><kbd>← →</kbd><span>Rotate</span></div>
@@ -108,8 +161,12 @@
         <div class="game-card galaxy">
           <div class="game-card-glow"></div>
           <div class="game-card-content">
-            <div class="game-icon">🚀</div>
-            <h3>Galaxy Shooter</h3>
+            <div class="game-header">
+              <div class="game-icon-sprite">
+                <img src="ship-sprite.png" alt="Player ship" class="sprite-icon ship-hover" />
+              </div>
+              <h3>Galaxy Shooter</h3>
+            </div>
             <p>Galaga-style space shooter with formation enemies, attack patterns, and asteroid fields. Defend the galaxy!</p>
             <div class="controls-mini">
               <div class="control-row"><kbd>← →</kbd><span>Move</span></div>
@@ -144,7 +201,7 @@
           <div class="step-number">03</div>
           <div class="step-content">
             <h3>Play while you wait!</h3>
-            <p>Jump into Ninja Runner, Galaxy Shooter, or Cosmic Rocks. Destress while your agent works. Press <kbd>Esc</kbd> to pause, and toggle visibility anytime with <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>M</kbd>.</p>
+            <p>Jump into Ninja Runner, Galaxy Shooter, or Cosmic Rocks. Destress while your agent works. Press <kbd>Esc</kbd> to pause/unpause the game.</p>
           </div>
         </div>
       </div>
@@ -156,13 +213,9 @@
     <div class="container">
       <h2 class="section-title"><span class="title-icon">🛠️</span> How This Was Made</h2>
       <div class="story-card">
-        <div class="story-timeline">
-          <div class="timeline-badge">⏱️ &lt; 24 hrs</div>
-        </div>
         <div class="story-text">
-          <p><strong>Idea ➡ Reality in less than 24 hours.</strong></p>
-          <p>Built with <a href="https://github.com/github/copilot-cli" target="_blank">GitHub Copilot CLI</a> (there's a <a href="https://github.com/github/copilot-cli-for-beginners" target="_blank">free course on it here</a>), which helped scaffold the initial Tauri + Phaser 4 + TypeScript project structure. From there, Copilot iteratively planned the game mechanics, integrated sprite assets, and added the overlay functionality.</p>
-          <p class="story-inspiration">Inspired by <a href="https://x.com/Amank1412" target="_blank">Aman</a> and his <a href="https://github.com/bxf1001g/desktop_mario" target="_blank">Desktop Mario project</a>. I wanted something that could run on Mac, Windows, and Linux, so I built it with Tauri + Phaser 4 + TypeScript.</p>
+          <p><strong>💡 ➡ 🕹️ over a weekend!</strong></p>
+          <p>Built with <a href="https://github.com/github/copilot-cli" target="_blank">GitHub Copilot CLI</a> (<a href="https://github.com/github/copilot-cli-for-beginners" target="_blank">check out the free course</a>), which helped scaffold the initial Tauri + Phaser 4 + TypeScript project structure. From there, Copilot iteratively planned the game mechanics, integrated sprite assets, and added the overlay functionality.</p>
         </div>
       </div>
     </div>
@@ -174,11 +227,11 @@
       <h2 class="section-title"><span class="title-icon">🎯</span> Controls</h2>
       <div class="controls-grid">
         <div class="control-card general">
-          <h3>⚙️ General</h3>
+          <h3>⚙️ Agent Arcade Controls</h3>
           <table>
             <tbody>
-              <tr><td><kbd>Esc</kbd></td><td>Pause / Resume</td></tr>
-              <tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>M</kbd></td><td>Toggle visibility</td></tr>
+              <tr><td><kbd>Esc</kbd></td><td>Pause / Resume Game</td></tr>
+              <!-- <tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>M</kbd></td><td>Toggle visibility</td></tr> -->
               <tr><td><kbd>⌘Q</kbd> / <kbd>Ctrl</kbd>+<kbd>Q</kbd></td><td>Quit</td></tr>
             </tbody>
           </table>
@@ -186,7 +239,6 @@
       </div>
     </div>
   </section>
-
 
   <!-- Credits -->
   <section class="section credits" id="credits">
@@ -222,6 +274,11 @@
           <div class="credit-icon">💡</div>
           <h4>Inspiration</h4>
           <p><a href="https://github.com/bxf1001g/desktop_mario" target="_blank">Desktop Mario</a> by <a href="https://x.com/Amank1412" target="_blank">Aman</a></p>
+        </div>
+        <div class="credit-item">
+          <div class="credit-icon">💡</div>
+          <h4>Inspiration</h4>
+          <p><a href="https://marketplace.visualstudio.com/items?itemName=tonybaloney.vscode-pets" target="_blank">VS Code Pets</a> by <a href="https://github.com/tonybaloney" target="_blank">Anthony Shaw</a></p>
         </div>
       </div>
     </div>
