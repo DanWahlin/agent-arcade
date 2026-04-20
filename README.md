@@ -4,9 +4,7 @@
 
 # 🕹️ Agent Arcade 
 
-A retro platformer that runs as a transparent overlay on your desktop. Play while waiting for your AI agents (Copilot CLI, Claude Code, Codex, etc.) to finish thinking and doing their work. Built with Tauri + Phaser 4 + TypeScript.
-
-Agent Arcade was inspired by [Aman](https://x.com/Amank1412) and his [Desktop Mario project](https://github.com/bxf1001g/desktop_mario) as well as [Anthony Shaw's](https://github.com/tonybaloney) [VS Code Pets](https://marketplace.visualstudio.com/items?itemName=tonybaloney.vscode-pets). I wanted something that could run on Mac, Windows, and Linux, so I built it with Tauri + Phaser 4 + TypeScript.
+A retro platformer that runs as a transparent overlay on your desktop. Play while waiting for your AI agents (Copilot CLI, Claude Code, Codex, etc.) to finish thinking and doing their work. Built with Tauri + Phaser + TypeScript.
 
 <p align="center">
   <img src="docs/images/agent-arcade-ninja.gif" alt="Ninja Runner" width="600" /><br/>
@@ -25,7 +23,7 @@ Agent Arcade was inspired by [Aman](https://x.com/Amank1412) and his [Desktop Ma
 
 ## How This Was Made
 
-Idea ➡ Reality over a weekend! I used [GitHub Copilot CLI](https://github.com/github/copilot-cli) (there's a [free course on it here](https://github.com/github/copilot-cli-for-beginners)), and it helped me quickly scaffold the initial Tauri + Phaser 4 + TypeScript project structure. From there I worked with copilot to plan the game mechanics and overall structure. I told it the overall goals and it iteratively built out the game mechanics, integrated the sprite assets, and added the overlay functionality. Still an experimental project, but making good progress.
+Idea ➡ Reality over a weekend! I used [GitHub Copilot CLI](https://github.com/github/copilot-cli) (there's a [free course on it here](https://github.com/github/copilot-cli-for-beginners)), and it helped me quickly scaffold the initial Tauri + Phaser + TypeScript project structure. From there I worked with copilot to plan the game mechanics and overall structure. I told it the overall goals and it iteratively built out the game mechanics, integrated the sprite assets, and added the overlay functionality. Still an experimental project, but making good progress.
 
 ## Installing Agent Arcade
 
