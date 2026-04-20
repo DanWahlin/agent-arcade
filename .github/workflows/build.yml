@@ -102,6 +102,11 @@ jobs:
             |------|-------------|
             | `*.dmg` | macOS installer (Universal — Apple Silicon + Intel) |
 
+            > **Note:** The app is not code-signed. After installing, open Terminal and run:
+            > ```
+            > sudo xattr -rd com.apple.quarantine /Applications/Agent\ Arcade.app
+            > ```
+
             ### 🪟 Windows
             | File | Description |
             |------|-------------|
@@ -114,6 +119,6 @@ jobs:
             | `*.deb` | Debian/Ubuntu package |
 
             ---
-            *A stress-relief retro arcade overlay for your desktop — play while your AI agent is thinking! Built with Tauri + Phaser + TypeScript.*
+            *A retro arcade overlay for your desktop — play while your AI agent is thinking! Built with Tauri + Phaser + TypeScript.*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
