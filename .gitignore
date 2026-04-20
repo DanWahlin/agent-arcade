@@ -40,5 +40,3 @@ src-tauri/gen/
 tests/screenshots/
 test-results/
 playwright-report/
-
-blog.md
