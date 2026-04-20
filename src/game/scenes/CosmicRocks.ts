@@ -99,10 +99,10 @@ export class CosmicRocksScene extends BaseScene {
      ================================================================ */
 
   preload() {
-    this.load.audio('sfx_laser', '../assets/agent-galaxy/sounds/sfx_laser1.ogg');
-    this.load.audio('sfx_zap', '../assets/agent-galaxy/sounds/sfx_explosion.ogg');
-    this.load.audio('sfx_lose', '../assets/agent-galaxy/sounds/sfx_lose.ogg');
-    this.load.audio('sfx_twoTone', '../assets/agent-galaxy/sounds/sfx_twoTone.ogg');
+    this.load.audio('sfx_laser', '../assets/cosmic-rocks/sounds/sfx_laser1.ogg');
+    this.load.audio('sfx_zap', '../assets/cosmic-rocks/sounds/sfx_explosion.ogg');
+    this.load.audio('sfx_lose', '../assets/cosmic-rocks/sounds/sfx_lose.ogg');
+    this.load.audio('sfx_twoTone', '../assets/cosmic-rocks/sounds/sfx_twoTone.ogg');
   }
 
   create() {

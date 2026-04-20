@@ -85,31 +85,31 @@ export class NinjaRunnerScene extends BaseScene {
 
   preload() {
     // Player spritesheet: 7 frames of 16×16
-    this.load.spritesheet('player', '../assets/agent-ninja/player_strip.png', { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('player', '../assets/ninja-runner/player_strip.png', { frameWidth: 16, frameHeight: 16 });
     // Enemy spritesheet: 5 frames of 16×16
-    this.load.spritesheet('enemy', '../assets/agent-ninja/enemy_strip.png', { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('enemy', '../assets/ninja-runner/enemy_strip.png', { frameWidth: 16, frameHeight: 16 });
     // Coin animation: 4 frames of 16×16
-    this.load.spritesheet('coin_anim', '../assets/agent-ninja/coin_sheet.png', { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('coin_anim', '../assets/ninja-runner/coin_sheet.png', { frameWidth: 16, frameHeight: 16 });
     // Heart pickup
-    this.load.spritesheet('heart_anim', '../assets/agent-ninja/heart_sheet.png', { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('heart_anim', '../assets/ninja-runner/heart_sheet.png', { frameWidth: 16, frameHeight: 16 });
     // Tile textures
-    this.load.image('grass_block', '../assets/agent-ninja/grass_block.png');
-    this.load.image('dirt_block', '../assets/agent-ninja/dirt_block.png');
-    this.load.image('brown_block', '../assets/agent-ninja/brown_block.png');
-    this.load.image('qblock_img', '../assets/agent-ninja/qblock_new.png');
-    this.load.image('platform_tile', '../assets/agent-ninja/platform.png');
-    this.load.image('spikes_tile', '../assets/agent-ninja/spikes.png');
-    this.load.image('flag_tile', '../assets/agent-ninja/flag.png');
-    this.load.image('bridge_tile', '../assets/agent-ninja/bridge.png');
-    this.load.image('impact', '../assets/agent-ninja/impact_sheet.png');
-    this.load.image('clouds', '../assets/agent-ninja/clouds.png');
-    this.load.image('hill_0', '../assets/agent-ninja/hill_0.png');
-    this.load.image('hill_1', '../assets/agent-ninja/hill_1.png');
-    this.load.image('big_bush', '../assets/agent-ninja/big_bush.png');
-    this.load.image('small_bush', '../assets/agent-ninja/small_bush.png');
-    this.load.image('background', '../assets/agent-ninja/background.png');
-    this.load.spritesheet('enemy_tall', '../assets/agent-ninja/enemy_tall_strip.png', { frameWidth: 16, frameHeight: 32 });
-    this.load.spritesheet('enemy_short', '../assets/agent-ninja/enemy_short_strip.png', { frameWidth: 16, frameHeight: 16 });
+    this.load.image('grass_block', '../assets/ninja-runner/grass_block.png');
+    this.load.image('dirt_block', '../assets/ninja-runner/dirt_block.png');
+    this.load.image('brown_block', '../assets/ninja-runner/brown_block.png');
+    this.load.image('qblock_img', '../assets/ninja-runner/qblock_new.png');
+    this.load.image('platform_tile', '../assets/ninja-runner/platform.png');
+    this.load.image('spikes_tile', '../assets/ninja-runner/spikes.png');
+    this.load.image('flag_tile', '../assets/ninja-runner/flag.png');
+    this.load.image('bridge_tile', '../assets/ninja-runner/bridge.png');
+    this.load.image('impact', '../assets/ninja-runner/impact_sheet.png');
+    this.load.image('clouds', '../assets/ninja-runner/clouds.png');
+    this.load.image('hill_0', '../assets/ninja-runner/hill_0.png');
+    this.load.image('hill_1', '../assets/ninja-runner/hill_1.png');
+    this.load.image('big_bush', '../assets/ninja-runner/big_bush.png');
+    this.load.image('small_bush', '../assets/ninja-runner/small_bush.png');
+    this.load.image('background', '../assets/ninja-runner/background.png');
+    this.load.spritesheet('enemy_tall', '../assets/ninja-runner/enemy_tall_strip.png', { frameWidth: 16, frameHeight: 32 });
+    this.load.spritesheet('enemy_short', '../assets/ninja-runner/enemy_short_strip.png', { frameWidth: 16, frameHeight: 16 });
     // Sound effects
     this.load.audio('nr_jump', '../assets/ninja-runner/sounds/SoundJump1.m4a');
     this.load.audio('nr_coin', '../assets/ninja-runner/sounds/SoundCoin.m4a');

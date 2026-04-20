@@ -448,14 +448,14 @@ export class GalaxyShooterScene extends BaseScene {
      ================================================================ */
 
   preload() {
-    this.load.atlasXML('space', '../assets/agent-galaxy/space_sheet-2.png', '../assets/agent-galaxy/space_sheet-2.xml');
-    this.load.image('space_bg', '../assets/agent-galaxy/space_bg.png');
-    this.load.audio('sfx_laser', '../assets/agent-galaxy/sounds/sfx_laser1.ogg');
-    this.load.audio('sfx_zap', '../assets/agent-galaxy/sounds/sfx_explosion.ogg');
-    this.load.audio('sfx_lose', '../assets/agent-galaxy/sounds/sfx_lose.ogg');
-    this.load.audio('sfx_shieldUp', '../assets/agent-galaxy/sounds/sfx_shieldUp.ogg');
-    this.load.audio('sfx_shieldDown', '../assets/agent-galaxy/sounds/sfx_shieldDown.ogg');
-    this.load.audio('sfx_twoTone', '../assets/agent-galaxy/sounds/sfx_twoTone.ogg');
+    this.load.atlasXML('space', '../assets/galaxy-shooter/space_sheet-2.png', '../assets/galaxy-shooter/space_sheet-2.xml');
+    this.load.image('space_bg', '../assets/galaxy-shooter/space_bg.png');
+    this.load.audio('sfx_laser', '../assets/galaxy-shooter/sounds/sfx_laser1.ogg');
+    this.load.audio('sfx_zap', '../assets/galaxy-shooter/sounds/sfx_explosion.ogg');
+    this.load.audio('sfx_lose', '../assets/galaxy-shooter/sounds/sfx_lose.ogg');
+    this.load.audio('sfx_shieldUp', '../assets/galaxy-shooter/sounds/sfx_shieldUp.ogg');
+    this.load.audio('sfx_shieldDown', '../assets/galaxy-shooter/sounds/sfx_shieldDown.ogg');
+    this.load.audio('sfx_twoTone', '../assets/galaxy-shooter/sounds/sfx_twoTone.ogg');
   }
 
   create() {
