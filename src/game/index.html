@@ -227,6 +227,31 @@
       font-size: 12px;
     }
 
+    /* Mute button */
+    .mute-btn {
+      pointer-events: auto;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px 8px;
+      background: linear-gradient(180deg, #2a3258 0%, #161a30 100%);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 6px;
+      color: #b8c2e8;
+      font-size: 16px;
+      transition: all 120ms ease;
+    }
+    .mute-btn:hover {
+      color: #fff;
+      border-color: #ffd54a;
+      box-shadow: 0 0 12px rgba(255, 213, 74, 0.6);
+    }
+    .mute-btn.muted {
+      color: #ff5252;
+      border-color: rgba(255, 82, 82, 0.4);
+    }
+
     /* Help modal */
     #help-overlay {
       position: fixed;
@@ -464,6 +489,7 @@
       <button id="help-btn" class="help-btn when-running" type="button">
         <span class="badge">?</span>
       </button>
+      <button id="mute-btn" class="mute-btn when-running" type="button" title="Toggle sound (M)">🔊</button>
       <span class="pause-badge"><span class="dot"></span>PAUSED — <kbd>Esc</kbd> to resume</span>
     </div>
     <button id="minimize-btn" class="minimize-btn" type="button" title="Hide Agent Arcade">−</button>
@@ -504,6 +530,9 @@
 
         <div class="keys"><kbd>Esc</kbd></div>
         <div class="desc">Pause / Resume</div>
+
+        <div class="keys"><kbd>M</kbd></div>
+        <div class="desc">Toggle sound on / off</div>
 
         <div class="keys"><kbd>⌃</kbd><kbd>⌥</kbd><kbd>M</kbd></div>
         <div class="desc">Show / Hide window (global)</div>
@@ -639,6 +668,37 @@
       minimizeBtn.addEventListener('click', function () {
         if (window.agentArcade && window.agentArcade.hideApp) {
           window.agentArcade.hideApp();
+        }
+      });
+
+      // Mute button — toggle all game audio
+      var muteBtn = document.getElementById('mute-btn');
+      function toggleMute() {
+        var game = window.__phaserGame;
+        if (!game || !game.sound) return;
+        game.sound.mute = !game.sound.mute;
+        muteBtn.textContent = game.sound.mute ? '🔇' : '🔊';
+        muteBtn.classList.toggle('muted', game.sound.mute);
+        try { localStorage.setItem('agentArcade_muted', game.sound.mute ? '1' : '0'); } catch(e) {}
+      }
+      muteBtn.addEventListener('click', toggleMute);
+      // Restore mute state from localStorage
+      setTimeout(function() {
+        try {
+          var game = window.__phaserGame;
+          if (game && game.sound && localStorage.getItem('agentArcade_muted') === '1') {
+            game.sound.mute = true;
+            muteBtn.textContent = '🔇';
+            muteBtn.classList.add('muted');
+          }
+        } catch(e) {}
+      }, 500);
+      // M key shortcut
+      document.addEventListener('keydown', function(e) {
+        if (e.code === 'KeyM' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+          // Don't toggle if typing in an input or game is paused
+          if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+          toggleMute();
         }
       });
 

@@ -433,6 +433,10 @@ export class GalaxyShooterScene extends BaseScene {
   private spaceKey!: any;
   private spaceWasDown = false;
 
+  /* meteors */
+  private meteors: { sprite: any; vy: number; vx: number; rotSpeed: number; hp: number }[] = [];
+  private meteorTimer = 0;
+
   /* game over */
   private gameOver = false;
 
@@ -444,7 +448,7 @@ export class GalaxyShooterScene extends BaseScene {
      ================================================================ */
 
   preload() {
-    this.load.atlasXML('space', '../assets/agent-galaxy/space_sheet.png', '../assets/agent-galaxy/space_sheet.xml');
+    this.load.atlasXML('space', '../assets/agent-galaxy/space_sheet-2.png', '../assets/agent-galaxy/space_sheet-2.xml');
     this.load.image('space_bg', '../assets/agent-galaxy/space_bg.png');
     this.load.audio('sfx_laser', '../assets/agent-galaxy/sounds/sfx_laser1.ogg');
     this.load.audio('sfx_zap', '../assets/agent-galaxy/sounds/sfx_explosion.ogg');
@@ -480,6 +484,9 @@ export class GalaxyShooterScene extends BaseScene {
     if (this.shieldSprite && this.shieldSprite.active) { this.shieldSprite.destroy(); this.shieldSprite = undefined; }
     this.shieldPickups.forEach(p => { if (p.sprite && p.sprite.active) p.sprite.destroy(); });
     this.shieldPickups = [];
+    this.meteors.forEach(m => { if (m.sprite && m.sprite.active) m.sprite.destroy(); });
+    this.meteors = [];
+    this.meteorTimer = 0;
 
     this.makeTextures();
     this.createStarfield();
@@ -528,6 +535,7 @@ export class GalaxyShooterScene extends BaseScene {
     this.updateEnemyBullets(dt);
     this.checkCollisions();
     this.updateShieldPickups(dt);
+    this.updateMeteors(dt);
     this.updateWave(dt);
   }
 
@@ -1115,6 +1123,34 @@ export class GalaxyShooterScene extends BaseScene {
       }
     }
 
+    // Player bullets vs meteors
+    for (let bi = this.bullets.length - 1; bi >= 0; bi--) {
+      const b = this.bullets[bi];
+      const bRect: Rect = { x: b.sprite.x - 3, y: b.sprite.y - OPPONENT_SIZE * 0.25, w: 6, h: OPPONENT_SIZE * 0.5 };
+      for (let mi = this.meteors.length - 1; mi >= 0; mi--) {
+        const m = this.meteors[mi];
+        const mSize = m.sprite.displayWidth * 0.4;
+        const mRect: Rect = { x: m.sprite.x - mSize, y: m.sprite.y - mSize, w: mSize * 2, h: mSize * 2 };
+        if (overlap(bRect, mRect)) {
+          b.sprite.destroy();
+          this.bullets.splice(bi, 1);
+          m.hp--;
+          if (m.hp <= 0) {
+            const pts = m.sprite.displayWidth > OPPONENT_SIZE ? 150 : 75;
+            this.spawnExplosion(m.sprite.x, m.sprite.y, 'bug');
+            this.addScore(pts, m.sprite.x, m.sprite.y - 10);
+            this.sound.play('sfx_zap', { volume: 0.2 });
+            m.sprite.destroy();
+            this.meteors.splice(mi, 1);
+          } else {
+            m.sprite.setTint(0xffffff);
+            this.time.delayedCall(80, () => { if (m.sprite && m.sprite.active) m.sprite.clearTint(); });
+          }
+          break;
+        }
+      }
+    }
+
     // Enemy bullets vs player
     if (this.invincible <= 0) {
       const pRect: Rect = { x: this.shipX - OPPONENT_SIZE * 0.5, y: this.shipY - OPPONENT_SIZE * 0.4, w: OPPONENT_SIZE, h: OPPONENT_SIZE * 0.8 };
@@ -1193,7 +1229,7 @@ export class GalaxyShooterScene extends BaseScene {
       if (pu.sprite.y > H) { pu.sprite.destroy(); this.shieldPickups.splice(i, 1); continue; }
       const dx = Math.abs(pu.sprite.x - this.shipX);
       const dy = Math.abs(pu.sprite.y - this.shipY);
-      if (dx < 30 && dy < 30) {
+      if (dx < OPPONENT_SIZE * 0.8 && dy < OPPONENT_SIZE * 0.8) {
         pu.sprite.destroy();
         this.shieldPickups.splice(i, 1);
         this.activateShield();
@@ -1208,6 +1244,73 @@ export class GalaxyShooterScene extends BaseScene {
     this.shieldSprite = this.add.sprite(this.shipX, this.shipY, 'space', 'shield1.png').setDepth(11);
     this.shieldSprite.setDisplaySize(OPPONENT_SIZE * 1.6, OPPONENT_SIZE * 1.4);
     this.shieldSprite.setAlpha(0.6);
+  }
+
+  /* ================================================================
+     METEORS
+     ================================================================ */
+
+  private static readonly METEOR_FRAMES = [
+    'meteorBrown_big1.png', 'meteorBrown_big2.png', 'meteorBrown_big3.png', 'meteorBrown_big4.png',
+    'meteorGrey_big1.png', 'meteorGrey_big2.png', 'meteorGrey_big3.png', 'meteorGrey_big4.png',
+    'meteorBrown_med1.png', 'meteorBrown_med3.png',
+    'meteorGrey_med1.png', 'meteorGrey_med2.png',
+  ];
+
+  private updateMeteors(dt: number) {
+    // Spawn timer — one every 3-6 seconds
+    this.meteorTimer -= dt;
+    if (this.meteorTimer <= 0) {
+      this.meteorTimer = 3000 + Math.random() * 3000;
+      this.spawnMeteor();
+    }
+
+    // Move meteors
+    const dtS = dt / 1000;
+    for (let i = this.meteors.length - 1; i >= 0; i--) {
+      const m = this.meteors[i];
+      m.sprite.y += m.vy * dtS;
+      m.sprite.x += m.vx * dtS;
+      m.sprite.rotation += m.rotSpeed * dtS;
+      if (m.sprite.y > H + 80 || m.sprite.x < -80 || m.sprite.x > W + 80) {
+        m.sprite.destroy();
+        this.meteors.splice(i, 1);
+      }
+    }
+
+    // Collision with player
+    if (this.invincible <= 0) {
+      const pRect: Rect = { x: this.shipX - OPPONENT_SIZE * 0.5, y: this.shipY - OPPONENT_SIZE * 0.4, w: OPPONENT_SIZE, h: OPPONENT_SIZE * 0.8 };
+      for (let i = this.meteors.length - 1; i >= 0; i--) {
+        const m = this.meteors[i];
+        const mSize = m.sprite.displayWidth * 0.4;
+        const mRect: Rect = { x: m.sprite.x - mSize, y: m.sprite.y - mSize, w: mSize * 2, h: mSize * 2 };
+        if (overlap(pRect, mRect)) {
+          this.spawnExplosion(m.sprite.x, m.sprite.y, 'bug');
+          m.sprite.destroy();
+          this.meteors.splice(i, 1);
+          this.hitPlayer();
+          break;
+        }
+      }
+    }
+  }
+
+  private spawnMeteor() {
+    const frame = GalaxyShooterScene.METEOR_FRAMES[Math.floor(Math.random() * GalaxyShooterScene.METEOR_FRAMES.length)];
+    const isBig = frame.includes('big');
+    const size = isBig ? OPPONENT_SIZE * (1.2 + Math.random() * 0.8) : OPPONENT_SIZE * (0.6 + Math.random() * 0.4);
+    const x = Math.random() * W;
+    const sprite = this.add.sprite(x, -size, 'space', frame).setDepth(3);
+    sprite.setDisplaySize(size, size);
+    sprite.setAlpha(0.85);
+
+    const vy = 60 + Math.random() * 80;
+    const vx = (Math.random() - 0.5) * 40;
+    const rotSpeed = (Math.random() - 0.5) * 2;
+    const hp = isBig ? 2 : 1;
+
+    this.meteors.push({ sprite, vy, vx, rotSpeed, hp });
   }
 
   /* ================================================================
