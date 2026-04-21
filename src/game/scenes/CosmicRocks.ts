@@ -5,12 +5,13 @@
 declare const Phaser: any;
 
 import { BaseScene, W, H } from './BaseScene.js';
+import type { Star } from './BaseScene.js';
 
 /* ------------------------------------------------------------------ */
-/*  Constants                                                          */
+/*  Constants — SCALE/SHIP_SIZE recalculated in create()               */
 /* ------------------------------------------------------------------ */
-const SCALE = Math.min(W / 1920, H / 1080);
-const SHIP_SIZE = 20 * Math.max(SCALE, 0.6);
+let SCALE = Math.min(W / 1920, H / 1080);
+let SHIP_SIZE = 20 * Math.max(SCALE, 0.6);
 const ROTATE_SPEED = 4;          // rad/s
 const THRUST = 400;              // px/s²
 const FRICTION = 0.98;
@@ -31,8 +32,6 @@ const BULLET_COLORS = [0x00ff88, 0xff8800, 0x00ccff];
 
 /* ------------------------------------------------------------------ */
 /*  Interfaces                                                         */
-/* ------------------------------------------------------------------ */
-interface Star { x: number; y: number; speed: number; size: number; alpha: number; gfx: any }
 
 interface Asteroid {
   gfx: any;
@@ -78,7 +77,6 @@ export class CosmicRocksScene extends BaseScene {
   private ufoTimer = 0;
 
   /* game state */
-  private lives = 3;
   private wave = 0;
   private invincibleTimer = 0;
   private respawnTimer = 0;
@@ -106,6 +104,12 @@ export class CosmicRocksScene extends BaseScene {
   }
 
   create() {
+    this.initBase();
+
+    // Recalculate screen-dependent constants
+    SCALE = Math.min(W / 1920, H / 1080);
+    SHIP_SIZE = 20 * Math.max(SCALE, 0.6);
+
     this.score = 0;
     this.lives = 3;
     this.wave = 0;
@@ -127,37 +131,18 @@ export class CosmicRocksScene extends BaseScene {
     this.ufoBullets = [];
     this.ufoTimer = 15000 + Math.random() * 10000;
 
-    this.makeTextures();
+    this.ensureSparkTexture();
 
-    // Subtle dark backdrop for visibility on light desktops
-    const backdrop = this.add.graphics().setDepth(-20);
-    backdrop.fillStyle(0x000000, 0.25);
-    backdrop.fillRect(0, 0, W, H);
-
-    this.createStarfield();
+    this.stars = this.createStarfield([
+      { count: 40, speed: 15,  size: 1, alpha: 0.25 },
+      { count: 25, speed: 30,  size: 1.5, alpha: 0.35 },
+      { count: 15, speed: 55,  size: 2, alpha: 0.45 },
+    ]);
     this.createShip();
 
     this.cursors = this.input.keyboard.createCursorKeys();
     this.spaceKey = this.input.keyboard.addKey('SPACE');
     this.spaceWasDown = false;
-
-    // pause bridge
-    (window as any).__agentArcadePause = (shouldPause: boolean) => {
-      const ab = (window as any).agentArcade;
-      if (shouldPause) this.pauseGame(); else this.resumeGame();
-      if (ab && ab.setClickThrough) ab.setClickThrough(shouldPause);
-      if (ab && ab.setPaused) ab.setPaused(shouldPause);
-    };
-    const ab = (window as any).agentArcade;
-    if (ab && ab.onResumeRequest) {
-      ab.onResumeRequest(() => {
-        const hud = document.getElementById('hud');
-        if (hud) hud.classList.remove('paused');
-        this.resumeGame();
-        if (ab.setClickThrough) ab.setClickThrough(false);
-        if (ab.setPaused) ab.setPaused(false);
-      });
-    }
 
     this.syncLivesToHUD();
     this.syncScoreToHUD();
@@ -170,7 +155,7 @@ export class CosmicRocksScene extends BaseScene {
     const dt = Math.min(dtMs, 33);
     const dtSec = dt / 1000;
 
-    this.updateStarfield(dt);
+    this.updateStarfield(this.stars, dt);
 
     if (this.respawnTimer > 0) {
       this.respawnTimer -= dt;
@@ -201,50 +186,6 @@ export class CosmicRocksScene extends BaseScene {
       }
     } else if (this.shipGfx) {
       this.shipGfx.setAlpha(1);
-    }
-  }
-
-  /* ================================================================
-     TEXTURES
-     ================================================================ */
-
-  private makeTextures() {
-    if (this.textures.exists('spark')) return;
-    const g = this.add.graphics();
-    g.fillStyle(0xffffff);
-    g.fillCircle(4, 4, 4);
-    g.generateTexture('spark', 8, 8);
-    g.destroy();
-  }
-
-  /* ================================================================
-     STARFIELD
-     ================================================================ */
-
-  private createStarfield() {
-    const layers = [
-      { count: 40, speed: 15,  size: 1, alpha: 0.25 },
-      { count: 25, speed: 30,  size: 1.5, alpha: 0.35 },
-      { count: 15, speed: 55,  size: 2, alpha: 0.45 },
-    ];
-    for (const l of layers) {
-      for (let i = 0; i < l.count; i++) {
-        const gfx = this.add.graphics();
-        const x = Math.random() * W;
-        const y = Math.random() * H;
-        gfx.fillStyle(0xffffff, l.alpha);
-        gfx.fillCircle(0, 0, l.size);
-        gfx.setPosition(x, y).setDepth(-9);
-        this.stars.push({ x, y, speed: l.speed, size: l.size, alpha: l.alpha, gfx });
-      }
-    }
-  }
-
-  private updateStarfield(dt: number) {
-    for (const s of this.stars) {
-      s.y += s.speed * (dt / 1000);
-      if (s.y > H) s.y -= H;
-      s.gfx.setPosition(s.x, s.y);
     }
   }
 
@@ -445,7 +386,7 @@ export class CosmicRocksScene extends BaseScene {
     return verts;
   }
 
-  private spawnAsteroid(sizeIdx: number, x?: number, y?: number) {
+  private spawnAsteroid(sizeIdx: number, x?: number, y?: number, aimAtShip = false) {
     const info = ASTEROID_SIZES[sizeIdx];
     const radius = info.radius[0] + Math.random() * (info.radius[1] - info.radius[0]);
     const scaledRadius = radius * Math.max(SCALE, 0.5);
@@ -472,7 +413,20 @@ export class CosmicRocksScene extends BaseScene {
 
     const speed = info.speed[0] + Math.random() * (info.speed[1] - info.speed[0]);
     const speedBoost = Math.random() < 0.4 ? 1.5 : 1.0; // 40% chance of fast asteroid
-    const angle = Math.random() * Math.PI * 2;
+    // Aim toward the ship if requested, otherwise random direction
+    let angle: number;
+    let finalSpeed = speed * speedBoost;
+    if (aimAtShip) {
+      angle = Math.atan2(this.shipY - ay, this.shipX - ax);
+      // Add slight random spread (±15°) so it's not a perfect snipe
+      angle += (Math.random() - 0.5) * (Math.PI / 6);
+      // Ensure it arrives in ~3-4s regardless of base speed
+      const dist = Math.sqrt((this.shipX - ax) ** 2 + (this.shipY - ay) ** 2);
+      const minSpeed = dist / (3 + Math.random());
+      finalSpeed = Math.max(finalSpeed, minSpeed);
+    } else {
+      angle = Math.random() * Math.PI * 2;
+    }
     const vertices = this.generateAsteroidVertices(scaledRadius);
 
     const gfx = this.add.graphics().setDepth(5);
@@ -481,8 +435,8 @@ export class CosmicRocksScene extends BaseScene {
     this.asteroids.push({
       gfx,
       x: ax, y: ay,
-      vx: Math.cos(angle) * speed * speedBoost,
-      vy: Math.sin(angle) * speed * speedBoost,
+      vx: Math.cos(angle) * finalSpeed,
+      vy: Math.sin(angle) * finalSpeed,
       radius: scaledRadius,
       sizeIdx,
       rotation: 0,
@@ -802,71 +756,16 @@ export class CosmicRocksScene extends BaseScene {
 
   private startWave() {
     this.wave++;
-    this.syncLevelToHUD();
+    this.syncLevelToHUD(this.wave);
     this.sound.play('sfx_twoTone', { volume: 0.3 });
 
     const count = INITIAL_ASTEROIDS + (this.wave - 1) * 2;
+    // Aim the first 2 asteroids at the ship so the player must act quickly
     for (let i = 0; i < count; i++) {
-      this.spawnAsteroid(0);
+      this.spawnAsteroid(0, undefined, undefined, i < 2);
     }
 
-    this.showWaveBanner();
-  }
-
-  private showWaveBanner() {
-    const existing = document.getElementById('wave-banner');
-    if (existing) existing.remove();
-
-    const banner = document.createElement('div');
-    banner.id = 'wave-banner';
-    banner.style.cssText = `
-      position: fixed; top: 45%; left: 50%; transform: translate(-50%, -50%);
-      padding: 12px 36px;
-      background: linear-gradient(180deg, #1a1f3a 0%, #0a0e22 100%);
-      border: 2px solid #ffd54a;
-      border-radius: 12px;
-      box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.08) inset,
-        0 6px 24px rgba(0, 0, 0, 0.7),
-        0 0 22px rgba(255, 213, 74, 0.45);
-      font-family: -apple-system, system-ui, 'Helvetica Neue', sans-serif;
-      font-size: 22px; font-weight: 700; letter-spacing: 2px;
-      color: #ffd54a;
-      text-shadow: 0 0 8px rgba(255, 213, 74, 0.6);
-      z-index: 50; pointer-events: none; user-select: none;
-      animation: waveBannerIn 0.3s ease-out;
-    `;
-    banner.textContent = `WAVE ${this.wave}`;
-    document.body.appendChild(banner);
-
-    if (!document.getElementById('wave-banner-style')) {
-      const style = document.createElement('style');
-      style.id = 'wave-banner-style';
-      style.textContent = `
-        @keyframes waveBannerIn { from { opacity: 0; transform: translate(-50%, -50%) scale(0.85); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
-        @keyframes waveBannerOut { from { opacity: 1; } to { opacity: 0; } }
-      `;
-      document.head.appendChild(style);
-    }
-
-    setTimeout(() => {
-      banner.style.animation = 'waveBannerOut 0.6s ease-in forwards';
-      setTimeout(() => banner.remove(), 700);
-    }, 1500);
-  }
-
-  /* ================================================================
-     HUD HELPERS
-     ================================================================ */
-
-  private syncLivesToHUD() {
-    const el = document.getElementById('lives-value');
-    if (el) el.textContent = String(this.lives);
-  }
-
-  private syncLevelToHUD() {
-    const el = document.getElementById('level-value');
-    if (el) el.textContent = String(this.wave);
+    this.showWaveBanner(this.wave);
   }
 
   /* ================================================================

@@ -6,6 +6,7 @@
 declare const Phaser: any;
 
 import { BaseScene, W, H } from './BaseScene.js';
+import type { Star } from './BaseScene.js';
 
 /* ------------------------------------------------------------------ */
 /*  Tiny helpers                                                       */
@@ -89,8 +90,7 @@ interface Enemy {
   shotTimer: number;
 }
 
-interface Bullet { sprite: any; vy: number }
-interface Star { x: number; y: number; speed: number; size: number; alpha: number; gfx: any }
+interface Bullet { sprite: any; vx: number; vy: number }
 
 /* ------------------------------------------------------------------ */
 /*  Wave definitions                                                   */
@@ -109,26 +109,28 @@ function waveDef(n: number): WaveDef {
 
 /* ------------------------------------------------------------------ */
 /*  Constants — ref uses 500×500 design grid                           */
+/*  Recalculated in create() to pick up correct W/H after Tauri resize */
 /* ------------------------------------------------------------------ */
-const CONV_X = W / 500;
-const CONV_Y = H / 500;
-const SCALE = Math.min(CONV_X, CONV_Y);
+let CONV_X = W / 500;
+let CONV_Y = H / 500;
+let SCALE = Math.min(CONV_X, CONV_Y);
 
-const OPPONENT_SIZE = Math.min(32 * SCALE, W / 35);
-const ENTRY_SPEED = 0.4 * SCALE;   // px/ms
-const ATTACK_SPEED = 0.3 * SCALE;  // px/ms
+let OPPONENT_SIZE = Math.min(32 * SCALE, W / 35);
+let ENTRY_SPEED = 0.4 * SCALE;   // px/ms
+let ATTACK_SPEED = 0.3 * SCALE;  // px/ms
 const ENTRANCE_INTERVAL = 100;     // ms between spawns in a trail
 
-const SHIP_SPEED = 0.25 * 1000 * SCALE;
-const BULLET_SPEED = 0.45 * 1000 * SCALE;
+let SHIP_SPEED = 0.25 * 1000 * SCALE;
+let BULLET_SPEED = 0.45 * 1000 * SCALE;
 const MAX_BULLETS = 3;
-const ENEMY_BULLET_SPEED = 0.3 * 1000 * SCALE;
-const MAX_DIVERS = 2;
+let ENEMY_BULLET_SPEED = 0.3 * 1000 * SCALE;
+const BASE_MAX_DIVERS = 2;
+const MAX_ENEMY_BULLETS = 6;  // cap on-screen enemy bullets (original Galaga: 3-4)
 
 /* Formation: 5 rows × 10 cols, centered, in design coords scaled to screen */
 const FORM_COLS = 10;
 const FORM_ROWS = 5;
-const COL_SPACING = OPPONENT_SIZE + 10 * CONV_X;
+let COL_SPACING = OPPONENT_SIZE + 10 * CONV_X;
 
 function formationSlot(row: number, col: number): { x: number; y: number } {
   const totalW = (FORM_COLS - 1) * COL_SPACING;
@@ -394,7 +396,6 @@ export class GalaxyShooterScene extends BaseScene {
   private shipVx = 0;
   private readonly shipY = H - OPPONENT_SIZE * 3;
   private bullets: Bullet[] = [];
-  private lives = 3;
   private invincible = 0;
 
   /* shield */
@@ -459,6 +460,20 @@ export class GalaxyShooterScene extends BaseScene {
   }
 
   create() {
+    this.initBase();
+
+    // Recalculate screen-dependent constants now that W/H are correct
+    CONV_X = W / 500;
+    CONV_Y = H / 500;
+    SCALE = Math.min(CONV_X, CONV_Y);
+    OPPONENT_SIZE = Math.min(32 * SCALE, W / 35);
+    ENTRY_SPEED = 0.4 * SCALE;
+    ATTACK_SPEED = 0.3 * SCALE;
+    SHIP_SPEED = 0.25 * 1000 * SCALE;
+    BULLET_SPEED = 0.45 * 1000 * SCALE;
+    ENEMY_BULLET_SPEED = 0.3 * 1000 * SCALE;
+    COL_SPACING = OPPONENT_SIZE + 10 * CONV_X;
+
     this.score = 0;
     this.lives = 3;
     this.wave = 0;
@@ -488,8 +503,8 @@ export class GalaxyShooterScene extends BaseScene {
     this.meteors = [];
     this.meteorTimer = 0;
 
-    this.makeTextures();
-    this.createStarfield();
+    this.ensureSparkTexture();
+    this.createGalaxyStarfield();
     this.formation = buildFormationGrid();
 
     this.ship = this.add.sprite(this.shipX, this.shipY, 'space', 'playerShip1_blue.png').setDepth(10);
@@ -499,26 +514,8 @@ export class GalaxyShooterScene extends BaseScene {
     this.spaceKey = this.input.keyboard.addKey('SPACE');
     this.spaceWasDown = false;
 
-    // pause bridge
-    (window as any).__agentArcadePause = (shouldPause: boolean) => {
-      const ab = (window as any).agentArcade;
-      if (shouldPause) this.pauseGame(); else this.resumeGame();
-      if (ab && ab.setClickThrough) ab.setClickThrough(shouldPause);
-      if (ab && ab.setPaused) ab.setPaused(shouldPause);
-    };
-    const ab = (window as any).agentArcade;
-    if (ab && ab.onResumeRequest) {
-      ab.onResumeRequest(() => {
-        const hud = document.getElementById('hud');
-        if (hud) hud.classList.remove('paused');
-        this.resumeGame();
-        if (ab.setClickThrough) ab.setClickThrough(false);
-        if (ab.setPaused) ab.setPaused(false);
-      });
-    }
-
     this.syncLivesToHUD();
-    this.syncLevelToHUD();
+    this.syncLevelToHUD(this.wave);
     this.syncScoreToHUD();
     this.loadHighScore();
     this.startWave();
@@ -528,7 +525,7 @@ export class GalaxyShooterScene extends BaseScene {
     if (this.gameOver) return;
     const dt = Math.min(dtMs, 33);
 
-    this.updateStarfield(dt);
+    this.updateGalaxyStarfield(dt);
     this.updateShip(dt);
     this.updateBullets(dt);
     this.updateEnemies(dt);
@@ -540,23 +537,10 @@ export class GalaxyShooterScene extends BaseScene {
   }
 
   /* ================================================================
-     TEXTURES
-     ================================================================ */
-
-  private makeTextures() {
-    if (this.textures.exists('spark')) return;
-    const g = this.add.graphics();
-    g.fillStyle(0xffffff);
-    g.fillCircle(4, 4, 4);
-    g.generateTexture('spark', 8, 8);
-    g.destroy();
-  }
-
-  /* ================================================================
      STARFIELD
      ================================================================ */
 
-  private createStarfield() {
+  private createGalaxyStarfield() {
     const bgTile = 256;
     const cols = Math.ceil(W / bgTile) + 1;
     const rows = Math.ceil(H / bgTile) + 1;
@@ -568,30 +552,15 @@ export class GalaxyShooterScene extends BaseScene {
       }
     }
 
-    const layers = [
+    this.stars = this.createStarfield([
       { count: 30, speed: 20,  size: 1, alpha: 0.3 },
       { count: 20, speed: 40,  size: 1.5, alpha: 0.4 },
       { count: 15, speed: 70,  size: 2, alpha: 0.5 },
-    ];
-    for (const l of layers) {
-      for (let i = 0; i < l.count; i++) {
-        const gfx = this.add.graphics();
-        const x = Math.random() * W;
-        const y = Math.random() * H;
-        gfx.fillStyle(0xffffff, l.alpha);
-        gfx.fillCircle(0, 0, l.size);
-        gfx.setPosition(x, y).setDepth(-9);
-        this.stars.push({ x, y, speed: l.speed, size: l.size, alpha: l.alpha, gfx });
-      }
-    }
+    ]);
   }
 
-  private updateStarfield(dt: number) {
-    for (const s of this.stars) {
-      s.y += s.speed * (dt / 1000);
-      if (s.y > H) s.y -= H;
-      s.gfx.setPosition(s.x, s.y);
-    }
+  private updateGalaxyStarfield(dt: number) {
+    this.updateStarfield(this.stars, dt);
   }
 
   /* ================================================================
@@ -600,7 +569,7 @@ export class GalaxyShooterScene extends BaseScene {
 
   private startWave() {
     this.wave++;
-    this.syncLevelToHUD();
+    this.syncLevelToHUD(this.wave);
 
     const def = waveDef(this.wave);
     this.spawnQueue = [];
@@ -679,52 +648,14 @@ export class GalaxyShooterScene extends BaseScene {
     this.allStationary = false;
     this.offsetLerping = false;
 
-    // Wave banner — HTML overlay matching HUD style with purple border
-    const existing = document.getElementById('wave-banner');
-    if (existing) existing.remove();
+    // Clean up old wave text sprite if any
     if (this.waveTextSprite) {
       this.tweens.killTweensOf(this.waveTextSprite);
       this.waveTextSprite.destroy();
       this.waveTextSprite = null;
     }
 
-    const banner = document.createElement('div');
-    banner.id = 'wave-banner';
-    banner.style.cssText = `
-      position: fixed; top: 45%; left: 50%; transform: translate(-50%, -50%);
-      padding: 12px 36px;
-      background: linear-gradient(180deg, #1a1f3a 0%, #0a0e22 100%);
-      border: 2px solid #ffd54a;
-      border-radius: 12px;
-      box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.08) inset,
-        0 6px 24px rgba(0, 0, 0, 0.7),
-        0 0 22px rgba(255, 213, 74, 0.45);
-      font-family: -apple-system, system-ui, 'Helvetica Neue', sans-serif;
-      font-size: 22px; font-weight: 700; letter-spacing: 2px;
-      color: #ffd54a;
-      text-shadow: 0 0 8px rgba(255, 213, 74, 0.6);
-      z-index: 50; pointer-events: none; user-select: none;
-      animation: waveBannerIn 0.3s ease-out;
-    `;
-    banner.textContent = `WAVE ${this.wave}`;
-    document.body.appendChild(banner);
-
-    // Inject animation if not already present
-    if (!document.getElementById('wave-banner-style')) {
-      const style = document.createElement('style');
-      style.id = 'wave-banner-style';
-      style.textContent = `
-        @keyframes waveBannerIn { from { opacity: 0; transform: translate(-50%, -50%) scale(0.85); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
-        @keyframes waveBannerOut { from { opacity: 1; } to { opacity: 0; } }
-      `;
-      document.head.appendChild(style);
-    }
-
-    setTimeout(() => {
-      banner.style.animation = 'waveBannerOut 0.6s ease-in forwards';
-      setTimeout(() => banner.remove(), 700);
-    }, 1500);
+    this.showWaveBanner(this.wave);
   }
 
   private updateWave(dt: number) {
@@ -884,12 +815,13 @@ export class GalaxyShooterScene extends BaseScene {
       }
     }
 
-    // Attack coordination: max 2 attackers, new one every 1000ms
+    // Attack coordination: scale max divers with wave (2 base, +1 per 3 waves, cap at 5)
+    const maxDivers = Math.min(BASE_MAX_DIVERS + Math.floor((this.wave - 1) / 3), 5);
     this.attackTimer += dt;
     if (this.attackTimer >= 1000) {
       this.attackTimer -= 1000;
       const attackers = this.enemies.filter(e => e.state === 'attack').length;
-      if (attackers < MAX_DIVERS) {
+      if (attackers < maxDivers) {
         this.triggerDive();
       }
     }
@@ -938,10 +870,10 @@ export class GalaxyShooterScene extends BaseScene {
           e.shotTimer = 0;
         });
 
-        // Shooting during attack: fire on start, then at 100ms, then every 4100ms
+        // Shooting during attack: fire on start, then every ~1200ms during dive
         if (e.state === 'attack') {
           e.shotTimer += dt;
-          if (e.shotsFired >= 1 && e.shotTimer >= 100 + (e.shotsFired - 1) * 4100) {
+          if (e.shotsFired >= 1 && e.shotTimer >= 400 + (e.shotsFired - 1) * 1200) {
             this.fireEnemyBullet(e.pos.x, e.pos.y);
             e.shotsFired++;
           }
@@ -995,9 +927,21 @@ export class GalaxyShooterScene extends BaseScene {
   }
 
   private fireEnemyBullet(x: number, y: number) {
+    // Cap on-screen enemy bullets (authentic Galaga limits to 3-4)
+    if (this.enemyBullets.length >= MAX_ENEMY_BULLETS) return;
+
+    // Galaga-authentic discrete 3-direction system:
+    // Slight horizontal bias toward player, but always nearly vertical
+    const dx = this.shipX - x;
+    const horizontalBias = 0.15; // ratio of horizontal to vertical speed (~8.5° angle)
+    let vx = 0;
+    if (dx < -OPPONENT_SIZE) vx = -ENEMY_BULLET_SPEED * horizontalBias;
+    else if (dx > OPPONENT_SIZE) vx = ENEMY_BULLET_SPEED * horizontalBias;
+    const vy = ENEMY_BULLET_SPEED;
+
     const sprite = this.add.sprite(x, y + 8, 'space', 'laserRed01.png').setDepth(5);
     sprite.setDisplaySize(OPPONENT_SIZE * 0.15, OPPONENT_SIZE * 0.5);
-    this.enemyBullets.push({ sprite, vy: ENEMY_BULLET_SPEED });
+    this.enemyBullets.push({ sprite, vx, vy });
   }
 
   /* ================================================================
@@ -1038,7 +982,7 @@ export class GalaxyShooterScene extends BaseScene {
     if (spaceDown && !this.spaceWasDown && this.bullets.length < MAX_BULLETS) {
       const s = this.add.sprite(this.shipX, this.shipY - 12, 'space', 'laserBlue01.png').setDepth(5);
       s.setDisplaySize(OPPONENT_SIZE * 0.15, OPPONENT_SIZE * 0.55);
-      this.bullets.push({ sprite: s, vy: -BULLET_SPEED });
+      this.bullets.push({ sprite: s, vx: 0, vy: -BULLET_SPEED });
       this.sound.play('sfx_laser', { volume: 0.3 });
     }
     this.spaceWasDown = spaceDown;
@@ -1051,6 +995,7 @@ export class GalaxyShooterScene extends BaseScene {
   private updateBullets(dt: number) {
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       const b = this.bullets[i];
+      b.sprite.x += b.vx * (dt / 1000);
       b.sprite.y += b.vy * (dt / 1000);
       if (b.sprite.y < -10) {
         b.sprite.destroy();
@@ -1062,8 +1007,9 @@ export class GalaxyShooterScene extends BaseScene {
   private updateEnemyBullets(dt: number) {
     for (let i = this.enemyBullets.length - 1; i >= 0; i--) {
       const b = this.enemyBullets[i];
+      b.sprite.x += b.vx * (dt / 1000);
       b.sprite.y += b.vy * (dt / 1000);
-      if (b.sprite.y > H + 10) {
+      if (b.sprite.y > H + 10 || b.sprite.y < -10 || b.sprite.x < -10 || b.sprite.x > W + 10) {
         b.sprite.destroy();
         this.enemyBullets.splice(i, 1);
       }
@@ -1344,20 +1290,6 @@ export class GalaxyShooterScene extends BaseScene {
       if (emitter && emitter.active) emitter.destroy();
       this.activeEmitters = this.activeEmitters.filter(e => e !== emitter);
     });
-  }
-
-  /* ================================================================
-     HUD HELPERS
-     ================================================================ */
-
-  private syncLivesToHUD() {
-    const el = document.getElementById('lives-value');
-    if (el) el.textContent = String(this.lives);
-  }
-
-  private syncLevelToHUD() {
-    const el = document.getElementById('level-value');
-    if (el) el.textContent = String(this.wave);
   }
 
   shutdown() {

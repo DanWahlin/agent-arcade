@@ -37,7 +37,7 @@ To pause it, you can press the escape key and only the HUD overlay will be inter
 
 ![HUD Paused](images/hud-paused.png)
 
-Press escape again and the game will unpause, returning to full-screen overlay mode so you can continue playing.
+Press Ctrl+Escape (or click the ▶ RESUME button) and the game will unpause, returning to full-screen overlay mode so you can continue playing. The unpause key can be customized in Settings.
 
 ![HUD](images/hud.png)
 

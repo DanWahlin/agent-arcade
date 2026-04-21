@@ -24,12 +24,11 @@ export class NinjaRunnerScene extends BaseScene {
   private player!: any;
   private isBig = false;
   private facingRight = true;
-  private invincible = 90;
+  private invincible = 1500;  // ms
   private shrinkTimer = 0;
   private stompGrace = 0;
   private dead = false;
   private deadTimer = 0;
-  private lives = 3;
   private lastSafeX = SPAWN_X;
   private fireCooldown = 0;
   // Jump tracking — manual edge detection is more reliable on macOS than
@@ -133,6 +132,8 @@ export class NinjaRunnerScene extends BaseScene {
   }
 
   create() {
+    this.initBase();
+
     // Recompute GROUND_Y from the actual game height (H may have been
     // refreshed after module load by refreshDimensions in game.ts)
     GROUND_Y = H - BLOCK;
@@ -272,31 +273,6 @@ export class NinjaRunnerScene extends BaseScene {
       z: this.input.keyboard.addKey('Z'),
     };
 
-    // Pause bridge: called from index.html when user presses Esc / clicks resume.
-    // Pauses the Phaser scene + sound, and asks main to enable click-through.
-    (window as any).__agentArcadePause = (shouldPause: boolean) => {
-      const ab = (window as any).agentArcade;
-      if (shouldPause) {
-        this.pauseGame();
-      } else {
-        this.resumeGame();
-      }
-      if (ab && ab.setClickThrough) ab.setClickThrough(shouldPause);
-      if (ab && ab.setPaused) ab.setPaused(shouldPause);
-    };
-
-    // Allow the main process to force-resume (e.g., via global ⌃⌥M).
-    const ab = (window as any).agentArcade;
-    if (ab && ab.onResumeRequest) {
-      ab.onResumeRequest(() => {
-        const hud = document.getElementById('hud');
-        if (hud) hud.classList.remove('paused');
-        this.resumeGame();
-        if (ab.setClickThrough) ab.setClickThrough(false);
-        if (ab.setPaused) ab.setPaused(false);
-      });
-    }
-
     this.addDecorations();
 
     this.generateLevel(SPAWN_X + 400, W + 600);
@@ -304,7 +280,7 @@ export class NinjaRunnerScene extends BaseScene {
     this.loadHighScore();
     this.distanceSinceFlag = 0;
     this.currentLevel = 1;
-    this.syncLevelToHUD();
+    this.syncLevelToHUD(this.currentLevel);
     this.sfx('nr_startlevel', 0.25);
   }
 
@@ -1361,109 +1337,128 @@ export class NinjaRunnerScene extends BaseScene {
       if (this.deadTimer <= 0 && !this.gameOverShown) this.respawn();
       return;
     }
-
     if (this.warping) return;
+    if (this.parachuteMode) { this.updateParachute(dtMs); return; }
 
-    if (this.parachuteMode) {
-      // Stop camera from following — terrain stays fixed
-      this.cameras.main.stopFollow();
+    if (this.invincible > 0) this.invincible -= dtMs;
+    if (this.shrinkTimer > 0) this.shrinkTimer -= dtMs;
+    if (this.stompGrace > 0) this.stompGrace -= dtMs;
+    if (this.fireCooldown > 0) this.fireCooldown -= dtMs;
 
-      if (this.parachuteSprite) {
-        this.parachuteSprite.x = this.player.x;
-        const playerH = PLAYER_H;
-        this.parachuteSprite.y = this.player.y - playerH + 8;
-      }
+    this.updatePlayerMovement(dtMs);
+    if (this.player.y > H + 50) { this.die(); return; }
 
-      // Full directional control with arrow keys
-      const camX = this.cameras.main.scrollX;
-      if (this.cursors.left.isDown) {
-        this.player.setVelocityX(-200);
-      } else if (this.cursors.right.isDown) {
-        this.player.setVelocityX(200);
-      } else {
-        this.player.setVelocityX(Math.sin(this.time.now / 1200) * 40);
-      }
+    const edge = this.cameras.main.scrollX + W + 600;
+    if (edge > this.genX) this.generateLevel(this.genX, edge);
 
-      if (this.cursors.up.isDown) {
-        this.player.setVelocityY(-180);
-      } else if (this.cursors.down.isDown) {
-        this.player.setVelocityY(300);
-      }
+    this.updatePlayerAnimation();
 
-      // Keep Player within visible screen
-      if (this.player.x < camX + 30) this.player.x = camX + 30;
-      if (this.player.x > camX + W - 30) this.player.x = camX + W - 30;
-      if (this.player.y < 40) this.player.y = 40;
-      this.parachuteTimer += dtMs;
-      if (this.parachuteTimer > 1500 && this.parachuteFlyingEnemies.length < 15) {
-        this.parachuteTimer = 0;
-        const fromLeft = Math.random() < 0.5;
-        const camX = this.cameras.main.scrollX;
-        const ex = fromLeft ? camX - 20 : camX + W + 20;
-        const ey = this.player.y + (Math.random() - 0.3) * 200;
-        const fe = this.enemyGroup.create(ex, ey, 'enemy', 0) as any;
-        fe.setOrigin(0.5, 0.5);
-        fe.setDisplaySize(BLOCK, BLOCK);
-        fe.body.setAllowGravity(false);
-        fe.setVelocityX(fromLeft ? 150 : -150);
-        fe.setData('kind', 'goomba');
-        fe.setData('state', 'flying');
-        fe.setData('timer', 0);
-        this.parachuteFlyingEnemies.push(fe);
-      }
-      const pCamLeft = this.cameras.main.scrollX;
-      this.parachuteFlyingEnemies = this.parachuteFlyingEnemies.filter(e => {
-        if (!e.active) return false;
-        if (e.x < pCamLeft - 100 || e.x > pCamLeft + W + 100) { e.destroy(); return false; }
-        return true;
-      });
-      const pOnGround = this.player.body.blocked.down;
-      const falling = this.player.body.velocity.y >= 0;
-      if (pOnGround && falling && !this.cursors.up.isDown) {
-        this.endParachute();
-      }
-      // Die if player drifts into water/gap below ground level
-      if (this.player.y > GROUND_Y + BLOCK) {
-        this.endParachute();
-        this.die();
-        return;
-      }
-      this.player.anims.stop();
-      this.player.setFrame(4); // jump frame while parachuting
-      if (this.cursors.left.isDown) this.player.flipX = true;
-      else if (this.cursors.right.isDown) this.player.flipX = false;
-      this.player.setDisplaySize(PLAYER_W, PLAYER_H);
+    const camLeft = this.cameras.main.scrollX;
+    this.updateCoins(camLeft);
+    this.updateBridges(camLeft);
+    this.updateFireEruptions(camLeft);
+    this.updatePiranhas(dtMs, camLeft);
+    (this.enemyGroup.getChildren() as any[]).forEach(e => this.updateEnemy(e, camLeft));
+    this.updateCrocs(camLeft);
+    this.cleanupOffscreen(camLeft);
+  }
 
-      // Check enemy collisions during parachute
-      (this.enemyGroup.getChildren() as any[]).forEach((e: any) => {
-        if (!e.active || e.getData('state') === 'dead') return;
-        const dx = Math.abs(this.player.x - e.x);
-        const dy = this.player.y - e.y;
-        if (dx < BLOCK * 0.8 && Math.abs(dy) < BLOCK * 0.8) {
-          if (dy < 0) {
-            // Player is above enemy — stomp kill
-            e.setVelocityY(-300);
-            e.flipY = true;
-            e.setData('state', 'dead');
-            this.time.delayedCall(600, () => { if (e.active) e.destroy(); });
-            this.addScore(300, e.x, e.y - 10);
-          } else if (this.invincible <= 0) {
-            // Enemy hit player from side/below — lose a life
-            this.endParachute();
-            this.die();
-          }
-        }
-      });
+  private updateParachute(dtMs: number) {
+    // Stop camera from following — terrain stays fixed
+    this.cameras.main.stopFollow();
 
-      this.syncScoreToHUD();
-      return;
+    if (this.parachuteSprite) {
+      this.parachuteSprite.x = this.player.x;
+      const playerH = PLAYER_H;
+      this.parachuteSprite.y = this.player.y - playerH + 8;
     }
 
-    if (this.invincible > 0) this.invincible -= dtMs * 0.06;
-    if (this.shrinkTimer > 0) this.shrinkTimer -= dtMs * 0.06;
-    if (this.stompGrace > 0) this.stompGrace -= dtMs * 0.06;
-    if (this.fireCooldown > 0) this.fireCooldown -= dtMs * 0.06;
+    // Full directional control with arrow keys
+    const camX = this.cameras.main.scrollX;
+    if (this.cursors.left.isDown) {
+      this.player.setVelocityX(-200);
+    } else if (this.cursors.right.isDown) {
+      this.player.setVelocityX(200);
+    } else {
+      this.player.setVelocityX(Math.sin(this.time.now / 1200) * 40);
+    }
 
+    if (this.cursors.up.isDown) {
+      this.player.setVelocityY(-180);
+    } else if (this.cursors.down.isDown) {
+      this.player.setVelocityY(300);
+    }
+
+    // Keep Player within visible screen
+    if (this.player.x < camX + 30) this.player.x = camX + 30;
+    if (this.player.x > camX + W - 30) this.player.x = camX + W - 30;
+    if (this.player.y < 40) this.player.y = 40;
+    this.parachuteTimer += dtMs;
+    if (this.parachuteTimer > 1500 && this.parachuteFlyingEnemies.length < 15) {
+      this.parachuteTimer = 0;
+      const fromLeft = Math.random() < 0.5;
+      const camX = this.cameras.main.scrollX;
+      const ex = fromLeft ? camX - 20 : camX + W + 20;
+      const ey = this.player.y + (Math.random() - 0.3) * 200;
+      const fe = this.enemyGroup.create(ex, ey, 'enemy', 0) as any;
+      fe.setOrigin(0.5, 0.5);
+      fe.setDisplaySize(BLOCK, BLOCK);
+      fe.body.setAllowGravity(false);
+      fe.setVelocityX(fromLeft ? 150 : -150);
+      fe.setData('kind', 'goomba');
+      fe.setData('state', 'flying');
+      fe.setData('timer', 0);
+      this.parachuteFlyingEnemies.push(fe);
+    }
+    const pCamLeft = this.cameras.main.scrollX;
+    this.parachuteFlyingEnemies = this.parachuteFlyingEnemies.filter(e => {
+      if (!e.active) return false;
+      if (e.x < pCamLeft - 100 || e.x > pCamLeft + W + 100) { e.destroy(); return false; }
+      return true;
+    });
+    const pOnGround = this.player.body.blocked.down;
+    const falling = this.player.body.velocity.y >= 0;
+    if (pOnGround && falling && !this.cursors.up.isDown) {
+      this.endParachute();
+    }
+    // Die if player drifts into water/gap below ground level
+    if (this.player.y > GROUND_Y + BLOCK) {
+      this.endParachute();
+      this.die();
+      return;
+    }
+    this.player.anims.stop();
+    this.player.setFrame(4); // jump frame while parachuting
+    if (this.cursors.left.isDown) this.player.flipX = true;
+    else if (this.cursors.right.isDown) this.player.flipX = false;
+    this.player.setDisplaySize(PLAYER_W, PLAYER_H);
+
+    // Check enemy collisions during parachute
+    (this.enemyGroup.getChildren() as any[]).forEach((e: any) => {
+      if (!e.active || e.getData('state') === 'dead') return;
+      const dx = Math.abs(this.player.x - e.x);
+      const dy = this.player.y - e.y;
+      if (dx < BLOCK * 0.8 && Math.abs(dy) < BLOCK * 0.8) {
+        if (dy < 0) {
+          // Player is above enemy — stomp kill
+          e.setVelocityY(-300);
+          e.flipY = true;
+          e.setData('state', 'dead');
+          this.time.delayedCall(600, () => { if (e.active) e.destroy(); });
+          this.addScore(300, e.x, e.y - 10);
+        } else if (this.invincible <= 0) {
+          // Enemy hit player from side/below — lose a life
+          this.endParachute();
+          this.die();
+        }
+      }
+    });
+
+    this.syncScoreToHUD();
+    return;
+  }
+
+  private updatePlayerMovement(dtMs: number) {
     const running = this.keys.shift.isDown;
     // Powered up = faster speed + higher acceleration
     const speedMult = this.isBig ? 1.5 : 1;
@@ -1531,7 +1526,7 @@ export class NinjaRunnerScene extends BaseScene {
     if (this.isBig && this.fireCooldown <= 0 &&
         (Phaser.Input.Keyboard.JustDown(this.keys.f) || Phaser.Input.Keyboard.JustDown(this.keys.z))) {
       this.throwFireball();
-      this.fireCooldown = 12;
+      this.fireCooldown = 200;
     }
 
     const camLeft = this.cameras.main.scrollX;
@@ -1564,15 +1559,10 @@ export class NinjaRunnerScene extends BaseScene {
         }
       }
     }
+  }
 
-    if (this.player.y > H + 50) {
-      this.die();
-      return;
-    }
-
-    const edge = this.cameras.main.scrollX + W + 600;
-    if (edge > this.genX) this.generateLevel(this.genX, edge);
-
+  private updatePlayerAnimation() {
+    const onGround = this.player.body.blocked.down || this.player.body.touching.down;
     const vx = this.player.body.velocity.x;
     const speed = Math.abs(vx);
     // Player-intent direction this frame (from input). Used to detect skid.
@@ -1640,13 +1630,17 @@ export class NinjaRunnerScene extends BaseScene {
         playerGlow.setVisible(false);
       }
     }
+  }
 
+  private updateCoins(camLeft: number) {
     (this.coinGroup.getChildren() as any[]).forEach(c => {
       const i = Math.floor(this.time.now / 120) % 2;
       c.setTexture(i === 0 ? 'coin0' : 'coin1');
       if (c.x < camLeft - 100) c.destroy();
     });
+  }
 
+  private updateBridges(camLeft: number) {
     // Bridge collapse — unstable tiles start falling when player approaches
     (this.bridgeGroup.getChildren() as any[]).forEach((bt: any) => {
       if (!bt.active || !bt.getData('unstable') || bt.getData('collapsing')) return;
@@ -1710,7 +1704,9 @@ export class NinjaRunnerScene extends BaseScene {
         });
       }
     });
+  }
 
+  private updateFireEruptions(camLeft: number) {
     // Fire eruptions — shoot up from gaps when player approaches
     // Warning glow/smoke appears first; fire ONLY erupts after warning has been
     // visible for a minimum duration so the player always gets fair notice.
@@ -1865,7 +1861,9 @@ export class NinjaRunnerScene extends BaseScene {
         f.destroy();
       }
     });
+  }
 
+  private updatePiranhas(dtMs: number, camLeft: number) {
     // Piranha plant animation
     (this.piranhaGroup.getChildren() as any[]).forEach((p: any) => {
       if (!p.active) return;
@@ -1905,17 +1903,9 @@ export class NinjaRunnerScene extends BaseScene {
       p.setData('timer', timer);
       if (p.x < camLeft - 200) p.destroy();
     });
+  }
 
-    (this.enemyGroup.getChildren() as any[]).forEach(e => this.updateEnemy(e, camLeft));
-
-    (this.mushroomGroup.getChildren() as any[]).forEach(m => {
-      if (m.x < camLeft - 100 || m.y > H + 100) m.destroy();
-    });
-
-    (this.fireballGroup.getChildren() as any[]).forEach(fb => {
-      if (fb.x < camLeft - 100 || fb.x > camLeft + W + 200 || fb.y > H + 50) fb.destroy();
-    });
-
+  private updateCrocs(camLeft: number) {
     // Croc update — swim back and forth, cycle mouth open/closed
     const now = this.time.now;
     (this.crocGroup.getChildren() as any[]).forEach((croc: any) => {
@@ -1941,12 +1931,24 @@ export class NinjaRunnerScene extends BaseScene {
         croc.setVelocityX(-30);
       }
     });
+  }
+
+  private cleanupOffscreen(camLeft: number) {
+    (this.mushroomGroup.getChildren() as any[]).forEach(m => {
+      if (m.x < camLeft - 100 || m.y > H + 100) m.destroy();
+    });
+
+    (this.fireballGroup.getChildren() as any[]).forEach(fb => {
+      if (fb.x < camLeft - 100 || fb.x > camLeft + W + 200 || fb.y > H + 50) fb.destroy();
+    });
 
     // Fish cleanup — destroy when scrolled offscreen
     (this.fishGroup.getChildren() as any[]).forEach((fish: any) => {
       if (fish.x < camLeft - 200) fish.destroy();
     });
   }
+
+
 
   private updateEnemy(e: any, camLeft: number) {
     if (!e.active) return;
@@ -2159,7 +2161,7 @@ export class NinjaRunnerScene extends BaseScene {
 
     if (stomping) {
       this.player.setVelocityY(-450);
-      this.stompGrace = 25;
+      this.stompGrace = 417;
       this.sfx('nr_stomp', 0.25);
       if (kind === 'goomba') {
         this.killGoomba(e);
@@ -2181,7 +2183,7 @@ export class NinjaRunnerScene extends BaseScene {
       const dir = this.player.x < e.x ? 1 : -1;
       e.setData('state', 'shell');
       e.setVelocityX(dir * 400);
-      this.stompGrace = 15;
+      this.stompGrace = 250;
       this.addScore(100, e.x, e.y - 20);
     } else {
       this.takeHit();
@@ -2283,7 +2285,7 @@ export class NinjaRunnerScene extends BaseScene {
     if (this.isBig) {
       this.isBig = false;
       this.player.clearTint();
-      this.shrinkTimer = 60;
+      this.shrinkTimer = 1000;
       this.sfx('nr_hit');
       // glow handled by preFX
     } else {
@@ -2340,7 +2342,7 @@ export class NinjaRunnerScene extends BaseScene {
     this.player.setVelocity(0, 0);
     this.player.body.checkCollision.none = false;
     this.player.clearTint();
-    this.invincible = 90;
+    this.invincible = 1500;
     this.shrinkTimer = 0;
     this.stompGrace = 0;
     // glow handled by preFX
@@ -2367,16 +2369,6 @@ export class NinjaRunnerScene extends BaseScene {
     this.doRespawn();
   }
 
-  private syncLivesToHUD() {
-    const el = document.getElementById('lives-value');
-    if (el) el.textContent = String(this.lives);
-  }
-
-  private syncLevelToHUD() {
-    const el = document.getElementById('level-value');
-    if (el) el.textContent = String(this.currentLevel);
-  }
-
   private onPlayerBridge(_player: any, _tile: any) {
     // Collision still needed for standing — collapse is handled by proximity in update
   }
@@ -2400,7 +2392,7 @@ export class NinjaRunnerScene extends BaseScene {
     flag.destroy();
     this.currentLevel++;
     this.currentBiome = (this.currentBiome + 1) % 4;
-    this.syncLevelToHUD();
+    this.syncLevelToHUD(this.currentLevel);
     this.addScore(5000, flag.x, flag.y - 30);
     this.sfx('nr_flag');
 
@@ -2428,8 +2420,8 @@ export class NinjaRunnerScene extends BaseScene {
     if (this.invincible > 0 || this.shrinkTimer > 0) return;
     if (this.isBig) {
       this.isBig = false;
-      this.shrinkTimer = 60;
-      this.invincible = 90;
+      this.shrinkTimer = 1000;
+      this.invincible = 1500;
       // glow handled by preFX
     } else {
       this.die();
@@ -2440,8 +2432,8 @@ export class NinjaRunnerScene extends BaseScene {
     if (this.invincible > 0 || this.shrinkTimer > 0) return;
     if (this.isBig) {
       this.isBig = false;
-      this.shrinkTimer = 60;
-      this.invincible = 90;
+      this.shrinkTimer = 1000;
+      this.invincible = 1500;
       // glow handled by preFX
     } else {
       this.die();
@@ -2453,17 +2445,15 @@ export class NinjaRunnerScene extends BaseScene {
     const pBody = this.player.body;
     const stomping = pBody.velocity.y > 0 && pBody.bottom <= croc.body.top + 10;
     if (stomping && !croc.getData('mouthOpen')) {
-      // Stomp on closed mouth — safe! Points + bounce
       this.addScore(200);
       croc.destroy();
       pBody.setVelocityY(-500);
       this.sfx('nr_stomp');
     } else {
-      // Mouth open or side collision — damage
       if (this.isBig) {
         this.isBig = false;
-        this.shrinkTimer = 60;
-        this.invincible = 90;
+        this.shrinkTimer = 1000;
+        this.invincible = 1500;
       } else {
         this.die();
       }
@@ -2475,8 +2465,8 @@ export class NinjaRunnerScene extends BaseScene {
     if (!fish.visible) return;
     if (this.isBig) {
       this.isBig = false;
-      this.shrinkTimer = 60;
-      this.invincible = 90;
+      this.shrinkTimer = 1000;
+      this.invincible = 1500;
     } else {
       this.die();
     }

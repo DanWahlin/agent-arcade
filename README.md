@@ -107,7 +107,8 @@ Download the `.AppImage` (universal) or `.deb` (Debian/Ubuntu) package.
 
 | Key | Action |
 |-----|--------|
-| <kbd>Esc</kbd> | Pause / Resume |
+| <kbd>Esc</kbd> | Pause |
+| <kbd>Ctrl</kbd>+<kbd>Esc</kbd> | Resume (or click ▶ RESUME) |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>M</kbd> | Toggle visibility (all platforms) |
 | <kbd>⌘Q</kbd> (Mac) / <kbd>Ctrl+Q</kbd> (Win/Linux) | Quit |
 

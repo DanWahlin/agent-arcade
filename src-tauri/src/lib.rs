@@ -18,6 +18,10 @@ static TOGGLE_SHORTCUT: Mutex<String> = Mutex::new(String::new());
 /// Updated by the `set_pause_shortcut` command from JS.
 static PAUSE_SHORTCUT: Mutex<String> = Mutex::new(String::new());
 
+/// The current unpause shortcut string (default "Ctrl+Escape").
+/// Updated by the `set_unpause_shortcut` command from JS.
+static UNPAUSE_SHORTCUT: Mutex<String> = Mutex::new(String::new());
+
 // ── Tauri commands (called from JS via invoke()) ──────────────────────
 
 /// Enable/disable click-through so clicks pass to apps below the overlay.
@@ -50,25 +54,25 @@ fn set_paused(app: AppHandle, paused: bool) {
     PAUSED.store(paused, Ordering::SeqCst);
     if let Some(win) = app.get_webview_window("main") {
         if paused {
-            // Hide overlays and add paused state via JS
-            let _ = win.eval(
-                "document.body.classList.add('paused'); \
-                 var go=document.getElementById('gameover-overlay'); if(go) go.style.display='none'; \
-                 var wb=document.getElementById('wave-banner'); if(wb) wb.style.display='none'; \
-                 var ho=document.getElementById('help-overlay'); if(ho) ho.classList.remove('show');"
-            );
+            // Trigger paused state via named JS function
+            let _ = win.eval("window.__agentArcadeOnPause && window.__agentArcadeOnPause()");
+            // Unregister Escape so it passes through to other apps while paused
+            unregister_pause_shortcut(&app);
             // Shrink to HUD bar size so apps behind are fully usable
             let _ = win.set_ignore_cursor_events(false);
             if let Ok(Some(monitor)) = win.primary_monitor() {
                 let scale = monitor.scale_factor();
                 let hud_width = (1200.0 * scale) as u32;
-                let hud_height = (115.0 * scale) as u32;
+                let hud_height = (152.0 * scale) as u32;
                 let screen_w = monitor.size().width;
                 let x = ((screen_w - hud_width) / 2) as i32;
+                let y = monitor.position().y;
                 let _ = win.set_size(tauri::PhysicalSize::new(hud_width, hud_height));
-                let _ = win.set_position(tauri::PhysicalPosition::new(x, 0));
+                let _ = win.set_position(tauri::PhysicalPosition::new(x, y));
             }
         } else {
+            // Re-register Escape shortcut for pausing
+            register_pause_shortcut(&app);
             // Expand back to full screen and reset position FIRST
             if let Ok(Some(monitor)) = win.primary_monitor() {
                 let size = monitor.size();
@@ -78,23 +82,11 @@ fn set_paused(app: AppHandle, paused: bool) {
                 let _ = win.set_position(tauri::PhysicalPosition::new(pos.x, pos.y));
                 let _ = win.set_size(tauri::PhysicalSize::new(size.width, size.height - bottom_trim));
             }
-            // Remove paused class and restore overlays after window resize settles
-            let _ = win.eval(
-                "setTimeout(function() { \
-                   document.body.classList.remove('paused'); \
-                   var go=document.getElementById('gameover-overlay'); \
-                   if(go) go.setAttribute('style', \
-                     'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;' + \
-                     'display:flex;align-items:center;justify-content:center;' + \
-                     'background:rgba(0,0,0,0.75);pointer-events:auto;'); \
-                   var wb=document.getElementById('wave-banner'); if(wb) wb.style.display=''; \
-                   var c=document.querySelector('canvas'); if(c) c.focus(); \
-                 }, 300);"
-            );
+            // Remove paused class and restore overlays via named JS function
+            let _ = win.eval("window.__agentArcadeOnResume && window.__agentArcadeOnResume()");
             let _ = win.set_ignore_cursor_events(true);
         }
     }
-    update_escape_shortcut(&app, paused);
 }
 
 /// Quit the application.
@@ -109,18 +101,19 @@ fn hide_app(app: AppHandle) {
     hide_window(&app);
 }
 
-/// Change the toggle shortcut at runtime.
-/// `combo` is a string like "Ctrl+Alt+M" or "Ctrl+Shift+G".
-/// Returns Ok(()) on success or an error string if the shortcut can't be registered.
-#[tauri::command]
-fn set_toggle_shortcut(app: AppHandle, combo: String) -> Result<String, String> {
+/// Shared helper: swap a global shortcut registration, updating the stored Mutex.
+fn swap_shortcut(
+    app: &AppHandle,
+    storage: &Mutex<String>,
+    combo: &str,
+) -> Result<String, String> {
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
-    let new_sc = parse_shortcut(&combo).ok_or_else(|| format!("Invalid shortcut: {}", combo))?;
+    let new_sc = parse_shortcut(combo).ok_or_else(|| format!("Invalid shortcut: {}", combo))?;
 
-    // Unregister the old toggle shortcut (ignore errors — it may already be gone)
+    // Unregister old shortcut (ignore errors — it may already be gone)
     {
-        let old = TOGGLE_SHORTCUT.lock().unwrap();
+        let old = storage.lock().unwrap();
         if !old.is_empty() {
             if let Some(old_sc) = parse_shortcut(&old) {
                 let _ = app.global_shortcut().unregister(old_sc);
@@ -133,16 +126,23 @@ fn set_toggle_shortcut(app: AppHandle, combo: String) -> Result<String, String> 
         .register(new_sc)
         .map_err(|e| format!("Could not register {}: {}", combo, e))?;
 
-    // Update the stored shortcut
+    // Store the new combo string
     {
-        let mut stored = TOGGLE_SHORTCUT.lock().unwrap();
-        *stored = combo.clone();
+        let mut stored = storage.lock().unwrap();
+        *stored = combo.to_string();
     }
 
-    // Update tray menu label
-    update_tray_label(&app, &combo);
+    Ok(combo.to_string())
+}
 
-    Ok(combo)
+/// Change the toggle shortcut at runtime.
+/// `combo` is a string like "Ctrl+Alt+M" or "Ctrl+Shift+G".
+/// Returns Ok(combo) on success or an error string if the shortcut can't be registered.
+#[tauri::command]
+fn set_toggle_shortcut(app: AppHandle, combo: String) -> Result<String, String> {
+    let result = swap_shortcut(&app, &TOGGLE_SHORTCUT, &combo)?;
+    update_tray_label(&app, &combo);
+    Ok(result)
 }
 
 /// Get the current toggle shortcut string.
@@ -156,38 +156,27 @@ fn get_toggle_shortcut() -> String {
 /// Returns Ok(combo) on success or an error string if the shortcut can't be registered.
 #[tauri::command]
 fn set_pause_shortcut(app: AppHandle, combo: String) -> Result<String, String> {
-    use tauri_plugin_global_shortcut::GlobalShortcutExt;
-
-    let new_sc = parse_shortcut(&combo).ok_or_else(|| format!("Invalid shortcut: {}", combo))?;
-
-    // Unregister the old pause shortcut (ignore errors)
-    {
-        let old = PAUSE_SHORTCUT.lock().unwrap();
-        if !old.is_empty() {
-            if let Some(old_sc) = parse_shortcut(&old) {
-                let _ = app.global_shortcut().unregister(old_sc);
-            }
-        }
-    }
-
-    // Try to register the new one
-    app.global_shortcut()
-        .register(new_sc)
-        .map_err(|e| format!("Could not register {}: {}", combo, e))?;
-
-    // Update the stored shortcut
-    {
-        let mut stored = PAUSE_SHORTCUT.lock().unwrap();
-        *stored = combo.clone();
-    }
-
-    Ok(combo)
+    swap_shortcut(&app, &PAUSE_SHORTCUT, &combo)
 }
 
 /// Get the current pause shortcut string.
 #[tauri::command]
 fn get_pause_shortcut() -> String {
     PAUSE_SHORTCUT.lock().unwrap().clone()
+}
+
+/// Change the unpause shortcut at runtime.
+/// `combo` can be a combo like "Ctrl+Escape" or "Ctrl+P".
+/// Returns Ok(combo) on success or an error string if the shortcut can't be registered.
+#[tauri::command]
+fn set_unpause_shortcut(app: AppHandle, combo: String) -> Result<String, String> {
+    swap_shortcut(&app, &UNPAUSE_SHORTCUT, &combo)
+}
+
+/// Get the current unpause shortcut string.
+#[tauri::command]
+fn get_unpause_shortcut() -> String {
+    UNPAUSE_SHORTCUT.lock().unwrap().clone()
 }
 
 /// Parse a shortcut string like "Ctrl+Alt+M" into a Shortcut struct.
@@ -281,6 +270,8 @@ fn toggle_window(app: &AppHandle) {
 
 fn resume_game(app: &AppHandle) {
     if let Some(win) = app.get_webview_window("main") {
+        // Re-register Escape shortcut for pausing
+        register_pause_shortcut(app);
         let _ = win.set_ignore_cursor_events(false);
         let _ = win.show();
         let _ = win.set_focus();
@@ -293,18 +284,8 @@ fn resume_game(app: &AppHandle) {
             let _ = win.set_position(tauri::PhysicalPosition::new(pos.x, pos.y));
             let _ = win.set_size(tauri::PhysicalSize::new(size.width, size.height - bottom_trim));
         }
-        // Resume game immediately, but delay overlay restoration until
-        // after the window resize has fully settled (300ms)
-        let _ = win.eval("if(window.__agentArcadeResumeFromRust) window.__agentArcadeResumeFromRust(); \
-             setTimeout(function() { \
-               var go=document.getElementById('gameover-overlay'); \
-               if(go) go.setAttribute('style', \
-                 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;' + \
-                 'display:flex;align-items:center;justify-content:center;' + \
-                 'background:rgba(0,0,0,0.75);pointer-events:auto;'); \
-               var wb=document.getElementById('wave-banner'); if(wb) wb.style.display=''; \
-               var c=document.querySelector('canvas'); if(c) c.focus(); \
-             }, 300);");
+        // Resume game — overlay restoration is handled inside __agentArcadeResumeFromRust
+        let _ = win.eval("window.__agentArcadeResumeFromRust && window.__agentArcadeResumeFromRust()");
         PAUSED.store(false, Ordering::SeqCst);
     }
 }
@@ -312,27 +293,58 @@ fn resume_game(app: &AppHandle) {
 fn pause_game(app: &AppHandle) {
     if let Some(win) = app.get_webview_window("main") {
         // Tell the webview to pause the game scene and hide overlays
-        let _ = win.eval(
-            "if(window.__agentArcadePause) window.__agentArcadePause(true); \
-             var h=document.getElementById('hud'); if(h) h.classList.add('paused'); \
-             document.body.classList.add('paused'); \
-             var go=document.getElementById('gameover-overlay'); if(go) go.style.display='none'; \
-             var wb=document.getElementById('wave-banner'); if(wb) wb.style.display='none';"
-        );
-        // Enable click-through so user can interact with apps behind
-        let _ = win.set_ignore_cursor_events(true);
+        let _ = win.eval("window.__agentArcadeOnPause && window.__agentArcadeOnPause()");
+        // Unregister Escape so it passes through to other apps while paused
+        unregister_pause_shortcut(app);
+        // Shrink to HUD bar so apps behind are fully usable
+        let _ = win.set_ignore_cursor_events(false);
+        if let Ok(Some(monitor)) = win.primary_monitor() {
+            let scale = monitor.scale_factor();
+            let hud_width = (1200.0 * scale) as u32;
+            let hud_height = (152.0 * scale) as u32;
+            let screen_w = monitor.size().width;
+            let x = ((screen_w - hud_width) / 2) as i32;
+            let y = monitor.position().y;
+            let _ = win.set_size(tauri::PhysicalSize::new(hud_width, hud_height));
+            let _ = win.set_position(tauri::PhysicalPosition::new(x, y));
+        }
         PAUSED.store(true, Ordering::SeqCst);
     }
 }
 
-// ── Global shortcut management ────────────────────────────────────────
+// ── App entry point ───────────────────────────────────────────────────
 
-fn update_escape_shortcut(_app: &AppHandle, _register: bool) {
-    // No-op: Escape is handled entirely by the in-page keydown handler.
-    // When paused and user switches apps, Ctrl+Alt+M brings it back.
+/// Unregister the pause (Escape) shortcut so it passes through to other apps.
+/// Uses a spawned thread to avoid deadlocking when called from within the
+/// global shortcut handler callback.
+fn unregister_pause_shortcut(app: &AppHandle) {
+    let app = app.clone();
+    std::thread::spawn(move || {
+        use tauri_plugin_global_shortcut::GlobalShortcutExt;
+        let combo = PAUSE_SHORTCUT.lock().unwrap().clone();
+        if !combo.is_empty() {
+            if let Some(sc) = parse_shortcut(&combo) {
+                let _ = app.global_shortcut().unregister(sc);
+            }
+        }
+    });
 }
 
-// ── App entry point ───────────────────────────────────────────────────
+/// Re-register the pause (Escape) shortcut after resuming.
+/// Uses a spawned thread to avoid deadlocking when called from within the
+/// global shortcut handler callback.
+fn register_pause_shortcut(app: &AppHandle) {
+    let app = app.clone();
+    std::thread::spawn(move || {
+        use tauri_plugin_global_shortcut::GlobalShortcutExt;
+        let combo = PAUSE_SHORTCUT.lock().unwrap().clone();
+        if !combo.is_empty() {
+            if let Some(sc) = parse_shortcut(&combo) {
+                let _ = app.global_shortcut().register(sc);
+            }
+        }
+    });
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -378,19 +390,35 @@ pub fn run() {
                         }
                     };
 
+                    // Check if this is the current unpause shortcut
+                    let is_unpause = {
+                        let stored = UNPAUSE_SHORTCUT.lock().unwrap();
+                        if !stored.is_empty() {
+                            if let Some(sc) = parse_shortcut(&stored) {
+                                *shortcut == sc
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        }
+                    };
+
                     if is_toggle {
                         toggle_window(app);
-                    } else if is_pause {
+                    } else if is_unpause {
                         if PAUSED.load(Ordering::SeqCst) {
                             resume_game(app);
-                        } else if VISIBLE.load(Ordering::SeqCst) {
+                        }
+                    } else if is_pause {
+                        if !PAUSED.load(Ordering::SeqCst) && VISIBLE.load(Ordering::SeqCst) {
                             pause_game(app);
                         }
                     }
                 })
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![set_click_through, set_paused, quit_app, hide_app, get_cursor_in_window, set_toggle_shortcut, get_toggle_shortcut, set_pause_shortcut, get_pause_shortcut])
+        .invoke_handler(tauri::generate_handler![set_click_through, set_paused, quit_app, hide_app, get_cursor_in_window, set_toggle_shortcut, get_toggle_shortcut, set_pause_shortcut, get_pause_shortcut, set_unpause_shortcut, get_unpause_shortcut])
         .setup(|app| {
             // Register default toggle shortcut and Escape.
             // If the toggle shortcut is already taken by another app,
@@ -427,6 +455,15 @@ pub fn run() {
                 {
                     let mut stored = PAUSE_SHORTCUT.lock().unwrap();
                     *stored = "Escape".to_string();
+                }
+                // Ctrl+Escape to resume when paused
+                let ctrl_esc = Shortcut::new(Some(Modifiers::CONTROL), Code::Escape);
+                if let Err(e) = app.global_shortcut().register(ctrl_esc) {
+                    log::warn!("Could not register Ctrl+Escape shortcut: {}", e);
+                }
+                {
+                    let mut stored = UNPAUSE_SHORTCUT.lock().unwrap();
+                    *stored = "Ctrl+Escape".to_string();
                 }
             }
 

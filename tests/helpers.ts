@@ -128,14 +128,14 @@ export async function killPlayer(page: Page) {
 }
 
 /** Give the player invincibility for testing. Throws if game/scene is missing. */
-export async function setInvincible(page: Page, frames = 9999) {
-  await page.evaluate((f) => {
+export async function setInvincible(page: Page, ms = 999999) {
+  await page.evaluate((v) => {
     const game = (window as any).__phaserGame;
     if (!game) throw new Error('Phaser game not found on window.__phaserGame');
     const scene = game.scene.getScenes(true)?.find((s: any) => (s as any).player);
     if (!scene) throw new Error('No active scene with a player found');
-    (scene as any).invincible = f;
-  }, frames);
+    (scene as any).invincible = v;
+  }, ms);
 }
 
 /** Set player lives. Throws if game/scene is missing. */

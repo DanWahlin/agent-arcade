@@ -13,11 +13,18 @@ export function refreshDimensions() {
   H = window.innerHeight;
 }
 
+/** Star for parallax starfield (used by space game scenes). */
+export interface Star { x: number; y: number; speed: number; size: number; alpha: number; gfx: any }
+
 export abstract class BaseScene extends Phaser.Scene {
   protected score = 0;
   protected highScore = 0;
+  protected lives = 3;
+  protected level = 0;
   private scoreAnimTimer?: number;
   private gameOverKeyListener?: (ev: KeyboardEvent) => void;
+  /** Full-screen dark backdrop controlled by the transparency slider. */
+  private _backdrop: any = null;
 
   constructor(key: string) {
     super(key);
@@ -46,6 +53,39 @@ export abstract class BaseScene extends Phaser.Scene {
     this.syncHighScoreToHUD();
   }
 
+  /**
+   * Common create() setup. Call at the start of every scene's create().
+   * Registers pause bridge, shutdown listener, and resets shared state.
+   */
+  protected initBase() {
+    this.setupPauseBridge();
+    this.events.once('shutdown', () => this.shutdown());
+    this.createBackdrop();
+  }
+
+  /** Create a full-screen dark backdrop whose alpha is controlled by the settings slider. */
+  private createBackdrop() {
+    const g = this.add.graphics().setDepth(-100);
+    g.fillStyle(0x000000, 1);
+    g.fillRect(0, 0, W, H);
+    g.setScrollFactor(0);
+    // Read saved transparency (1–100 → alpha 0.01–1.0)
+    let alpha = 1;
+    try {
+      const saved = localStorage.getItem('agentArcade_bgTransparency');
+      if (saved !== null) alpha = Math.max(0.01, Math.min(1, parseInt(saved, 10) / 100));
+    } catch { /* ignore */ }
+    g.setAlpha(alpha);
+    this._backdrop = g;
+  }
+
+  /** Called by the HUD slider to update the backdrop opacity in real time. */
+  public setBackdropAlpha(percent: number) {
+    if (this._backdrop) {
+      this._backdrop.setAlpha(Math.max(0.01, Math.min(1, percent / 100)));
+    }
+  }
+
   /** Save high score if current score exceeds it. */
   protected checkHighScore() {
     if (this.score > this.highScore) {
@@ -65,6 +105,18 @@ export abstract class BaseScene extends Phaser.Scene {
   protected syncHighScoreToHUD() {
     const el = document.getElementById('hi-value');
     if (el) el.textContent = String(this.highScore);
+  }
+
+  /** Push lives count into the HTML HUD element. */
+  protected syncLivesToHUD() {
+    const el = document.getElementById('lives-value');
+    if (el) el.textContent = String(this.lives);
+  }
+
+  /** Push level/wave number into the HTML HUD element. */
+  protected syncLevelToHUD(value?: number) {
+    const el = document.getElementById('level-value');
+    if (el) el.textContent = String(value ?? this.level);
   }
 
   /** Animated score bump (count-up + pop class). */
@@ -148,7 +200,15 @@ export abstract class BaseScene extends Phaser.Scene {
     if (this.gameOverShown) return;
     this.gameOverShown = true;
     const rank = this.addToLeaderboard(finalScore);
-    const board = this.getLeaderboard();
+    let board = this.getLeaderboard();
+
+    // Reconcile: if stored high score isn't on the board, add it
+    if (this.highScore > 0 && (board.length === 0 || this.highScore > board[0])) {
+      board.push(this.highScore);
+      board.sort((a: number, b: number) => b - a);
+      board = board.slice(0, 10);
+      this.storageSet(`agentArcade_board_${this.scene.key}`, JSON.stringify(board));
+    }
 
     const overlay = document.createElement('div');
     overlay.id = 'gameover-overlay';
@@ -286,29 +346,45 @@ export abstract class BaseScene extends Phaser.Scene {
     }
     modal.appendChild(table);
 
-    // Hint
-    const hint = document.createElement('p');
-    hint.innerHTML = 'Press <span style="color:#ffeb3b;">SPACE</span> or click to play again';
-    hint.style.cssText = 'color: #667; font-size: 11px; margin: 24px 0 0; letter-spacing: 1px;';
-    modal.appendChild(hint);
+    // Restart button — matches .help-close style from settings/help dialogs
+    const restartBtn = document.createElement('button');
+    restartBtn.textContent = 'RESTART';
+    restartBtn.style.cssText = `
+      display: block; margin: 22px auto 0; width: 100%; padding: 9px;
+      background: linear-gradient(180deg, #ffd54a 0%, #c9a020 100%);
+      border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 8px;
+      color: #1a1a1a; font-weight: 700; letter-spacing: 1px; font-size: 13px;
+      cursor: pointer; transition: filter 120ms;
+    `;
+    restartBtn.addEventListener('mouseenter', () => { restartBtn.style.filter = 'brightness(1.15)'; });
+    restartBtn.addEventListener('mouseleave', () => { restartBtn.style.filter = ''; });
+    modal.appendChild(restartBtn);
 
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
+
+    // Disable click-through so the overlay is interactive
+    const ti = (window as any).__TAURI_INTERNALS__;
+    if (ti) ti.invoke('set_click_through', { enabled: false });
 
     const dismiss = () => {
       this.gameOverShown = false;
       document.removeEventListener('keydown', onKey);
       overlay.remove();
+      // Re-enable click-through
+      if (ti) ti.invoke('set_click_through', { enabled: true });
       restartFn();
     };
     const onKey = (ev: KeyboardEvent) => {
       if (ev.code === 'Space' || ev.code === 'Enter') { ev.preventDefault(); dismiss(); }
     };
     this.gameOverKeyListener = onKey;
-    // Brief delay before accepting input (prevent accidental dismiss)
+    // Brief delay before accepting input (prevent accidental dismiss).
+    // Guard against the scene being stopped during the delay.
     this.time.delayedCall(500, () => {
+      if (!this.scene.isActive()) return;
       document.addEventListener('keydown', onKey);
-      overlay.addEventListener('click', dismiss);
+      restartBtn.addEventListener('click', dismiss);
     });
   }
 
@@ -322,6 +398,124 @@ export abstract class BaseScene extends Phaser.Scene {
   resumeGame() {
     this.scene.resume();
     this.sound.resumeAll();
+  }
+
+  /**
+   * Wire up the pause/resume bridge between the HUD and the Phaser scene.
+   * Call from create() — replaces the per-scene boilerplate that was duplicated
+   * in every scene previously.
+   */
+  protected setupPauseBridge() {
+    // __agentArcadePauseScene: pauses/resumes the Phaser scene ONLY (no Rust call).
+    // Used by Rust-originated pause/resume to avoid feedback loops.
+    (window as any).__agentArcadePauseScene = (shouldPause: boolean) => {
+      if (shouldPause) this.pauseGame(); else this.resumeGame();
+    };
+
+    // __agentArcadePause: called from in-page UI (HUD buttons, game-switcher).
+    // Pauses scene AND notifies Rust to shrink/expand window.
+    (window as any).__agentArcadePause = (shouldPause: boolean) => {
+      const ab = (window as any).agentArcade;
+      if (shouldPause) this.pauseGame(); else this.resumeGame();
+      if (ab && ab.setClickThrough) ab.setClickThrough(shouldPause);
+      if (ab && ab.setPaused) ab.setPaused(shouldPause);
+    };
+
+    const ab = (window as any).agentArcade;
+    if (ab && ab.onResumeRequest) {
+      ab.onResumeRequest(() => {
+        const hud = document.getElementById('hud');
+        if (hud) hud.classList.remove('paused');
+        this.resumeGame();
+      });
+    }
+  }
+
+  /**
+   * Show a "WAVE N" banner overlay — shared by space game scenes.
+   * Auto-animates in/out and removes itself after ~2.2 seconds.
+   */
+  protected showWaveBanner(waveNum: number) {
+    const existing = document.getElementById('wave-banner');
+    if (existing) existing.remove();
+
+    const banner = document.createElement('div');
+    banner.id = 'wave-banner';
+    banner.style.cssText = `
+      position: fixed; top: 45%; left: 50%; transform: translate(-50%, -50%);
+      padding: 12px 36px;
+      background: linear-gradient(180deg, #1a1f3a 0%, #0a0e22 100%);
+      border: 2px solid #ffd54a;
+      border-radius: 12px;
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+        0 6px 24px rgba(0, 0, 0, 0.7),
+        0 0 22px rgba(255, 213, 74, 0.45);
+      font-family: -apple-system, system-ui, 'Helvetica Neue', sans-serif;
+      font-size: 22px; font-weight: 700; letter-spacing: 2px;
+      color: #ffd54a;
+      text-shadow: 0 0 8px rgba(255, 213, 74, 0.6);
+      z-index: 50; pointer-events: none; user-select: none;
+      animation: waveBannerIn 0.3s ease-out;
+    `;
+    banner.textContent = `WAVE ${waveNum}`;
+    document.body.appendChild(banner);
+
+    if (!document.getElementById('wave-banner-style')) {
+      const style = document.createElement('style');
+      style.id = 'wave-banner-style';
+      style.textContent = `
+        @keyframes waveBannerIn { from { opacity: 0; transform: translate(-50%, -50%) scale(0.85); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+        @keyframes waveBannerOut { from { opacity: 1; } to { opacity: 0; } }
+      `;
+      document.head.appendChild(style);
+    }
+
+    setTimeout(() => {
+      banner.style.animation = 'waveBannerOut 0.6s ease-in forwards';
+      setTimeout(() => banner.remove(), 700);
+    }, 1500);
+  }
+
+  /** Create the shared 'spark' texture used for particle effects. */
+  protected ensureSparkTexture() {
+    if (this.textures.exists('spark')) return;
+    const g = this.add.graphics();
+    g.fillStyle(0xffffff);
+    g.fillCircle(4, 4, 4);
+    g.generateTexture('spark', 8, 8);
+    g.destroy();
+  }
+
+  /**
+   * Create a parallax starfield. Returns the Star array for use with updateStarfield().
+   * Each scene provides its own layer config (count, speed, size, alpha per layer).
+   */
+  protected createStarfield(
+    layers: { count: number; speed: number; size: number; alpha: number }[],
+  ): Star[] {
+    const stars: Star[] = [];
+    for (const l of layers) {
+      for (let i = 0; i < l.count; i++) {
+        const gfx = this.add.graphics();
+        const x = Math.random() * W;
+        const y = Math.random() * H;
+        gfx.fillStyle(0xffffff, l.alpha);
+        gfx.fillCircle(0, 0, l.size);
+        gfx.setPosition(x, y).setDepth(-9);
+        stars.push({ x, y, speed: l.speed, size: l.size, alpha: l.alpha, gfx });
+      }
+    }
+    return stars;
+  }
+
+  /** Update parallax starfield positions (call from update). */
+  protected updateStarfield(stars: Star[], dt: number) {
+    for (const s of stars) {
+      s.y += s.speed * (dt / 1000);
+      if (s.y > H) s.y -= H;
+      s.gfx.setPosition(s.x, s.y);
+    }
   }
 
   /** Clean up timers and listeners on scene shutdown. */
