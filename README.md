@@ -23,6 +23,26 @@ A retro platformer that runs as a transparent overlay on your desktop built with
   <em>☄️ Cosmic Rocks</em>
 </p>
 
+<details>
+<summary>📸 Screenshots</summary>
+
+<p align="center">
+  <img src="docs/images/screenshot-ninja-runner.png" alt="Ninja Runner Screenshot" width="600" /><br/>
+  <em>🥷 Ninja Runner — platforming with coins, enemies, and question blocks</em>
+</p>
+
+<p align="center">
+  <img src="docs/images/screenshot-galaxy-blaster.png" alt="Galaxy Blaster Screenshot" width="600" /><br/>
+  <em>🚀 Galaxy Blaster — dodge and blast enemy ships in formation</em>
+</p>
+
+<p align="center">
+  <img src="docs/images/screenshot-cosmic-rocks.png" alt="Cosmic Rocks Screenshot" width="600" /><br/>
+  <em>☄️ Cosmic Rocks — Asteroids-style vector combat</em>
+</p>
+
+</details>
+
 ## How This Was Made
 
 Idea ➡ Reality over a weekend! I used [GitHub Copilot CLI](https://github.com/features/copilot/cli/) (there's a [free course on it here](https://github.com/github/copilot-cli-for-beginners)), and it helped me quickly scaffold the initial Tauri + Phaser + TypeScript project structure. From there I worked with copilot to plan the game mechanics and overall structure. I told it the overall goals and it iteratively built out the game mechanics, integrated the sprite assets, and added the overlay functionality. Still an experimental project, but making good progress.
