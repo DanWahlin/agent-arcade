@@ -1,4 +1,4 @@
-// GalaxyShooter — Galaga-style space shooter.
+// GalaxyBlaster — Galaga-style space shooter.
 // Direct port of WesleyEdwards/galaga mechanics: manual position math,
 // De Casteljau bezier smoothing, hop+figure-eight attack patterns.
 // Phaser sprites used ONLY for rendering (setPosition, setRotation, destroy).
@@ -389,7 +389,7 @@ function getAttackPath(currPos: { x: number; y: number }): { x: number; y: numbe
 /*  SCENE                                                              */
 /* ================================================================== */
 
-export class GalaxyShooterScene extends BaseScene {
+export class GalaxyBlasterScene extends BaseScene {
   /* player */
   private ship!: any;
   private shipX = W / 2;
@@ -441,22 +441,22 @@ export class GalaxyShooterScene extends BaseScene {
   /* game over */
   private gameOver = false;
 
-  constructor() { super('galaxy-shooter'); }
-  get displayName() { return 'Galaxy Shooter'; }
+  constructor() { super('galaxy-blaster'); }
+  get displayName() { return 'Galaxy Blaster'; }
 
   /* ================================================================
      LIFECYCLE
      ================================================================ */
 
   preload() {
-    this.load.atlasXML('space', '../assets/galaxy-shooter/space_sheet-2.png', '../assets/galaxy-shooter/space_sheet-2.xml');
-    this.load.image('space_bg', '../assets/galaxy-shooter/space_bg.png');
-    this.load.audio('sfx_laser', '../assets/galaxy-shooter/sounds/sfx_laser1.ogg');
-    this.load.audio('sfx_zap', '../assets/galaxy-shooter/sounds/sfx_explosion.ogg');
-    this.load.audio('sfx_lose', '../assets/galaxy-shooter/sounds/sfx_lose.ogg');
-    this.load.audio('sfx_shieldUp', '../assets/galaxy-shooter/sounds/sfx_shieldUp.ogg');
-    this.load.audio('sfx_shieldDown', '../assets/galaxy-shooter/sounds/sfx_shieldDown.ogg');
-    this.load.audio('sfx_twoTone', '../assets/galaxy-shooter/sounds/sfx_twoTone.ogg');
+    this.load.atlasXML('space', '../assets/galaxy-blaster/space_sheet-2.png', '../assets/galaxy-blaster/space_sheet-2.xml');
+    this.load.image('space_bg', '../assets/galaxy-blaster/space_bg.png');
+    this.load.audio('sfx_laser', '../assets/galaxy-blaster/sounds/sfx_laser1.ogg');
+    this.load.audio('sfx_zap', '../assets/galaxy-blaster/sounds/sfx_explosion.ogg');
+    this.load.audio('sfx_lose', '../assets/galaxy-blaster/sounds/sfx_lose.ogg');
+    this.load.audio('sfx_shieldUp', '../assets/galaxy-blaster/sounds/sfx_shieldUp.ogg');
+    this.load.audio('sfx_shieldDown', '../assets/galaxy-blaster/sounds/sfx_shieldDown.ogg');
+    this.load.audio('sfx_twoTone', '../assets/galaxy-blaster/sounds/sfx_twoTone.ogg');
   }
 
   create() {
@@ -1243,7 +1243,7 @@ export class GalaxyShooterScene extends BaseScene {
   }
 
   private spawnMeteor() {
-    const frame = GalaxyShooterScene.METEOR_FRAMES[Math.floor(Math.random() * GalaxyShooterScene.METEOR_FRAMES.length)];
+    const frame = GalaxyBlasterScene.METEOR_FRAMES[Math.floor(Math.random() * GalaxyBlasterScene.METEOR_FRAMES.length)];
     const isBig = frame.includes('big');
     const size = isBig ? OPPONENT_SIZE * (1.2 + Math.random() * 0.8) : OPPONENT_SIZE * (0.6 + Math.random() * 0.4);
     const x = Math.random() * W;

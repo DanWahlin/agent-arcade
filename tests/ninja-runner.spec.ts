@@ -438,12 +438,12 @@ test.describe('Game Switching', () => {
     await debugScreenshot(page, 'cosmic-rocks');
   });
 
-  test('can switch to Galaxy Shooter', async ({ page }) => {
-    await switchGame(page, 'galaxy-shooter');
+  test('can switch to Galaxy Blaster', async ({ page }) => {
+    await switchGame(page, 'galaxy-blaster');
     const state = await getGameState(page);
     expect(state).not.toBeNull();
-    expect(state.sceneName).toBe('galaxy-shooter');
-    await debugScreenshot(page, 'galaxy-shooter');
+    expect(state.sceneName).toBe('galaxy-blaster');
+    await debugScreenshot(page, 'galaxy-blaster');
   });
 
   test('can switch back to Ninja Runner', async ({ page }) => {
@@ -482,7 +482,7 @@ test.describe('HUD & UI', () => {
     const options = await page.locator('#game-select option').allTextContents();
     expect(options).toHaveLength(3);
     expect(options.join(',')).toContain('Cosmic Rocks');
-    expect(options.join(',')).toContain('Galaxy Shooter');
+    expect(options.join(',')).toContain('Galaxy Blaster');
     expect(options.join(',')).toContain('Ninja Runner');
   });
 });

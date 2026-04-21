@@ -4,7 +4,7 @@
 
 You know that feeling when you're waiting for your AI agent to finish a task and you've got nothing to do but stare at the terminal? If you're like me, you then jump to yet another agent you have running, interact with it if needed, and then stare at the terminal some more. I spend a lot of my day working with [GitHub Copilot CLI](https://github.com/features/copilot/cli/) and other AI coding tools, and there are stretches where you're just...waiting. I had seen a few ideas shared online and a recent one by [Aman](https://x.com/Amank1412/status/2044489263799275722) really caught my attention. I wanted something that could run on Mac, Linux, and Windows (and had some other games in mind), so I thought, "What if I tried building a little retro arcade game that ran as a transparent overlay right on my desktop?". That way I could quickly switch to it between tasks, give my mind a short break, while still staying on top of what my agents are doing.
 
-That idea became [Agent Arcade](https://danwahlin.github.io/agent-arcade), a Tauri + Phaser + Rust/TypeScript app that currently has three games (Ninja Runner, Galaxy Shooter, and Cosmic Rocks) that floats on top of everything while your AI agents do their work. I built the app over a weekend using GitHub Copilot CLI, and honestly, I had a ton of fun doing it.
+That idea became [Agent Arcade](https://danwahlin.github.io/agent-arcade), a Tauri + Phaser + Rust/TypeScript app that currently has three games (Ninja Runner, Galaxy Blaster, and Cosmic Rocks) that floats on top of everything while your AI agents do their work. I built the app over a weekend using GitHub Copilot CLI, and honestly, I had a ton of fun doing it.
 
 While Agent Arcade is still a work in progress, I thought I'd walk through how it was created and some of the lessons learned along the way.
 
@@ -53,27 +53,27 @@ I'd screenshot something that didn't look right, paste it into the conversation,
 
 > **Note:** Having the [Context7 MCP server](https://context7.com/upstash/context7) available was super helpful to help Copilot CLI understand Phaser and Tauri. A lot of the issues I ran into were quickly resolved with the docs context provided by the MCP server.
 
-**Galaxy Shooter** went through the biggest evolution. The first version had basic enemy movement, and I wanted it to feel more like the real Galaga game. I pointed Copilot CLI at [WesleyEdwards/galaga](https://github.com/WesleyEdwards/galaga) and said "make it play like this." Since Phaser is used with the other two games I wanted to go that route, but I kept running into issues with the enemy ship movements. I suspect it's totally doable with Phaser, but after enough rounds of troubleshooting I decided to try a different approach. 
+**Galaxy Blaster** went through the biggest evolution. The first version had basic enemy movement, and I wanted it to feel more like the real Galaga game. I pointed Copilot CLI at [WesleyEdwards/galaga](https://github.com/WesleyEdwards/galaga) and said "make it play like this." Since Phaser is used with the other two games I wanted to go that route, but I kept running into issues with the enemy ship movements. I suspect it's totally doable with Phaser, but after enough rounds of troubleshooting I decided to try a different approach. 
 
 That triggered a full rewrite: distance-based path following instead of frame-based animation, five enemy states (entrance, stationary, breathe-in, breathe-out, attack), formation drift patterns, and Bézier curve attack paths. I even recorded a gameplay video of the reference and had Copilot CLI extract frames to analyze the mechanics. It took several rounds of tuning ("the ships dive too fast", "the formation is too low") before it felt right, but I'm happy with where it landed. I found a great sprite sheet from [Kenney (he has a lot of fantastic game assets)](https://opengameart.org/content/space-shooter-redux) that worked well for the enemy ships. 
 
-![Galaxy Shooter Sprites](assets/galaxy-shooter/space_sheet.png)
+![Galaxy Blaster Sprites](assets/galaxy-blaster/space_sheet.png)
 
 I wanted the ships to have a little more color since the game runs transparently on a desktop and everything needs to stand out more, so I ran the sprites through the gpt-1.5-image model on [Microsoft Foundry](https://ai.azure.com) and after some back and forth settled on this version:
 
-![Galaxy Shooter Colorful Sprites](assets/galaxy-shooter/space_sheet-2.png)
+![Galaxy Blaster Colorful Sprites](assets/galaxy-blaster/space_sheet-2.png)
 
 Here's the game in action:
 
-![Galaxy Shooter Gameplay](docs/images/agent-arcade-galaxy.gif)
+![Galaxy Blaster Gameplay](docs/images/agent-arcade-galaxy.gif)
 
-**Cosmic Rocks** came together fast. The Asteroids formula is well-known: rotate, thrust, wrap-around screen edges, split rocks on hit. I pulled in explosion sounds from the Galaxy Shooter session and shared them across both games. Since these games run transparently on a desktop, adding some "glow" to the rocks helped them stand out more.
+**Cosmic Rocks** came together fast. The Asteroids formula is well-known: rotate, thrust, wrap-around screen edges, split rocks on hit. I pulled in explosion sounds from the Galaxy Blaster session and shared them across both games. Since these games run transparently on a desktop, adding some "glow" to the rocks helped them stand out more.
 
 ![Cosmic Rocks Gameplay](docs/images/agent-arcade-rocks.gif)
 
 ### Cleaning things up
 
-As the project grew, I asked Copilot CLI to audit the `assets/` folder. It found unused sprites and some that I couldn't legally use (I experimented with a lot of options) and cleaned all of that up. It then reorganized assets into game-specific subfolders (`ninja-runner`, `galaxy-shooter`, `cosmic-rocks`) and updated all the import paths automatically.
+As the project grew, I asked Copilot CLI to audit the `assets/` folder. It found unused sprites and some that I couldn't legally use (I experimented with a lot of options) and cleaned all of that up. It then reorganized assets into game-specific subfolders (`ninja-runner`, `galaxy-blaster`, `cosmic-rocks`) and updated all the import paths automatically.
 
 The `src/` folder got a similar treatment. What started as `src/main` and `src/renderer` with Electron became `src-tauri` (Tauri main process since it's in Rust) and `src/game` (Phaser scenes, HUD, bridge code). Copilot CLI updated every file reference, tsconfig path, and build script in one pass. Keep in mind I've never programmed in Rust before, so it was great having Copilot CLI handle all of that for me.
 

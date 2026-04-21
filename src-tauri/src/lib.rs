@@ -494,7 +494,7 @@ pub fn run() {
 
             let _tray = TrayIconBuilder::with_id("main")
                 .tooltip("Agent Arcade")
-                .title("🍄")
+                .title("")
                 .menu(&menu)
                 .on_menu_event(|app, event| match event.id().as_ref() {
                     "toggle" => toggle_window(app),

@@ -2,13 +2,13 @@
 
 ## Project Overview
 
-Agent Arcade is a retro arcade game that runs as a transparent desktop overlay, built with **Tauri v2** (Rust backend) + **Phaser 4** (game engine) + **TypeScript**. It includes three mini-games: Ninja Runner, Galaxy Shooter, and Cosmic Rocks.
+Agent Arcade is a retro arcade game that runs as a transparent desktop overlay, built with **Tauri v2** (Rust backend) + **Phaser 4** (game engine) + **TypeScript**. It includes three mini-games: Ninja Runner, Galaxy Blaster, and Cosmic Rocks.
 
 ## Repository Structure
 
 ```
 src/game/          — Frontend game code (TypeScript, Phaser scenes)
-src/game/scenes/   — Game scenes: BaseScene.ts, NinjaRunner.ts, GalaxyShooter.ts, CosmicRocks.ts
+src/game/scenes/   — Game scenes: BaseScene.ts, NinjaRunner.ts, GalaxyBlaster.ts, CosmicRocks.ts
 src/game/game.ts   — Game bootstrap, scene registry, and game switcher
 src-tauri/         — Tauri v2 Rust backend (window management, tray icon, overlay)
 docs/              — GitHub Pages website (static HTML/CSS/JS)

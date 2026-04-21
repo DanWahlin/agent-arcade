@@ -3,7 +3,7 @@
 
 import { W, H, refreshDimensions } from './scenes/BaseScene.js';
 import { NinjaRunnerScene } from './scenes/NinjaRunner.js';
-import { GalaxyShooterScene } from './scenes/GalaxyShooter.js';
+import { GalaxyBlasterScene } from './scenes/GalaxyBlaster.js';
 import { CosmicRocksScene } from './scenes/CosmicRocks.js';
 
 declare const Phaser: any;
@@ -11,12 +11,22 @@ declare const Phaser: any;
 // Registry of available games
 const GAMES = [
   { key: 'cosmic-rocks', scene: CosmicRocksScene, label: '☄️ Cosmic Rocks' },
-  { key: 'galaxy-shooter', scene: GalaxyShooterScene, label: '🚀 Galaxy Shooter' },
+  { key: 'galaxy-blaster', scene: GalaxyBlasterScene, label: '🚀 Galaxy Blaster' },
   { key: 'ninja-runner', scene: NinjaRunnerScene, label: '🥷 Ninja Runner' },
 ];
 
 let currentGameKey: string;
-try { currentGameKey = localStorage.getItem('agentArcade_lastGame') || 'ninja-runner'; }
+try {
+  // Migrate localStorage from old "galaxy-shooter" name
+  const lastGame = localStorage.getItem('agentArcade_lastGame');
+  if (lastGame === 'galaxy-shooter') localStorage.setItem('agentArcade_lastGame', 'galaxy-blaster');
+  const oldHi = localStorage.getItem('agentArcade_hi_galaxy-shooter');
+  if (oldHi) {
+    localStorage.setItem('agentArcade_hi_galaxy-blaster', oldHi);
+    localStorage.removeItem('agentArcade_hi_galaxy-shooter');
+  }
+  currentGameKey = localStorage.getItem('agentArcade_lastGame') || 'ninja-runner';
+}
 catch { currentGameKey = 'ninja-runner'; }
 // Validate stored key exists in registry
 if (!GAMES.find(g => g.key === currentGameKey)) currentGameKey = 'ninja-runner';

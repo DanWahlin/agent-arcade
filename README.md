@@ -14,8 +14,8 @@ A retro platformer that runs as a transparent overlay on your desktop built with
 </p>
 
 <p align="center">
-  <img src="docs/images/agent-arcade-galaxy.gif" alt="Galaxy Shooter" width="600" /><br/>
-  <em>🚀 Galaxy Shooter</em>
+  <img src="docs/images/agent-arcade-galaxy.gif" alt="Galaxy Blaster" width="600" /><br/>
+  <em>🚀 Galaxy Blaster</em>
 </p>
 
 <p align="center">
@@ -88,7 +88,7 @@ Download the `.AppImage` (universal) or `.deb` (Debian/Ubuntu) package.
 | <kbd>F</kbd> / <kbd>Z</kbd> | Fire (when powered up) |
 | <kbd>↓</kbd> | Enter warp/golden pipes |
 
-### 🚀 Galaxy Shooter
+### 🚀 Galaxy Blaster
 
 | Key | Action |
 |-----|--------|
