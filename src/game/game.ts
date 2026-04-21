@@ -21,25 +21,28 @@ catch { currentGameKey = 'ninja-runner'; }
 // Validate stored key exists in registry
 if (!GAMES.find(g => g.key === currentGameKey)) currentGameKey = 'ninja-runner';
 
-// Wait for the window to be properly sized by Tauri before creating the game.
-// Rust resizes the window in setup(), which may complete after JS loads.
+// Create the Phaser game once the window is full-screen.
+// Tauri's Rust backend resizes the window after setup — we listen for the
+// `resize` event so we create the game at the correct dimensions.
+let game: any = null;
+
 function initGame() {
   refreshDimensions();
 
-  const game = new Phaser.Game({
-  type: Phaser.AUTO,
-  parent: 'game',
-  width: W,
-  height: H,
-  transparent: true,
-  backgroundColor: 'rgba(0,0,0,0)',
-  scene: GAMES.map(g => g.scene),
-  physics: {
-    default: 'arcade',
-    arcade: { gravity: { y: 1800 }, debug: false },
-  },
-  render: { pixelArt: true, antialias: false, transparent: true },
-  fps: { target: 60 },
+  game = new Phaser.Game({
+    type: Phaser.AUTO,
+    parent: 'game',
+    width: W,
+    height: H,
+    transparent: true,
+    backgroundColor: 'rgba(0,0,0,0)',
+    scene: GAMES.map(g => g.scene),
+    physics: {
+      default: 'arcade',
+      arcade: { gravity: { y: 1800 }, debug: false },
+    },
+    render: { pixelArt: true, antialias: false, transparent: true },
+    fps: { target: 60 },
   });
 
   // Expose game instance for Playwright testing (no production impact)
@@ -53,36 +56,69 @@ function initGame() {
     });
   }
 
+  setupGameSwitcher();
+}
+
+function setupGameSwitcher() {
   // Expose game switcher for the HUD dropdown
   (window as any).__agentArcadeSwitchGame = (key: string) => {
-  const entry = GAMES.find(g => g.key === key);
-  if (!entry || key === currentGameKey) return;
+    const entry = GAMES.find(g => g.key === key);
+    if (!entry || key === currentGameKey) return;
 
-  // If paused, unpause first
-  const hud = document.getElementById('hud');
-  if (hud && hud.classList.contains('paused')) {
-    hud.classList.remove('paused');
-    document.body.classList.remove('paused');
+    // If paused, unpause first
+    const hud = document.getElementById('hud');
+    if (hud && hud.classList.contains('paused')) {
+      hud.classList.remove('paused');
+      document.body.classList.remove('paused');
+      const ab = (window as any).agentArcade;
+      if (ab && ab.setClickThrough) ab.setClickThrough(false);
+      if (ab && ab.setPaused) ab.setPaused(false);
+    }
+
+    // Stop current scene, start new one
+    game.scene.stop(currentGameKey);
+    game.scene.start(key);
+    currentGameKey = key;
+    try { localStorage.setItem('agentArcade_lastGame', key); } catch { /* ignore */ }
+
+    // Re-enable click-through and focus the game canvas
     const ab = (window as any).agentArcade;
-    if (ab && ab.setClickThrough) ab.setClickThrough(false);
-    if (ab && ab.setPaused) ab.setPaused(false);
-  }
+    if (ab && ab.setClickThrough) ab.setClickThrough(true);
+    const sel = document.getElementById('game-select') as HTMLSelectElement | null;
+    if (sel) sel.blur();
+    game.canvas.focus();
+  };
+}
 
-  // Stop current scene, start new one
-  game.scene.stop(currentGameKey);
-  game.scene.start(key);
-  currentGameKey = key;
-  try { localStorage.setItem('agentArcade_lastGame', key); } catch { /* ignore */ }
+// Listen for window resize events from Tauri.
+// On first resize that looks full-screen, create the game.
+// On later resizes (e.g. monitor change), resize the canvas.
+// Pause/resume shrinks/expands the window — we must NOT update game
+// dimensions when the window shrinks to HUD-only size, and must NOT
+// restart the scene when expanding back from a pause.
+let resizeDebounce: number | null = null;
+window.addEventListener('resize', () => {
+  if (resizeDebounce) clearTimeout(resizeDebounce);
+  resizeDebounce = window.setTimeout(() => {
+    const newW = window.innerWidth;
+    const newH = window.innerHeight;
 
-  // Re-enable click-through and focus the game canvas
-  const ab = (window as any).agentArcade;
-  if (ab && ab.setClickThrough) ab.setClickThrough(true);
-  // Blur the dropdown so keyboard goes to the game
-  const sel = document.getElementById('game-select') as HTMLSelectElement | null;
-  if (sel) sel.blur();
-  game.canvas.focus();
-};
-} // end initGame
+    if (!game && newW > 800 && newH > 400) {
+      // First time: window is now full-screen — create the game
+      refreshDimensions();
+      initGame();
+    } else if (game && newH > 400) {
+      // Full-screen resize (could be unpause expand or genuine resize).
+      // Update dimensions and resize the canvas, but never restart the
+      // scene — the resume system handles unpause, and a simple resize
+      // is enough for monitor/display changes.
+      refreshDimensions();
+      game.scale.resize(W, H);
+    }
+    // If newH <= 400 (pause shrink to HUD), skip entirely —
+    // keep W/H at full-screen values so the paused game state stays valid.
+  }, 150) as unknown as number;
+});
 
 // Populate game selector dropdown
 function populateGameSelector() {
@@ -109,6 +145,11 @@ if (document.readyState === 'loading') {
   populateGameSelector();
 }
 
-// Delay game init so Tauri's Rust setup has time to resize the window.
-// Without this, window.innerHeight may reflect the default config size.
-setTimeout(initGame, 150);
+// If the window is already full-screen (e.g. Playwright tests or fast Tauri
+// init), create the game immediately since no resize event will fire.
+setTimeout(() => {
+  if (!game && window.innerWidth > 800 && window.innerHeight > 400) {
+    refreshDimensions();
+    initGame();
+  }
+}, 200);

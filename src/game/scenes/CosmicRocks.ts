@@ -420,15 +420,10 @@ export class CosmicRocksScene extends BaseScene {
       b.y += b.vy * dtSec;
       b.life -= dtSec * 1000;
 
-      // Screen wrap
-      if (b.x < 0) b.x += W;
-      else if (b.x > W) b.x -= W;
-      if (b.y < 0) b.y += H;
-      else if (b.y > H) b.y -= H;
-
       b.gfx.setPosition(b.x, b.y);
 
-      if (b.life <= 0) {
+      // Destroy bullet when it leaves the screen or expires
+      if (b.life <= 0 || b.x < 0 || b.x > W || b.y < 0 || b.y > H) {
         b.gfx.destroy();
         this.bullets.splice(i, 1);
       }

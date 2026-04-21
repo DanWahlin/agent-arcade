@@ -67,6 +67,8 @@ export class NinjaRunnerScene extends BaseScene {
   private distanceSinceFlag = 0;
   private piranhaGroup!: any;
   private fireGroup!: any;
+  private crocGroup!: any;
+  private fishGroup!: any;
   private warping = false;
   private parachuteMode = false;
   private parachuteSprite?: any;
@@ -153,6 +155,8 @@ export class NinjaRunnerScene extends BaseScene {
     this.bounceGroup = this.physics.add.staticGroup();
     this.flagGroup = this.physics.add.staticGroup();
     this.fireGroup = this.physics.add.group({ allowGravity: false });
+    this.crocGroup = this.physics.add.group({ allowGravity: false });
+    this.fishGroup = this.physics.add.group({ allowGravity: false });
 
     // Initial ground
     this.extendGround(0, W * 2);
@@ -248,6 +252,8 @@ export class NinjaRunnerScene extends BaseScene {
     this.physics.add.overlap(this.fireballGroup, this.enemyGroup, this.onFireballEnemy, undefined, this);
     this.physics.add.overlap(this.player, this.piranhaGroup, this.onPlayerPiranha, undefined, this);
     this.physics.add.overlap(this.player, this.fireGroup, this.onPlayerFire, undefined, this);
+    this.physics.add.overlap(this.player, this.crocGroup, this.onPlayerCroc, undefined, this);
+    this.physics.add.overlap(this.player, this.fishGroup, this.onPlayerFish, undefined, this);
 
     this.physics.add.collider(this.player, this.bridgeGroup, this.onPlayerBridge, undefined, this);
     this.physics.add.collider(this.enemyGroup, this.bridgeGroup);
@@ -442,27 +448,63 @@ export class NinjaRunnerScene extends BaseScene {
     g.fillTriangle(BLOCK, BLOCK / 2 - 2, BLOCK - 5, BLOCK / 2 + 6, BLOCK + 5, BLOCK / 2 + 6);
     g.generateTexture('pipe_gold', BLOCK * 2, BLOCK);
 
-    // Parachute canopy — large dome with red/white stripes and long strings
+    // Parachute canopy — half-dome with red/white panels, scalloped rim, strings
     g.clear();
     const cw = 64, ch = 80;
-    // Dome at top
+    const domeBottom = 36; // y where the canopy ends
+    // Draw dome as upper half only — fill a tall ellipse then cover the bottom half
     g.fillStyle(0xff2020);
-    g.fillEllipse(cw / 2, 14, cw - 4, 28);
-    // White stripes
+    g.fillEllipse(cw / 2, domeBottom, cw - 4, 56); // tall ellipse centered at rim
+    // Cover lower half so only the dome (upper half) remains
+    g.fillStyle(0x000000, 0.0);
+    // We can't erase, so draw the dome differently:
+    // Use a filled arc approach — draw overlapping circles for dome shape
+    g.clear();
+    // Red canopy dome — build with filled upper-half ellipse
+    // Panel 1 (red) — left
+    g.fillStyle(0xff2020);
+    g.fillRoundedRect(2, 4, 14, domeBottom - 4, { tl: 10, tr: 4, bl: 0, br: 0 });
+    // Panel 2 (white)
     g.fillStyle(0xffffff);
-    g.fillRect(8, 4, 8, 20);
-    g.fillRect(24, 2, 8, 22);
-    g.fillRect(40, 4, 8, 20);
-    // Rim
+    g.fillRoundedRect(16, 2, 10, domeBottom - 2, { tl: 6, tr: 6, bl: 0, br: 0 });
+    // Panel 3 (red) — center
+    g.fillStyle(0xff2020);
+    g.fillRoundedRect(26, 1, 12, domeBottom - 1, { tl: 8, tr: 8, bl: 0, br: 0 });
+    // Panel 4 (white)
+    g.fillStyle(0xffffff);
+    g.fillRoundedRect(38, 2, 10, domeBottom - 2, { tl: 6, tr: 6, bl: 0, br: 0 });
+    // Panel 5 (red) — right
+    g.fillStyle(0xff2020);
+    g.fillRoundedRect(48, 4, 14, domeBottom - 4, { tl: 4, tr: 10, bl: 0, br: 0 });
+    // Top cap to round off the top
+    g.fillStyle(0xff2020);
+    g.fillEllipse(cw / 2, 6, 36, 12);
+    // Scalloped bottom edge — small arcs to suggest billowy fabric
+    g.fillStyle(0xff2020);
+    for (let sx = 5; sx < cw - 4; sx += 12) {
+      g.fillEllipse(sx + 6, domeBottom, 13, 6);
+    }
+    // Dark rim outline along bottom edge
     g.lineStyle(2, 0x880000);
-    g.strokeEllipse(cw / 2, 14, cw - 4, 28);
-    // Long strings from canopy down to bottom center
+    g.lineBetween(2, domeBottom, cw - 2, domeBottom);
+    // Panel divider lines
+    g.lineStyle(1, 0xaa0000);
+    g.lineBetween(16, 6, 16, domeBottom);
+    g.lineBetween(26, 4, 26, domeBottom);
+    g.lineBetween(38, 4, 38, domeBottom);
+    g.lineBetween(48, 6, 48, domeBottom);
+    // Outer rim outline
+    g.lineStyle(2, 0x880000);
+    g.strokeRoundedRect(2, 2, cw - 4, domeBottom, { tl: 14, tr: 14, bl: 0, br: 0 });
+    // Strings — fan out from canopy rim to a gather point near player
     g.lineStyle(1, 0x654321);
-    g.lineBetween(6, 24, cw / 2, ch - 2);
-    g.lineBetween(cw / 4, 22, cw / 2, ch - 2);
-    g.lineBetween(cw / 2, 20, cw / 2, ch - 2);
-    g.lineBetween((3 * cw) / 4, 22, cw / 2, ch - 2);
-    g.lineBetween(cw - 6, 24, cw / 2, ch - 2);
+    const gatherY = ch - 2;
+    const gatherX = cw / 2;
+    g.lineBetween(4, domeBottom + 2, gatherX - 4, gatherY);
+    g.lineBetween(16, domeBottom + 2, gatherX - 2, gatherY);
+    g.lineBetween(cw / 2, domeBottom + 2, gatherX, gatherY);
+    g.lineBetween(48, domeBottom + 2, gatherX + 2, gatherY);
+    g.lineBetween(cw - 4, domeBottom + 2, gatherX + 4, gatherY);
     g.generateTexture('parachute', cw, ch);
 
     // Coin frame 0 (circle)
@@ -483,6 +525,125 @@ export class NinjaRunnerScene extends BaseScene {
     g.fillStyle(0x85c1e9, 0.5); g.fillRect(4, 2, BLOCK * 0.3, 3);
     g.fillStyle(0x85c1e9, 0.4); g.fillRect(BLOCK * 0.55, 6, BLOCK * 0.25, 2);
     g.generateTexture('water', BLOCK, BLOCK);
+
+    // Crocodile — Side view with tail, head poking above water
+    // Both textures share the same back/body y-positions so swapping doesn't
+    // make the croc rise out of the water.
+    const crW = 64, crH = 22;
+    const backY = 6;  // top of back ridge — same in both states
+
+    // Mouth closed (safe to stomp)
+    g.clear();
+    // Tail — tapers to the left
+    g.fillStyle(0x3d5c1e);
+    g.fillTriangle(0, backY + 4, 14, backY + 2, 14, backY + 8);
+    g.fillStyle(0x2d4a14);
+    g.fillTriangle(0, backY + 4, 8, backY + 3, 8, backY + 6); // darker tip
+    // Tail ridges
+    g.lineStyle(1, 0x2d4a14);
+    g.lineBetween(4, backY + 3, 4, backY + 6);
+    g.lineBetween(8, backY + 2, 8, backY + 7);
+    // Body/back — long green shape
+    g.fillStyle(0x3d5c1e);
+    g.fillRoundedRect(12, backY, crW - 12, 12, { tl: 3, tr: 2, bl: 3, br: 2 });
+    // Snout — extends forward (right side)
+    g.fillStyle(0x4a6e23);
+    g.fillRoundedRect(crW - 18, backY + 2, 18, 8, { tl: 0, tr: 3, bl: 0, br: 3 });
+    // Darker dorsal ridge with bumps
+    g.fillStyle(0x2d4a14);
+    g.fillRect(14, backY, crW - 32, 3);
+    for (let bx = 16; bx < crW - 20; bx += 6) {
+      g.fillRect(bx, backY + 1, 3, 2);
+    }
+    // Nostril
+    g.fillStyle(0x1a2e0a);
+    g.fillCircle(crW - 4, backY + 5, 1);
+    // Eye — yellow with black pupil
+    g.fillStyle(0xffdd00);
+    g.fillCircle(crW - 20, backY + 4, 3);
+    g.fillStyle(0x111111);
+    g.fillCircle(crW - 19, backY + 4, 1.5);
+    // Jaw line
+    g.lineStyle(1, 0x2d4a14);
+    g.lineBetween(crW - 18, backY + 8, crW - 2, backY + 8);
+    // Teeth hints along closed jaw
+    g.fillStyle(0xeeeeee);
+    for (let tx = crW - 16; tx < crW - 2; tx += 4) {
+      g.fillTriangle(tx, backY + 8, tx + 2, backY + 8, tx + 1, backY + 10);
+    }
+    g.generateTexture('croc_closed', crW, crH);
+
+    // Mouth open (danger!) — back stays at same y, only jaws move
+    g.clear();
+    // Tail — same as closed
+    g.fillStyle(0x3d5c1e);
+    g.fillTriangle(0, backY + 4, 14, backY + 2, 14, backY + 8);
+    g.fillStyle(0x2d4a14);
+    g.fillTriangle(0, backY + 4, 8, backY + 3, 8, backY + 6);
+    g.lineStyle(1, 0x2d4a14);
+    g.lineBetween(4, backY + 3, 4, backY + 6);
+    g.lineBetween(8, backY + 2, 8, backY + 7);
+    // Body/back — same position as closed
+    g.fillStyle(0x3d5c1e);
+    g.fillRoundedRect(12, backY, crW - 30, 10, { tl: 3, tr: 2, bl: 3, br: 2 });
+    // Dorsal ridge — same
+    g.fillStyle(0x2d4a14);
+    g.fillRect(14, backY, crW - 32, 3);
+    for (let bx = 16; bx < crW - 20; bx += 6) {
+      g.fillRect(bx, backY + 1, 3, 2);
+    }
+    // Upper jaw — tilted up from back line
+    g.fillStyle(0x4a6e23);
+    g.fillRoundedRect(crW - 18, backY - 2, 18, 6, { tl: 0, tr: 3, bl: 0, br: 0 });
+    // Lower jaw — drops down into water
+    g.fillStyle(0x4a6e23);
+    g.fillRoundedRect(crW - 18, backY + 10, 18, 6, { tl: 0, tr: 0, bl: 0, br: 3 });
+    // Red mouth interior
+    g.fillStyle(0xcc2222);
+    g.fillRect(crW - 16, backY + 4, 14, 6);
+    // Upper teeth
+    g.fillStyle(0xffffff);
+    for (let tx = crW - 16; tx < crW - 2; tx += 4) {
+      g.fillTriangle(tx, backY + 4, tx + 2, backY + 4, tx + 1, backY + 6);
+    }
+    // Lower teeth
+    for (let tx = crW - 16; tx < crW - 2; tx += 4) {
+      g.fillTriangle(tx, backY + 10, tx + 2, backY + 10, tx + 1, backY + 8);
+    }
+    // Nostril
+    g.fillStyle(0x1a2e0a);
+    g.fillCircle(crW - 4, backY - 1, 1);
+    // Eye — yellow with black pupil (same as closed)
+    g.fillStyle(0xffdd00);
+    g.fillCircle(crW - 20, backY + 1, 3);
+    g.fillStyle(0x111111);
+    g.fillCircle(crW - 19, backY + 1, 1.5);
+    g.generateTexture('croc_open', crW, crH);
+
+    // Fish — small side-view fish for bridge gaps
+    const fW = 20, fH = 14;
+    g.clear();
+    // Body — orange/gold oval
+    g.fillStyle(0xff8800);
+    g.fillRoundedRect(2, 3, fW - 6, fH - 6, 4);
+    // Belly highlight
+    g.fillStyle(0xffbb44);
+    g.fillRoundedRect(4, 6, fW - 10, 4, 2);
+    // Tail fin
+    g.fillStyle(0xff6600);
+    g.fillTriangle(0, 3, 0, fH - 3, 5, fH / 2);
+    // Dorsal fin
+    g.fillStyle(0xff6600);
+    g.fillTriangle(8, 3, 14, 3, 11, 0);
+    // Eye
+    g.fillStyle(0xffffff);
+    g.fillCircle(fW - 7, 6, 2);
+    g.fillStyle(0x111111);
+    g.fillCircle(fW - 6, 6, 1);
+    // Mouth
+    g.lineStyle(1, 0xcc4400);
+    g.lineBetween(fW - 3, 7, fW - 1, 7);
+    g.generateTexture('fish', fW, fH);
 
     // Bounce pad (spring block)
     g.clear();
@@ -568,7 +729,7 @@ export class NinjaRunnerScene extends BaseScene {
       }
       return false;
     };
-    return check(this.pipeGroup) || check(this.brickGroup) || check(this.qblockGroup) || check(this.bounceGroup);
+    return check(this.pipeGroup) || check(this.brickGroup) || check(this.qblockGroup) || check(this.bounceGroup) || check(this.fireGroup);
   }
 
   /** Fill a gap with decorative water tiles. */
@@ -602,7 +763,7 @@ export class NinjaRunnerScene extends BaseScene {
       // Pick a pattern using shuffle-style selection (avoid repeating last pattern)
       let pattern: number;
       do {
-        pattern = Math.floor(Math.random() * 19);
+        pattern = Math.floor(Math.random() * 20);
       } while (pattern === lastPattern);
       lastPattern = pattern;
 
@@ -796,6 +957,16 @@ export class NinjaRunnerScene extends BaseScene {
           bt.refreshBody();
           bt.setData('unstable', unstableMap[i]);
           bt.setData('collapsing', false);
+          // Spawn a fish under each unstable tile
+          if (unstableMap[i]) {
+            const fish = this.fishGroup.create(bx, GROUND_Y + BLOCK * 2, 'fish') as any;
+            fish.setOrigin(0.5, 0.5);
+            fish.body.setAllowGravity(false);
+            fish.setVisible(false);
+            fish.body.enable = false;
+            fish.setData('homeX', bx);
+            fish.setData('jumped', false);
+          }
         }
         x += gapW;
       } else if (pattern === 10) {
@@ -1020,6 +1191,31 @@ export class NinjaRunnerScene extends BaseScene {
           this.spawnEnemyAt('goomba', x + BLOCK, GROUND_Y - BLOCK);
         }
         x += (baseW + 1) * BLOCK;
+      } else if (pattern === 19) {
+        // Small croc pond — narrow water gap with 1-2 crocodiles
+        const gapW = (2 + Math.floor(Math.random() * 2)) * BLOCK; // 2-3 blocks wide
+        this.gaps.push({ start: x, end: x + gapW });
+        (this.groundGroup.getChildren() as any[]).forEach((g: any) => {
+          if (g.x >= x && g.x < x + gapW) g.destroy();
+        });
+        this.fillWater(x, gapW);
+        const numCrocs = gapW >= BLOCK * 3 ? 2 : 1;
+        const spacing = gapW / (numCrocs + 1);
+        for (let ci = 0; ci < numCrocs; ci++) {
+          const cx = x + spacing * (ci + 1);
+          const cy = GROUND_Y + 8; // Sit on water surface
+          const croc = this.crocGroup.create(cx, cy, 'croc_closed') as any;
+          croc.setOrigin(0.5, 1);
+          croc.body.setAllowGravity(false);
+          croc.body.setSize(58, 16);
+          croc.setData('mouthOpen', false);
+          croc.setData('timer', this.time.now + 2000 + Math.random() * 2000);
+          croc.setData('gapStart', x);
+          croc.setData('gapEnd', x + gapW);
+          croc.setData('swimDir', Math.random() < 0.5 ? 1 : -1);
+          croc.setVelocityX(croc.getData('swimDir') * 30);
+        }
+        x += gapW;
       }
     }
     this.genX = Math.max(this.genX, x);
@@ -1058,7 +1254,7 @@ export class NinjaRunnerScene extends BaseScene {
       // Place high above a random non-gap spot — needs bounce pad or double-jump
       const hx = lo + Math.floor(Math.random() * (hi - lo - BLOCK * 4)) + BLOCK * 2;
       if (!this.isInGap(hx)) {
-        const hy = GROUND_Y - BLOCK * 6; // very high up
+        const hy = GROUND_Y - BLOCK * (3 + Math.random() * 1.5); // high but reachable with a good jump
         const h = this.heartGroup.create(hx, hy, 'heart_anim', 0) as any;
         h.setDisplaySize(BLOCK * 0.7, BLOCK * 0.7);
         h.body.setAllowGravity(false);
@@ -1221,8 +1417,9 @@ export class NinjaRunnerScene extends BaseScene {
         if (e.x < pCamLeft - 100 || e.x > pCamLeft + W + 100) { e.destroy(); return false; }
         return true;
       });
-      const pOnGround = this.player.body.blocked.down || this.player.body.touching.down;
-      if (pOnGround && this.player.y >= GROUND_Y - 10) {
+      const pOnGround = this.player.body.blocked.down;
+      const falling = this.player.body.velocity.y >= 0;
+      if (pOnGround && falling && !this.cursors.up.isDown) {
         this.endParachute();
       }
       // Die if player drifts into water/gap below ground level
@@ -1457,6 +1654,7 @@ export class NinjaRunnerScene extends BaseScene {
       // Trigger when player is within 6 blocks ahead or 2 blocks behind
       if (dx < BLOCK * 6 && dx > -BLOCK * 2) {
         bt.setData('collapsing', true);
+        const tileX = bt.x;
         // ~1 second shake warning before falling
         this.tweens.add({
           targets: bt,
@@ -1473,21 +1671,109 @@ export class NinjaRunnerScene extends BaseScene {
               duration: 500,
               onComplete: () => bt.destroy(),
             });
+            // Launch fish from the gap where tile fell
+            (this.fishGroup.getChildren() as any[]).forEach((fish: any) => {
+              if (!fish.active || fish.getData('jumped')) return;
+              if (Math.abs(fish.getData('homeX') - tileX) < BLOCK) {
+                fish.setData('jumped', true);
+                fish.setVisible(true);
+                fish.body.enable = true;
+                fish.setPosition(tileX, GROUND_Y + BLOCK);
+                // Arc jump: up just above bridge level, then back down
+                this.tweens.add({
+                  targets: fish,
+                  y: GROUND_Y - BLOCK * 0.8,
+                  duration: 400,
+                  ease: 'Sine.easeOut',
+                  onComplete: () => {
+                    this.tweens.add({
+                      targets: fish,
+                      y: GROUND_Y + BLOCK * 2,
+                      duration: 400,
+                      ease: 'Sine.easeIn',
+                      onComplete: () => {
+                        fish.body.enable = false;
+                        fish.setVisible(false);
+                        // Reset for possible re-jump after a delay
+                        this.time.delayedCall(1500 + Math.random() * 2000, () => {
+                          if (fish.active) {
+                            fish.setData('jumped', false);
+                          }
+                        });
+                      },
+                    });
+                  },
+                });
+              }
+            });
           },
         });
       }
     });
 
     // Fire eruptions — shoot up from gaps when player approaches
+    // Warning glow/smoke appears first; fire ONLY erupts after warning has been
+    // visible for a minimum duration so the player always gets fair notice.
+    const WARN_MIN_MS = 800; // warning must show for at least this long before fire
     (this.fireGroup.getChildren() as any[]).forEach((f: any) => {
       if (!f.active) return;
       const dx = Math.abs(this.player.x - f.getData('gapX'));
       const baseY = f.getData('baseY');
       const isActive = f.getData('active');
+      const isWarning = f.getData('warning');
       
-      if (dx < BLOCK * 4 && !isActive) {
-        // Player approaching — erupt!
+      // Warning phase — show smoke/glow when player is within 10 blocks
+      if (dx < BLOCK * 10 && !isActive && !isWarning) {
+        f.setData('warning', true);
+        f.setData('warnStart', this.time.now);
+        // Rising smoke/ember particles
+        const warnEmbers = this.add.particles(f.getData('gapX'), GROUND_Y, 'coin0', {
+          speed: { min: 20, max: 60 },
+          angle: { min: 255, max: 285 },
+          scale: { start: 0.2, end: 0 },
+          alpha: { start: 0.5, end: 0 },
+          lifespan: { min: 400, max: 800 },
+          frequency: 40,
+          quantity: 2,
+          tint: [0xff4400, 0xff6600, 0x888888, 0x666666],
+          blendMode: 'ADD',
+        });
+        warnEmbers.setDepth(f.depth + 1);
+        f.setData('warnEmbers', warnEmbers);
+        // Pulsing orange glow at gap base
+        const warnGlow = this.add.ellipse(
+          f.getData('gapX'), GROUND_Y + BLOCK * 0.5,
+          BLOCK * 2, BLOCK * 1.5, 0xff4400, 1.0
+        );
+        warnGlow.setAlpha(0);
+        warnGlow.setBlendMode(Phaser.BlendModes.ADD);
+        warnGlow.setDepth(f.depth - 1);
+        f.setData('warnGlow', warnGlow);
+        this.tweens.add({
+          targets: warnGlow,
+          alpha: { from: 0, to: 0.35 },
+          duration: 350,
+          ease: 'Sine.easeInOut',
+          yoyo: true,
+          repeat: -1,
+        });
+      }
+
+      // Fire only erupts after warning has been visible long enough
+      const warnStart = f.getData('warnStart') || 0;
+      const warnElapsed = this.time.now - warnStart;
+      if (dx < BLOCK * 4 && !isActive && isWarning && warnElapsed >= WARN_MIN_MS) {
+        // Erupt!
         f.setData('active', true);
+        // Clean up warning effects
+        const we = f.getData('warnEmbers') as any;
+        if (we) { we.stop(); this.time.delayedCall(800, () => { if (we) we.destroy(); }); }
+        const wg = f.getData('warnGlow') as any;
+        if (wg) { this.tweens.killTweensOf(wg); wg.destroy(); }
+        f.setData('warnEmbers', null);
+        f.setData('warnGlow', null);
+        f.setData('warning', false);
+
         f.setVisible(true);
         f.body.enable = true;
         f.y = baseY;
@@ -1572,6 +1858,10 @@ export class NinjaRunnerScene extends BaseScene {
         if (sp) sp.destroy();
         const emb = f.getData('embers') as any;
         if (emb) emb.destroy();
+        const we = f.getData('warnEmbers') as any;
+        if (we) we.destroy();
+        const wg = f.getData('warnGlow') as any;
+        if (wg) { this.tweens.killTweensOf(wg); wg.destroy(); }
         f.destroy();
       }
     });
@@ -1583,8 +1873,11 @@ export class NinjaRunnerScene extends BaseScene {
       const pipeTopY = p.getData('pipeTopY');
       const cycle = 4000;
       const phase = (timer % cycle) / cycle;
-      const dx = Math.abs(this.player.x - p.getData('pipeX'));
-      if (dx < BLOCK * 2) {
+      // Only suppress if the player is directly on top of the pipe
+      const pipeX = p.getData('pipeX');
+      const dx = Math.abs(this.player.x - pipeX);
+      const onPipe = dx < BLOCK * 0.8 && this.player.y < pipeTopY && this.player.body.velocity.y >= 0;
+      if (onPipe) {
         p.setVisible(false);
         p.body.enable = false;
         p.setData('timer', timer);
@@ -1621,6 +1914,37 @@ export class NinjaRunnerScene extends BaseScene {
 
     (this.fireballGroup.getChildren() as any[]).forEach(fb => {
       if (fb.x < camLeft - 100 || fb.x > camLeft + W + 200 || fb.y > H + 50) fb.destroy();
+    });
+
+    // Croc update — swim back and forth, cycle mouth open/closed
+    const now = this.time.now;
+    (this.crocGroup.getChildren() as any[]).forEach((croc: any) => {
+      if (croc.x < camLeft - 200) { croc.destroy(); return; }
+      // Mouth state cycling
+      const timer = croc.getData('timer') as number;
+      if (now >= timer) {
+        const wasOpen = croc.getData('mouthOpen');
+        croc.setData('mouthOpen', !wasOpen);
+        croc.setTexture(wasOpen ? 'croc_closed' : 'croc_open');
+        // Closed longer than open (2-3s closed, 1-1.5s open)
+        croc.setData('timer', now + (wasOpen ? 2000 + Math.random() * 1000 : 1000 + Math.random() * 500));
+      }
+      // Swim within gap bounds
+      const gapStart = croc.getData('gapStart') as number;
+      const gapEnd = croc.getData('gapEnd') as number;
+      const margin = 24;
+      if (croc.x <= gapStart + margin) {
+        croc.setData('swimDir', 1);
+        croc.setVelocityX(30);
+      } else if (croc.x >= gapEnd - margin) {
+        croc.setData('swimDir', -1);
+        croc.setVelocityX(-30);
+      }
+    });
+
+    // Fish cleanup — destroy when scrolled offscreen
+    (this.fishGroup.getChildren() as any[]).forEach((fish: any) => {
+      if (fish.x < camLeft - 200) fish.destroy();
     });
   }
 
@@ -1827,14 +2151,6 @@ export class NinjaRunnerScene extends BaseScene {
     if (this.invincible > 0 || this.stompGrace > 0 || this.shrinkTimer > 0) return;
     const state = e.getData('state');
     const kind = e.getData('kind');
-
-    // Powered up = invincible, destroy enemies on contact
-    if (this.isBig && state === 'walk') {
-      this.killGoomba(e);
-      this.addScore(300, e.x, e.y - 20);
-      this.invincible = 10;
-      return;
-    }
 
     const playerBottom = this.player.y;
     const enemyTop = e.y - e.displayHeight;
@@ -2132,6 +2448,40 @@ export class NinjaRunnerScene extends BaseScene {
     }
   }
 
+  private onPlayerCroc(_player: any, croc: any) {
+    if (this.invincible > 0 || this.shrinkTimer > 0) return;
+    const pBody = this.player.body;
+    const stomping = pBody.velocity.y > 0 && pBody.bottom <= croc.body.top + 10;
+    if (stomping && !croc.getData('mouthOpen')) {
+      // Stomp on closed mouth — safe! Points + bounce
+      this.addScore(200);
+      croc.destroy();
+      pBody.setVelocityY(-500);
+      this.sfx('nr_stomp');
+    } else {
+      // Mouth open or side collision — damage
+      if (this.isBig) {
+        this.isBig = false;
+        this.shrinkTimer = 60;
+        this.invincible = 90;
+      } else {
+        this.die();
+      }
+    }
+  }
+
+  private onPlayerFish(_player: any, fish: any) {
+    if (this.invincible > 0 || this.shrinkTimer > 0) return;
+    if (!fish.visible) return;
+    if (this.isBig) {
+      this.isBig = false;
+      this.shrinkTimer = 60;
+      this.invincible = 90;
+    } else {
+      this.die();
+    }
+  }
+
   private startWarp(sourcePipe: any) {
     this.warping = true;
     this.sfx('nr_warp');
@@ -2287,8 +2637,8 @@ export class NinjaRunnerScene extends BaseScene {
         this.player.setPosition(targetX, 60);
         this.player.setVisible(true);
         this.player.body.setAllowGravity(true);
-        this.player.body.setGravityY(52);
-        this.player.setMaxVelocity(200, 180);
+        this.player.body.setGravityY(42);
+        this.player.setMaxVelocity(200, 144);
         this.warping = false;
         this.parachuteSprite = this.add.sprite(this.player.x, this.player.y - 80, 'parachute');
         this.parachuteSprite.setDisplaySize(96, 120);

@@ -5,9 +5,18 @@ use tauri::{
 };
 
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 
 static VISIBLE: AtomicBool = AtomicBool::new(false);
 static PAUSED: AtomicBool = AtomicBool::new(false);
+
+/// The current toggle shortcut string (e.g. "Ctrl+Alt+M").
+/// Updated by the `set_toggle_shortcut` command from JS.
+static TOGGLE_SHORTCUT: Mutex<String> = Mutex::new(String::new());
+
+/// The current pause/unpause shortcut string (default "Escape").
+/// Updated by the `set_pause_shortcut` command from JS.
+static PAUSE_SHORTCUT: Mutex<String> = Mutex::new(String::new());
 
 // ── Tauri commands (called from JS via invoke()) ──────────────────────
 
@@ -98,6 +107,144 @@ fn quit_app(app: AppHandle) {
 #[tauri::command]
 fn hide_app(app: AppHandle) {
     hide_window(&app);
+}
+
+/// Change the toggle shortcut at runtime.
+/// `combo` is a string like "Ctrl+Alt+M" or "Ctrl+Shift+G".
+/// Returns Ok(()) on success or an error string if the shortcut can't be registered.
+#[tauri::command]
+fn set_toggle_shortcut(app: AppHandle, combo: String) -> Result<String, String> {
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+
+    let new_sc = parse_shortcut(&combo).ok_or_else(|| format!("Invalid shortcut: {}", combo))?;
+
+    // Unregister the old toggle shortcut (ignore errors — it may already be gone)
+    {
+        let old = TOGGLE_SHORTCUT.lock().unwrap();
+        if !old.is_empty() {
+            if let Some(old_sc) = parse_shortcut(&old) {
+                let _ = app.global_shortcut().unregister(old_sc);
+            }
+        }
+    }
+
+    // Try to register the new one
+    app.global_shortcut()
+        .register(new_sc)
+        .map_err(|e| format!("Could not register {}: {}", combo, e))?;
+
+    // Update the stored shortcut
+    {
+        let mut stored = TOGGLE_SHORTCUT.lock().unwrap();
+        *stored = combo.clone();
+    }
+
+    // Update tray menu label
+    update_tray_label(&app, &combo);
+
+    Ok(combo)
+}
+
+/// Get the current toggle shortcut string.
+#[tauri::command]
+fn get_toggle_shortcut() -> String {
+    TOGGLE_SHORTCUT.lock().unwrap().clone()
+}
+
+/// Change the pause/unpause shortcut at runtime.
+/// `combo` can be a single key like "Escape" or a combo like "Ctrl+P".
+/// Returns Ok(combo) on success or an error string if the shortcut can't be registered.
+#[tauri::command]
+fn set_pause_shortcut(app: AppHandle, combo: String) -> Result<String, String> {
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+
+    let new_sc = parse_shortcut(&combo).ok_or_else(|| format!("Invalid shortcut: {}", combo))?;
+
+    // Unregister the old pause shortcut (ignore errors)
+    {
+        let old = PAUSE_SHORTCUT.lock().unwrap();
+        if !old.is_empty() {
+            if let Some(old_sc) = parse_shortcut(&old) {
+                let _ = app.global_shortcut().unregister(old_sc);
+            }
+        }
+    }
+
+    // Try to register the new one
+    app.global_shortcut()
+        .register(new_sc)
+        .map_err(|e| format!("Could not register {}: {}", combo, e))?;
+
+    // Update the stored shortcut
+    {
+        let mut stored = PAUSE_SHORTCUT.lock().unwrap();
+        *stored = combo.clone();
+    }
+
+    Ok(combo)
+}
+
+/// Get the current pause shortcut string.
+#[tauri::command]
+fn get_pause_shortcut() -> String {
+    PAUSE_SHORTCUT.lock().unwrap().clone()
+}
+
+/// Parse a shortcut string like "Ctrl+Alt+M" into a Shortcut struct.
+fn parse_shortcut(s: &str) -> Option<tauri_plugin_global_shortcut::Shortcut> {
+    use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut};
+
+    let parts: Vec<&str> = s.split('+').map(|p| p.trim()).collect();
+    if parts.is_empty() {
+        return None;
+    }
+
+    let mut mods = Modifiers::empty();
+    let key_str = parts.last()?;
+
+    for &part in &parts[..parts.len() - 1] {
+        match part.to_lowercase().as_str() {
+            "ctrl" | "control" => mods |= Modifiers::CONTROL,
+            "alt" | "option" => mods |= Modifiers::ALT,
+            "shift" => mods |= Modifiers::SHIFT,
+            "super" | "meta" | "cmd" | "command" => mods |= Modifiers::SUPER,
+            _ => return None,
+        }
+    }
+
+    let code = match key_str.to_uppercase().as_str() {
+        "A" => Code::KeyA, "B" => Code::KeyB, "C" => Code::KeyC, "D" => Code::KeyD,
+        "E" => Code::KeyE, "F" => Code::KeyF, "G" => Code::KeyG, "H" => Code::KeyH,
+        "I" => Code::KeyI, "J" => Code::KeyJ, "K" => Code::KeyK, "L" => Code::KeyL,
+        "M" => Code::KeyM, "N" => Code::KeyN, "O" => Code::KeyO, "P" => Code::KeyP,
+        "Q" => Code::KeyQ, "R" => Code::KeyR, "S" => Code::KeyS, "T" => Code::KeyT,
+        "U" => Code::KeyU, "V" => Code::KeyV, "W" => Code::KeyW, "X" => Code::KeyX,
+        "Y" => Code::KeyY, "Z" => Code::KeyZ,
+        "0" => Code::Digit0, "1" => Code::Digit1, "2" => Code::Digit2, "3" => Code::Digit3,
+        "4" => Code::Digit4, "5" => Code::Digit5, "6" => Code::Digit6, "7" => Code::Digit7,
+        "8" => Code::Digit8, "9" => Code::Digit9,
+        "F1" => Code::F1, "F2" => Code::F2, "F3" => Code::F3, "F4" => Code::F4,
+        "F5" => Code::F5, "F6" => Code::F6, "F7" => Code::F7, "F8" => Code::F8,
+        "F9" => Code::F9, "F10" => Code::F10, "F11" => Code::F11, "F12" => Code::F12,
+        "ESCAPE" | "ESC" => Code::Escape,
+        "SPACE" => Code::Space,
+        "TAB" => Code::Tab,
+        "ENTER" | "RETURN" => Code::Enter,
+        "BACKSPACE" => Code::Backspace,
+        _ => return None,
+    };
+
+    let mods_opt = if mods.is_empty() { None } else { Some(mods) };
+    Some(Shortcut::new(mods_opt, code))
+}
+
+/// Update the tray menu toggle label with the new shortcut.
+/// Note: Tauri v2 TrayIcon doesn't expose menu items for text updates,
+/// so the tray label will show the initial shortcut only. The settings
+/// dialog is the source of truth for the current hotkey.
+fn update_tray_label(_app: &AppHandle, _combo: &str) {
+    // Tray menu text update not supported in Tauri v2 without rebuilding the menu.
+    // The settings dialog shows the current hotkey to the user.
 }
 
 // ── Window helpers ────────────────────────────────────────────────────
@@ -197,19 +344,43 @@ pub fn run() {
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, shortcut, event| {
-                    use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut, ShortcutState};
+                    use tauri_plugin_global_shortcut::ShortcutState;
 
                     if event.state() != ShortcutState::Pressed {
                         return;
                     }
 
-                    let toggle_shortcut =
-                        Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::KeyM);
-                    let esc_shortcut = Shortcut::new(None, Code::Escape);
+                    // Check if this is the current toggle shortcut
+                    let is_toggle = {
+                        let stored = TOGGLE_SHORTCUT.lock().unwrap();
+                        if !stored.is_empty() {
+                            if let Some(sc) = parse_shortcut(&stored) {
+                                *shortcut == sc
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        }
+                    };
 
-                    if *shortcut == toggle_shortcut {
+                    // Check if this is the current pause shortcut
+                    let is_pause = {
+                        let stored = PAUSE_SHORTCUT.lock().unwrap();
+                        if !stored.is_empty() {
+                            if let Some(sc) = parse_shortcut(&stored) {
+                                *shortcut == sc
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        }
+                    };
+
+                    if is_toggle {
                         toggle_window(app);
-                    } else if *shortcut == esc_shortcut {
+                    } else if is_pause {
                         if PAUSED.load(Ordering::SeqCst) {
                             resume_game(app);
                         } else if VISIBLE.load(Ordering::SeqCst) {
@@ -219,25 +390,57 @@ pub fn run() {
                 })
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![set_click_through, set_paused, quit_app, hide_app, get_cursor_in_window])
+        .invoke_handler(tauri::generate_handler![set_click_through, set_paused, quit_app, hide_app, get_cursor_in_window, set_toggle_shortcut, get_toggle_shortcut, set_pause_shortcut, get_pause_shortcut])
         .setup(|app| {
-            // Register Ctrl+Alt+M and Escape global shortcuts
+            // Register default toggle shortcut and Escape.
+            // If the toggle shortcut is already taken by another app,
+            // log a warning but don't crash — the user can change it in settings.
             {
                 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut};
+                let default_combo = "Ctrl+Alt+M";
                 let toggle =
                     Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::KeyM);
                 let esc = Shortcut::new(None, Code::Escape);
-                app.global_shortcut().register(toggle)?;
-                app.global_shortcut().register(esc)?;
+
+                // Load saved shortcut from JS (will be sent via set_toggle_shortcut on init).
+                // For now, try the default.
+                match app.global_shortcut().register(toggle) {
+                    Ok(_) => {
+                        let mut stored = TOGGLE_SHORTCUT.lock().unwrap();
+                        *stored = default_combo.to_string();
+                    }
+                    Err(e) => {
+                        log::warn!("Could not register default shortcut {}: {}. User can change it in Settings.", default_combo, e);
+                        // Notify JS that the default shortcut failed
+                        if let Some(win) = app.get_webview_window("main") {
+                            let _ = win.eval(&format!(
+                                "window.__shortcutRegistrationFailed = '{}';",
+                                default_combo
+                            ));
+                        }
+                    }
+                }
+                // Escape is essential — try to register but don't crash if it fails
+                if let Err(e) = app.global_shortcut().register(esc) {
+                    log::warn!("Could not register Escape shortcut: {}", e);
+                }
+                {
+                    let mut stored = PAUSE_SHORTCUT.lock().unwrap();
+                    *stored = "Escape".to_string();
+                }
             }
 
             // Build system tray
             let is_mac = cfg!(target_os = "macos");
-            let toggle_label = if is_mac {
-                "Show / Hide  (⌃⌥M)"
+            let current_combo = TOGGLE_SHORTCUT.lock().unwrap().clone();
+            let display_combo = if current_combo.is_empty() {
+                "(no shortcut)".to_string()
+            } else if is_mac {
+                current_combo.replace("Ctrl", "⌃").replace("Alt", "⌥").replace("Shift", "⇧").replace("Super", "⌘")
             } else {
-                "Show / Hide  (Ctrl+Alt+M)"
+                current_combo.clone()
             };
+            let toggle_label = format!("Show / Hide  ({})", display_combo);
             let quit_label = if is_mac {
                 "Quit  (⌘Q)"
             } else {
@@ -245,14 +448,14 @@ pub fn run() {
             };
 
             let toggle_item =
-                MenuItemBuilder::with_id("toggle", toggle_label).build(app)?;
+                MenuItemBuilder::with_id("toggle", &toggle_label).build(app)?;
             let quit_item =
                 MenuItemBuilder::with_id("quit", quit_label).build(app)?;
             let menu = MenuBuilder::new(app)
                 .items(&[&toggle_item, &quit_item])
                 .build()?;
 
-            let _tray = TrayIconBuilder::new()
+            let _tray = TrayIconBuilder::with_id("main")
                 .tooltip("Agent Arcade")
                 .title("🍄")
                 .menu(&menu)
