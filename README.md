@@ -31,19 +31,30 @@ Idea ➡ Reality over a weekend! I used [GitHub Copilot CLI](https://github.com/
 
 Visit the [releases page](https://github.com/DanWahlin/agent-arcade/releases) and download the installer for your OS. Note that the app is not code-signed, so you may need to bypass security warnings on your OS when installing or running it for the first time. All of the code used in the app installation package is here in the repo - feel free to scan it.
 
+### 🤖 Install this using the Copilot CLI
+
+If you have [GitHub Copilot CLI](https://github.com/features/copilot/cli/) installed, you can install Agent Arcade with a single prompt. Just paste the following into Copilot CLI and it will download and install it:
+
+```
+copilot --allow-all -p "Install the latest version of this app for me https://github.com/DanWahlin/agent-arcade/releases"
+```
+
+> **Note:** The app is not code-signed, so after installing you'll still need to manually run the commands shown below for your operating system.
+
 ### 🍎 macOS
 
-1. Download the `.dmg` file and open it
-2. Drag **Agent Arcade** to your Applications folder
-3. **Important:** The app is not code-signed, so macOS will block it on first launch. Open Terminal and run:
+1. Go to the [releases page](https://github.com/DanWahlin/agent-arcade/releases) and expand the **Assets** list to find the `.dmg` file
+2. Download the `.dmg` file and open it
+3. Drag **Agent Arcade** to your Applications folder
+4. **Important:** The app is not code-signed, so macOS will block it on first launch. Open Terminal and run:
    ```
    sudo xattr -rd com.apple.quarantine /Applications/Agent\ Arcade.app
    ```
-4. Open Agent Arcade from your Applications folder
+5. Open Agent Arcade from your Applications folder
 
 ### 🪟 Windows
 
-Download and run the `.msi` installer.
+Go to the [releases page](https://github.com/DanWahlin/agent-arcade/releases), expand the **Assets** list, and download the `.msi` installer. Run the installer to complete setup.
 
 > **Note:** The app is not code-signed, so Windows may flag it:
 > 1. If your browser warns about the download, select **"Keep"**
@@ -52,7 +63,7 @@ Download and run the `.msi` installer.
 
 ### 🐧 Linux
 
-Download the `.AppImage` (universal) or `.deb` (Debian/Ubuntu) package.
+Go to the [releases page](https://github.com/DanWahlin/agent-arcade/releases), expand the **Assets** list, and download the `.AppImage` (universal) or `.deb` (Debian/Ubuntu) package.
 
 > **Note:** For the AppImage, make it executable first:
 > ```

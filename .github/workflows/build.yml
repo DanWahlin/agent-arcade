@@ -112,17 +112,27 @@ jobs:
           draft: false
           prerelease: false
           body: |
-            ${{ steps.changelog.outputs.content }}
-
-            ---
-
             ## 🎮 Download Agent Arcade
+
+            ### 🤖 Install this using the Copilot CLI
+
+            If you have [GitHub Copilot CLI](https://github.com/features/copilot/cli/) installed, you can install Agent Arcade with a single prompt:
+
+            ```
+            copilot --allow-all -p "Install the latest version of this app for me https://github.com/DanWahlin/agent-arcade/releases"
+            ```
+
+            > **Note:** The app is not code-signed, so after installing you'll still need to manually run the commands shown below for your operating system.
+
+            Or download the installer for your OS from the **Assets** list below.
 
             ### 🍎 macOS
             | File | Description |
             |------|-------------|
             | `*.dmg` | macOS installer (Universal — Apple Silicon + Intel) |
 
+            > Download the `.dmg` file from the **Assets** list below.
+            >
             > **Note:** The app is not code-signed. After installing, open Terminal and run:
             > ```
             > sudo xattr -rd com.apple.quarantine /Applications/Agent\ Arcade.app
@@ -133,6 +143,8 @@ jobs:
             |------|-------------|
             | `*.msi` | Windows installer (x64) |
 
+            > Download the `.msi` file from the **Assets** list below.
+            >
             > **Note:** The app is not code-signed, so Windows may flag it:
             > 1. If your browser warns about the download, select **"Keep"**
             > 2. When you see "Windows protected your PC", click **"More info"**
@@ -144,6 +156,8 @@ jobs:
             | `*.AppImage` | Universal Linux (run anywhere) |
             | `*.deb` | Debian/Ubuntu package |
 
+            > Download the `.AppImage` or `.deb` file from the **Assets** list below.
+            >
             > **Note:** For the AppImage, make it executable first:
             > ```
             > chmod +x Agent-Arcade_*.AppImage
