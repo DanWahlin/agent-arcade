@@ -167,7 +167,7 @@ export class AlienOnslaughtScene extends BaseScene {
     const s = Math.max(SCALE, 0.5);
 
     // Size the grid relative to screen, not a fixed pixel size
-    this.alienCellW = Math.round(W * 0.065);           // ~70% of width across 11 cols
+    this.alienCellW = Math.round(W * 0.055);           // ~85% of original — tighter grid
     this.alienCellH = Math.round(this.alienCellW * 0.8);
     this.alienW = Math.round(this.alienCellW * 0.6);
     this.alienH = Math.round(this.alienCellH * 0.55);
@@ -413,7 +413,7 @@ export class AlienOnslaughtScene extends BaseScene {
     // Calculate grid start position (centered)
     const gridW = ALIEN_COLS * this.alienCellW;
     this.alienGridX = (W - gridW) / 2;
-    this.alienGridY = Math.max(H * 0.12, 80);
+    this.alienGridY = Math.max(H * 0.20, 120);
 
     // Create aliens
     for (const a of this.aliens) a.gfx.destroy();
@@ -537,8 +537,8 @@ export class AlienOnslaughtScene extends BaseScene {
         a.frame = 1 - a.frame;
         this.drawAlien(a);
 
-        // Check if aliens reached player
-        if (a.y + this.alienH / 2 >= this.playerY - this.playerH) {
+        // Check if aliens reached player row — instant game over (classic rules)
+        if (a.y + this.alienH / 2 >= this.playerY - this.playerH / 2) {
           this.triggerGameOver();
           return;
         }
@@ -619,7 +619,8 @@ export class AlienOnslaughtScene extends BaseScene {
   private spawnMystery() {
     const dir = Math.random() < 0.5 ? 1 : -1;
     const x = dir === 1 ? -40 : W + 40;
-    const y = H * 0.06;
+    // Position just above the alien grid, below the HUD
+    const y = this.alienGridY - this.alienCellH * 1.2;
     const gfx = this.add.graphics().setDepth(12);
     this.mystery = { gfx, x, y, direction: dir, active: true };
     this.drawMystery();
@@ -685,8 +686,10 @@ export class AlienOnslaughtScene extends BaseScene {
     this.shields = [];
 
     const s = Math.max(SCALE, 0.5);
-    const blockW = Math.max(3, Math.round(this.alienCellW * 0.12));
-    const blockH = Math.max(3, Math.round(this.alienCellW * 0.12));
+    // Original shields were ~6% of screen height tall; derive block size from that
+    const targetShieldH = H * 0.055;
+    const blockH = Math.max(2, Math.round(targetShieldH / SHIELD_BLOCK_ROWS));
+    const blockW = blockH;
     const shieldW = SHIELD_BLOCK_COLS * blockW;
     const shieldH = SHIELD_BLOCK_ROWS * blockH;
     const totalShieldsW = SHIELD_COUNT * shieldW;
@@ -884,6 +887,7 @@ export class AlienOnslaughtScene extends BaseScene {
   }
 
   private playerHit() {
+    if (this.gameOverFlag) return;
     this.lives--;
     this.syncLivesToHUD();
     this.sound.play('ao_lose', { volume: 0.4 });
