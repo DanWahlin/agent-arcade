@@ -14,7 +14,7 @@
     "dist:linux": "cargo tauri build --target x86_64-unknown-linux-gnu",
     "test": "npm run build:frontend && npx playwright test",
     "test:headed": "npm run build:frontend && npx playwright test --headed",
-    "release": "node -e \"const v=process.argv[1];if(!v){console.error('Usage: npm run release <version>');process.exit(1);}const fs=require('fs');const update=(f,r,s)=>{let c=fs.readFileSync(f,'utf8');c=c.replace(r,s);fs.writeFileSync(f,c)};update('package.json',/\\\"version\\\": \\\".*?\\\"/,'\\\"version\\\": \\\"'+v+'\\\"');update('src-tauri/tauri.conf.json',/\\\"version\\\": \\\".*?\\\"/,'\\\"version\\\": \\\"'+v+'\\\"');update('src-tauri/Cargo.toml',/^version = \\\".*?\\\"/m,'version = \\\"'+v+'\\\"');console.log('Bumped to '+v)\" --"
+    "release": "node scripts/release.js"
   },
   "author": "Dan Wahlin",
   "license": "MIT",
