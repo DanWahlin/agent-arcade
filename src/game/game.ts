@@ -5,12 +5,14 @@ import { W, H, refreshDimensions } from './scenes/BaseScene.js';
 import { NinjaRunnerScene } from './scenes/NinjaRunner.js';
 import { GalaxyBlasterScene } from './scenes/GalaxyBlaster.js';
 import { CosmicRocksScene } from './scenes/CosmicRocks.js';
+import { AlienOnslaughtScene } from './scenes/AlienOnslaught.js';
 
 declare const Phaser: any;
 
 // Registry of available games
 const GAMES = [
   { key: 'cosmic-rocks', scene: CosmicRocksScene, label: '☄️ Cosmic Rocks' },
+  { key: 'alien-onslaught', scene: AlienOnslaughtScene, label: '👾 Alien Onslaught' },
   { key: 'galaxy-blaster', scene: GalaxyBlasterScene, label: '🚀 Galaxy Blaster' },
   { key: 'ninja-runner', scene: NinjaRunnerScene, label: '🥷 Ninja Runner' },
 ];

@@ -78,6 +78,13 @@ Download the `.AppImage` (universal) or `.deb` (Debian/Ubuntu) package.
 
 ## Controls
 
+### 👾 Alien Onslaught
+
+| Key | Action |
+|-----|--------|
+| <kbd>←</kbd> <kbd>→</kbd> | Move |
+| <kbd>Space</kbd> | Fire |
+
 ### 🥷 Ninja Runner
 
 | Key | Action |
