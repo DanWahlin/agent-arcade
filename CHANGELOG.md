@@ -1,11 +1,6 @@
 # Changelog
 
 All notable changes to Agent Arcade.
-## [unreleased]
-
-### 📦 Updates
-
-- Update text
 ## [0.2.0] - 2026-04-21
 
 ### 🚀 Features & Improvements
@@ -21,6 +16,7 @@ All notable changes to Agent Arcade.
 - Update installation instructions and add local running guide in README.md
 - Enhance gameplay mechanics in CosmicRocks and NinjaRunner scenes
 - Refactor invincibility duration in tests, update player position checks, and implement HUD logic
+- Add git-cliff changelog generation and update release workflow
 
 ### 🐛 Bug Fixes
 
@@ -51,6 +47,8 @@ All notable changes to Agent Arcade.
 
 - Update copyright holder in LICENSE file to Dan Wahlin
 - Update GIF assets for agent arcade visuals
+- Update text
+- Bump version to 0.2.0
 
 ### 💼 Other
 
