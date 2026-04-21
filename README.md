@@ -36,7 +36,7 @@ Visit the [releases page](https://github.com/DanWahlin/agent-arcade/releases) an
 If you have [GitHub Copilot CLI](https://github.com/features/copilot/cli/) installed, you can install Agent Arcade with a single prompt. Just paste the following into Copilot CLI and it will download, install, and launch the app for you:
 
 ```
-copilot --autopilot --allow-all -p "Install this for me https://github.com/DanWahlin/agent-arcade/releases"
+copilot --allow-all -p "Install this for me https://github.com/DanWahlin/agent-arcade/releases"
 ```
 
 > **Note (macOS):** The app is not code-signed, so after installing you'll still need to manually run the following in Terminal:
