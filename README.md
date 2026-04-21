@@ -29,7 +29,7 @@ Idea ➡ Reality over a weekend! I used [GitHub Copilot CLI](https://github.com/
 
 ## Installing Agent Arcade
 
-Visit the [releases page](https://github.com/DanWahlin/agent-arcade/releases) and download the installer for your OS.
+Visit the [releases page](https://github.com/DanWahlin/agent-arcade/releases) and download the installer for your OS. Note that the app is not code-signed, so you may need to bypass security warnings on your OS when installing or running it for the first time. All of the code used in the app installation package is here in the repo - feel free to scan it.
 
 ### 🍎 macOS
 
@@ -45,9 +45,36 @@ Visit the [releases page](https://github.com/DanWahlin/agent-arcade/releases) an
 
 Download and run the `.msi` installer.
 
+> **Note:** The app is not code-signed, so Windows may flag it:
+> 1. If your browser warns about the download, select **"Keep"**
+> 2. When you see "Windows protected your PC", click **"More info"**
+> 3. Then click **"Run anyway"**
+
 ### 🐧 Linux
 
 Download the `.AppImage` (universal) or `.deb` (Debian/Ubuntu) package.
+
+> **Note:** For the AppImage, make it executable first:
+> ```
+> chmod +x Agent-Arcade_*.AppImage
+> ./Agent-Arcade_*.AppImage
+> ```
+
+## Running Locally
+
+> **Prerequisites:** You'll need [Node.js](https://nodejs.org) and the [Tauri v2 prerequisites](https://v2.tauri.app/start/prerequisites/) (Rust toolchain + platform-specific dependencies) installed on your machine.
+
+1. Clone the repo:
+   ```bash
+   git clone https://github.com/DanWahlin/agent-arcade.git
+   cd agent-arcade
+   ```
+
+2. Install dependencies and start the app:
+   ```bash
+   npm install
+   npm start
+   ```
 
 ## Controls
 
