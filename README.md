@@ -89,6 +89,13 @@ Go to the [releases page](https://github.com/DanWahlin/agent-arcade/releases), e
 
 ## Controls
 
+### 👾 Alien Onslaught
+
+| Key | Action |
+|-----|--------|
+| <kbd>←</kbd> <kbd>→</kbd> | Move |
+| <kbd>Space</kbd> | Fire |
+
 ### 🥷 Ninja Runner
 
 | Key | Action |
