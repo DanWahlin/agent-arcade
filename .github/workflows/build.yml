@@ -112,10 +112,6 @@ jobs:
           draft: false
           prerelease: false
           body: |
-            ${{ steps.changelog.outputs.content }}
-
-            ---
-
             ## 🎮 Download Agent Arcade
 
             ### 🤖 Install this using the Copilot CLI
