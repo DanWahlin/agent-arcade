@@ -123,10 +123,10 @@ jobs:
             If you have [GitHub Copilot CLI](https://github.com/features/copilot/cli/) installed, you can install Agent Arcade with a single prompt:
 
             ```
-            copilot --allow-all -p "Install this for me https://github.com/DanWahlin/agent-arcade/releases"
+            copilot --allow-all -p "Install the latest version of this app for me https://github.com/DanWahlin/agent-arcade/releases"
             ```
 
-            > **Note (macOS):** You'll still need to manually run the quarantine removal command shown below.
+            > **Note:** The app is not code-signed, so after installing you'll still need to manually run the commands shown below for your operating system.
 
             Or download the installer for your OS from the **Assets** list below.
 
