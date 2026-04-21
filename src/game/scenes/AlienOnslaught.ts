@@ -25,8 +25,8 @@ const ALIEN_TYPES: { name: string; points: number; color: number }[] = [
 ];
 
 // Timing / speeds
-const BASE_MARCH_INTERVAL = 900;   // ms between march steps at full grid
-const MIN_MARCH_INTERVAL = 80;     // fastest march with few aliens left
+const BASE_MARCH_INTERVAL = 700;   // ms between march steps at full grid
+const MIN_MARCH_INTERVAL = 60;     // fastest march with few aliens left
 const MARCH_DROP = 0;              // calculated in create()
 const PLAYER_SPEED = 350;          // px/s
 const PLAYER_BULLET_SPEED = 500;   // px/s
@@ -162,20 +162,21 @@ export class AlienOnslaughtScene extends BaseScene {
   create() {
     this.initBase();
 
-    // Responsive sizing
+    // Responsive sizing — scale the grid to fill ~70% of screen width
     SCALE = Math.min(W / 1920, H / 1080);
     const s = Math.max(SCALE, 0.5);
 
-    this.alienW = Math.round(28 * s);
-    this.alienH = Math.round(20 * s);
-    this.alienCellW = Math.round(48 * s);
-    this.alienCellH = Math.round(40 * s);
-    this.playerW = Math.round(40 * s);
-    this.playerH = Math.round(24 * s);
+    // Size the grid relative to screen, not a fixed pixel size
+    this.alienCellW = Math.round(W * 0.065);           // ~70% of width across 11 cols
+    this.alienCellH = Math.round(this.alienCellW * 0.8);
+    this.alienW = Math.round(this.alienCellW * 0.6);
+    this.alienH = Math.round(this.alienCellH * 0.55);
+    this.playerW = Math.round(this.alienCellW * 0.85);
+    this.playerH = Math.round(this.playerW * 0.55);
     this.bulletW = Math.round(4 * s);
     this.bulletH = Math.round(12 * s);
-    this.marchStepX = Math.round(10 * s);
-    this.marchDrop = Math.round(20 * s);
+    this.marchStepX = Math.round(this.alienCellW * 0.25); // bigger steps → hit edges sooner
+    this.marchDrop = Math.round(this.alienCellH * 0.6);   // bigger drops → descend faster
 
     // Reset state
     this.score = 0;
@@ -206,9 +207,9 @@ export class AlienOnslaughtScene extends BaseScene {
       { count: 10, speed: 40, size: 2,   alpha: 0.4 },
     ]);
 
-    // Player position
+    // Player position — bottom of screen with padding
     this.playerX = W / 2;
-    this.playerY = H - 60 * s;
+    this.playerY = H * 0.92;
     this.playerGfx = this.add.graphics().setDepth(10);
     this.drawPlayer();
 
@@ -412,7 +413,7 @@ export class AlienOnslaughtScene extends BaseScene {
     // Calculate grid start position (centered)
     const gridW = ALIEN_COLS * this.alienCellW;
     this.alienGridX = (W - gridW) / 2;
-    this.alienGridY = H * 0.12;
+    this.alienGridY = Math.max(H * 0.12, 80);
 
     // Create aliens
     for (const a of this.aliens) a.gfx.destroy();
@@ -684,13 +685,13 @@ export class AlienOnslaughtScene extends BaseScene {
     this.shields = [];
 
     const s = Math.max(SCALE, 0.5);
-    const blockW = Math.max(2, Math.round(3 * s));
-    const blockH = Math.max(2, Math.round(3 * s));
+    const blockW = Math.max(3, Math.round(this.alienCellW * 0.12));
+    const blockH = Math.max(3, Math.round(this.alienCellW * 0.12));
     const shieldW = SHIELD_BLOCK_COLS * blockW;
     const shieldH = SHIELD_BLOCK_ROWS * blockH;
     const totalShieldsW = SHIELD_COUNT * shieldW;
     const gap = (W - totalShieldsW) / (SHIELD_COUNT + 1);
-    const shieldY = this.playerY - this.playerH - shieldH - 30 * s;
+    const shieldY = this.playerY - this.playerH - shieldH - 20;
 
     // Classic shield shape mask (inverted U)
     const shieldMask = this.generateShieldMask();
