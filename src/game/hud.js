@@ -756,3 +756,37 @@ if ('mediaSession' in navigator) {
     refocusCanvas();
   });
 })();
+
+// ── Update notification ──
+// Called from Rust when a newer version is available.
+window.__agentArcadeUpdateAvailable = function(version) {
+  var banner = document.getElementById('update-banner');
+  var versionEl = document.getElementById('update-version');
+  var dismissBtn = document.getElementById('update-dismiss');
+  if (!banner || !versionEl) return;
+
+  versionEl.textContent = 'v' + version;
+  var autoHideTimer = null;
+
+  // Click the banner to open the releases page
+  banner.onclick = function(e) {
+    if (e.target === dismissBtn) return;
+    window.open('https://github.com/DanWahlin/agent-arcade/releases/latest', '_blank');
+    // Also try Tauri opener plugin for system browser (works in Tauri, fallback is window.open above)
+    var ti = window.__TAURI_INTERNALS__;
+    if (ti) { ti.invoke('plugin:opener|open_url', { url: 'https://github.com/DanWahlin/agent-arcade/releases/latest' }).catch(function() {}); }
+  };
+
+  // Dismiss button hides the banner
+  dismissBtn.onclick = function(e) {
+    e.stopPropagation();
+    banner.classList.remove('show');
+    if (autoHideTimer) clearTimeout(autoHideTimer);
+  };
+
+  // Fade in after a short delay
+  setTimeout(function() { banner.classList.add('show'); }, 500);
+
+  // Auto-hide after 30 seconds
+  autoHideTimer = setTimeout(function() { banner.classList.remove('show'); }, 30000);
+};

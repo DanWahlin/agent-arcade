@@ -350,6 +350,8 @@ fn register_pause_shortcut(app: &AppHandle) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::new().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             show_window(app);
         }))
@@ -554,6 +556,35 @@ pub fn run() {
                         let _ = win_clone.set_position(tauri::PhysicalPosition::new(pos.x, pos.y));
                         let _ = win_clone.set_size(tauri::PhysicalSize::new(size.width, size.height - bottom_trim));
                     }
+                });
+
+                // Check for app updates after a short delay
+                let app_handle = app.handle().clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_secs(5));
+                    tauri::async_runtime::spawn(async move {
+                        use tauri_plugin_updater::UpdaterExt;
+                        let updater = match app_handle.updater_builder().build() {
+                            Ok(u) => u,
+                            Err(e) => { log::warn!("Failed to build updater: {}", e); return; }
+                        };
+                        match updater.check().await {
+                            Ok(Some(update)) => {
+                                let version: String = update.version
+                                    .chars()
+                                    .filter(|c| c.is_ascii_alphanumeric() || *c == '.' || *c == '-')
+                                    .collect();
+                                if let Some(win) = app_handle.get_webview_window("main") {
+                                    let _ = win.eval(&format!(
+                                        "if(window.__agentArcadeUpdateAvailable)window.__agentArcadeUpdateAvailable('{}')",
+                                        version
+                                    ));
+                                }
+                            }
+                            Ok(None) => log::info!("App is up to date"),
+                            Err(e) => log::warn!("Update check failed: {}", e),
+                        }
+                    });
                 });
             }
 

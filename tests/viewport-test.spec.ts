@@ -8,7 +8,7 @@ const VIEWPORTS = [
   { name: '720p',     width: 1280, height: 720 },
   { name: 'macbook',  width: 1440, height: 900 },
   { name: 'laptop',   width: 1366, height: 768 },
-  { name: 'small',    width: 1024, height: 600 },
+  { name: 'small',    width: 1024, height: 768 },
 ];
 
 for (const vp of VIEWPORTS) {

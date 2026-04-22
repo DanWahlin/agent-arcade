@@ -184,7 +184,7 @@ export class AlienOnslaughtScene extends BaseScene {
     this.wave = 0;
     this.playerAlive = true;
     this.gameOverFlag = false;
-    this.invincibleTimer = 0;
+    this.invincibleTimer = INVINCIBLE_TIME;
     this.respawnTimer = 0;
     this.waveDelay = 0;
     this.marchDir = 1;

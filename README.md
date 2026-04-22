@@ -4,13 +4,13 @@
 
 # 🕹️ Agent Arcade 
 
-A retro platformer that runs as a transparent overlay on your desktop built with [GitHub Copilot CLI](https://github.com/github/copilot-cli). Play while waiting for your AI agents (Copilot CLI, Claude Code, Codex, etc.) to finish thinking and doing their work. Built with Tauri + Phaser + TypeScript.
+A retro arcade game collection that runs as a transparent overlay on your desktop built with [GitHub Copilot CLI](https://github.com/github/copilot-cli). Play while waiting for your AI agents (Copilot CLI, Claude Code, Codex, etc.) to finish thinking and doing their work. Built with Tauri + Phaser + TypeScript.
 
 🔗 Website: [https://danwahlin.github.io/agent-arcade](https://danwahlin.github.io/agent-arcade)
 
 <p align="center">
-  <img src="docs/images/agent-arcade-ninja.gif" alt="Ninja Runner" width="600" /><br/>
-  <em>🥷 Ninja Runner</em>
+  <img src="docs/images/agent-arcade-rocks.gif" alt="Cosmic Rocks" width="600" /><br/>
+  <em>☄️ Cosmic Rocks</em>
 </p>
 
 <p align="center">
@@ -19,9 +19,18 @@ A retro platformer that runs as a transparent overlay on your desktop built with
 </p>
 
 <p align="center">
-  <img src="docs/images/agent-arcade-rocks.gif" alt="Cosmic Rocks" width="600" /><br/>
-  <em>☄️ Cosmic Rocks</em>
+  <img src="docs/images/agent-arcade-ninja.gif" alt="Ninja Runner" width="600" /><br/>
+  <em>🥷 Ninja Runner</em>
 </p>
+
+## 🎮 Games
+
+| Game | Description |
+|------|-------------|
+| 👾 **Alien Onslaught** | Space Invaders-style arcade action with marching aliens, shields, and mystery ships |
+| ☄️ **Cosmic Rocks** | Asteroids-style vector shooter with thrust physics and splitting asteroids |
+| 🚀 **Galaxy Blaster** | Galaga-style space shooter with formation enemies and attack patterns |
+| 🥷 **Ninja Runner** | Classic platformer with double jumps, power-ups, warp pipes, and enemies |
 
 <details>
 <summary>📸 Screenshots</summary>
@@ -116,6 +125,21 @@ Go to the [releases page](https://github.com/DanWahlin/agent-arcade/releases), e
 | <kbd>←</kbd> <kbd>→</kbd> | Move |
 | <kbd>Space</kbd> | Fire |
 
+### ☄️ Cosmic Rocks
+
+| Key | Action |
+|-----|--------|
+| <kbd>←</kbd> <kbd>→</kbd> | Rotate |
+| <kbd>↑</kbd> | Thrust |
+| <kbd>Space</kbd> | Fire |
+
+### 🚀 Galaxy Blaster
+
+| Key | Action |
+|-----|--------|
+| <kbd>←</kbd> <kbd>→</kbd> | Move |
+| <kbd>Space</kbd> | Fire |
+
 ### 🥷 Ninja Runner
 
 | Key | Action |
@@ -125,21 +149,6 @@ Go to the [releases page](https://github.com/DanWahlin/agent-arcade/releases), e
 | <kbd>Shift</kbd> | Run |
 | <kbd>F</kbd> / <kbd>Z</kbd> | Fire (when powered up) |
 | <kbd>↓</kbd> | Enter warp/golden pipes |
-
-### 🚀 Galaxy Blaster
-
-| Key | Action |
-|-----|--------|
-| <kbd>←</kbd> <kbd>→</kbd> | Move |
-| <kbd>Space</kbd> | Fire |
-
-### ☄️ Cosmic Rocks
-
-| Key | Action |
-|-----|--------|
-| <kbd>←</kbd> <kbd>→</kbd> | Rotate |
-| <kbd>↑</kbd> | Thrust |
-| <kbd>Space</kbd> | Fire |
 
 ### General
 

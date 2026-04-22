@@ -45,6 +45,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "createUpdaterArtifacts": true,
     "targets": "all",
     "category": "Game",
     "macOS": {
@@ -59,5 +60,12 @@
       }
     }
   },
-  "plugins": {}
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDMzREEwMDI4QUNGQTAzNjUKUldSbEEvcXNLQURhTXdISjBsU3VNTXkwd29sWGg2Qmx5VHdiOEhvbnlOd2NxTHoxMCtSSHQ4OUsK",
+      "endpoints": [
+        "https://github.com/DanWahlin/agent-arcade/releases/latest/download/latest.json"
+      ]
+    }
+  }
 }
