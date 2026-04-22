@@ -41,6 +41,8 @@ A retro arcade game collection that runs as a transparent overlay on your deskto
 
 Idea ➡ Reality over a weekend! I used [GitHub Copilot CLI](https://github.com/features/copilot/cli/) (there's a [free course on it here](https://github.com/github/copilot-cli-for-beginners)), and it helped me quickly scaffold the initial Tauri + Phaser + TypeScript project structure. From there I worked with copilot to plan the game mechanics and overall structure. I told it the overall goals and it iteratively built out the game mechanics, integrated the sprite assets, and added the overlay functionality. Still an experimental project, but making good progress.
 
+Blog post about the creation process used with Copilot CLI: [https://blog.codewithdan.com/building-agent-arcade-with-github-copilot-cli/](https://blog.codewithdan.com/building-agent-arcade-with-github-copilot-cli/)
+
 ## Installing Agent Arcade
 
 Visit the [releases page](https://github.com/DanWahlin/agent-arcade/releases) and download the installer for your OS. Note that the app is not code-signed, so you may need to bypass security warnings on your OS when installing or running it for the first time. All of the code used in the app installation package is here in the repo - feel free to scan it.
