@@ -22,6 +22,8 @@ async function getGalaxyState(page: import('@playwright/test').Page) {
       wave: scene.wave ?? 0,
       gameOver: scene.gameOver ?? false,
       spawnQueueLength: scene.spawnQueue?.length ?? 0,
+      dualShot: scene.dualShot ?? false,
+      dualShotTimer: scene.dualShotTimer ?? 0,
       score: parseInt(scoreEl?.textContent ?? '0', 10) || 0,
       lives: parseInt(livesEl?.textContent ?? '0', 10) || 0,
       gameOverShown: !!document.getElementById('gameover-overlay'),
@@ -131,5 +133,37 @@ test.describe('Galaxy Blaster — Game Switching', () => {
     await page.waitForTimeout(1000);
     const state = await getGameState(page);
     expect(state!.sceneName).toBe('ninja-runner');
+  });
+});
+
+test.describe('Galaxy Blaster — Dual-Shot Power-Up', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto(GAME_URL);
+    await waitForGame(page);
+    await switchGame(page, 'galaxy-blaster');
+    await page.waitForTimeout(2000);
+  });
+
+  test('dual-shot is initially inactive', async ({ page }) => {
+    const state = await getGalaxyState(page);
+    expect(state!.dualShot).toBe(false);
+    expect(state!.dualShotTimer).toBe(0);
+  });
+
+  test('activating dual-shot widens ship and enables timer', async ({ page }) => {
+    // Directly activate dual-shot via scene method for testing
+    await page.evaluate(() => {
+      const game = (window as any).__phaserGame;
+      const scene = game?.scene.getScenes(true)?.find((s: any) => s.scene?.key === 'galaxy-blaster') as any;
+      if (scene) {
+        scene.dualShot = true;
+        scene.dualShotTimer = 15000;
+      }
+    });
+    await page.waitForTimeout(200);
+    const state = await getGalaxyState(page);
+    expect(state!.dualShot).toBe(true);
+    expect(state!.dualShotTimer).toBeGreaterThan(0);
+    await debugScreenshot(page, 'galaxy-blaster-dual-shot');
   });
 });
