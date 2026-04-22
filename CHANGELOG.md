@@ -1,6 +1,37 @@
 # Changelog
 
 All notable changes to Agent Arcade.
+## [0.3.0] - 2026-04-22
+
+### 🚀 Features & Improvements
+
+- Add Copilot CLI install instructions and clarify asset downloads
+- Use auto mode for Copilot CLI prompt and add macOS sudo note
+- Add Copilot CLI install and Assets guidance to release notes template
+- Add --allow-all flag to copilot install prompt
+- Add Alien Onslaught — Space Invaders-style game ([#2](https://github.com/DanWahlin/agent-arcade/issues/2))
+- Add game screenshots to README and Playwright tests for all games ([#3](https://github.com/DanWahlin/agent-arcade/issues/3))
+- Feat: implement updater and opener plugins, add update notification banner
+- Fix: CI signature concatenation, update checker guard, add aliens GIF and robot voice
+- Add test-updater script and new image assets for updater simulation
+
+### 🐛 Bug Fixes
+
+- Tune Alien Onslaught layout and fix game-over bug
+
+### 📚 Documentation
+
+- Refine installation instructions in README.md
+
+### ⚙️ CI/CD & Build
+
+- Update build.yml
+- Update build.yml
+
+### 💼 Other
+
+- Use copilot --autopilot -p for install prompt
+- Remove --autopilot flag from copilot install prompt
 ## [0.2.0] - 2026-04-21
 
 ### 🚀 Features & Improvements
@@ -17,6 +48,8 @@ All notable changes to Agent Arcade.
 - Enhance gameplay mechanics in CosmicRocks and NinjaRunner scenes
 - Refactor invincibility duration in tests, update player position checks, and implement HUD logic
 - Add git-cliff changelog generation and update release workflow
+- Add release script to bump version across all config files
+- Add NSIS installer config for smoother Windows upgrades
 
 ### 🐛 Bug Fixes
 
@@ -38,10 +71,12 @@ All notable changes to Agent Arcade.
 - Update README to include GitHub Copilot CLI in project description
 - Update README to include website link for easier access
 - Update webpage
+- Document release process in AGENTS.md
 
 ### ⚙️ CI/CD & Build
 
 - Reduce section spacing by half
+- Move release script to scripts/release.js for readability
 
 ### 📦 Updates
 
@@ -49,6 +84,7 @@ All notable changes to Agent Arcade.
 - Update GIF assets for agent arcade visuals
 - Update text
 - Bump version to 0.2.0
+- Use Node.js 24 for GitHub Actions, bump setup-node to Node 22
 
 ### 💼 Other
 
