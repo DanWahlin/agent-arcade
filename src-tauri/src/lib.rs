@@ -102,6 +102,12 @@ fn hide_app(app: AppHandle) {
     hide_window(&app);
 }
 
+/// Return the app version from Cargo.toml (set at compile time).
+#[tauri::command]
+fn get_app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
 /// Shared helper: swap a global shortcut registration, updating the stored Mutex.
 fn swap_shortcut(
     app: &AppHandle,
@@ -425,7 +431,7 @@ pub fn run() {
                 })
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![set_click_through, set_paused, quit_app, hide_app, get_cursor_in_window, set_toggle_shortcut, get_toggle_shortcut, set_pause_shortcut, get_pause_shortcut, set_unpause_shortcut, get_unpause_shortcut])
+        .invoke_handler(tauri::generate_handler![set_click_through, set_paused, quit_app, hide_app, get_cursor_in_window, set_toggle_shortcut, get_toggle_shortcut, set_pause_shortcut, get_pause_shortcut, set_unpause_shortcut, get_unpause_shortcut, get_app_version])
         .setup(|app| {
             // Register default toggle shortcut and Escape.
             // If the toggle shortcut is already taken by another app,

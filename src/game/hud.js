@@ -295,8 +295,19 @@ if ('mediaSession' in navigator) {
   var settingsBtn = document.getElementById('settings-btn');
   var settingsOverlay = document.getElementById('settings-overlay');
   var settingsClose = document.getElementById('settings-close');
+  var settingsVersion = document.getElementById('settings-version');
   var bgSlider = document.getElementById('bg-transparency');
   var bgValue = document.getElementById('bg-transparency-value');
+
+  // Populate version from Rust
+  if (settingsVersion) {
+    var tauriApi = window.__TAURI_INTERNALS__;
+    if (tauriApi) {
+      tauriApi.invoke('get_app_version').then(function(v) {
+        settingsVersion.textContent = 'Version ' + v;
+      }).catch(function() {});
+    }
+  }
 
   // Default background transparency = 25 (subtle dark tint, desktop shows through)
   var DEFAULT_BG_TRANSPARENCY = 25;
