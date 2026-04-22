@@ -245,6 +245,8 @@ fn show_window(app: &AppHandle) {
         let _ = win.show();
         let _ = win.set_focus();
         VISIBLE.store(true, Ordering::SeqCst);
+        // Re-register Escape so it can pause the running game
+        register_pause_shortcut(app);
     }
 }
 
@@ -252,6 +254,8 @@ fn hide_window(app: &AppHandle) {
     if let Some(win) = app.get_webview_window("main") {
         let _ = win.hide();
         VISIBLE.store(false, Ordering::SeqCst);
+        // Unregister Escape so it passes through to other apps while hidden
+        unregister_pause_shortcut(app);
     }
 }
 
