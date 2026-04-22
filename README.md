@@ -87,26 +87,26 @@ Go to the [releases page](https://github.com/DanWahlin/agent-arcade/releases), e
 
 ## Running Locally
 
-> **Prerequisites:** You'll need [Node.js](https://nodejs.org) and the [Tauri v2 prerequisites](https://v2.tauri.app/start/prerequisites/) installed on your machine. Specifically:
->
-> 1. **Rust toolchain** — install via [rustup](https://rustup.rs/):
->    ```bash
->    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
->    source "$HOME/.cargo/env"
->    ```
-> 2. **Tauri CLI**:
->    ```bash
->    cargo install tauri-cli
->    ```
-> 3. **Platform-specific dependencies** — see the [Tauri v2 prerequisites guide](https://v2.tauri.app/start/prerequisites/) for your OS (macOS needs Xcode Command Line Tools, Linux needs `libwebkit2gtk-4.1-dev` and others).
+> **Prerequisites:** [Node.js](https://nodejs.org), the [Rust toolchain](https://rustup.rs/), and the [Tauri v2 prerequisites](https://v2.tauri.app/start/prerequisites/) for your platform.
 
-1. Clone the repo:
+1. Install Rust (if not already installed):
+   ```bash
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   source "$HOME/.cargo/env"
+   ```
+
+2. Install the Tauri CLI:
+   ```bash
+   cargo install tauri-cli
+   ```
+
+3. Clone the repo:
    ```bash
    git clone https://github.com/DanWahlin/agent-arcade.git
    cd agent-arcade
    ```
 
-2. Install dependencies and start the app:
+4. Install dependencies and start the app:
    ```bash
    npm install
    npm start
