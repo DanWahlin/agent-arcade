@@ -108,6 +108,29 @@ fn get_app_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
 
+/// Download and install an available update, then restart the app.
+#[tauri::command]
+async fn install_update(app: AppHandle) -> Result<String, String> {
+    use tauri_plugin_updater::UpdaterExt;
+    let updater = app.updater_builder().build().map_err(|e| e.to_string())?;
+    match updater.check().await {
+        Ok(Some(update)) => {
+            // Notify JS that download is starting
+            if let Some(win) = app.get_webview_window("main") {
+                let _ = win.eval("if(window.__agentArcadeUpdateStatus)window.__agentArcadeUpdateStatus('downloading')");
+            }
+            update.download_and_install(|_, _| {}, || {}).await.map_err(|e| e.to_string())?;
+            // Notify JS that install is complete, then restart
+            if let Some(win) = app.get_webview_window("main") {
+                let _ = win.eval("if(window.__agentArcadeUpdateStatus)window.__agentArcadeUpdateStatus('restarting')");
+            }
+            app.restart();
+        }
+        Ok(None) => Err("No update available".to_string()),
+        Err(e) => Err(format!("Update check failed: {}", e)),
+    }
+}
+
 /// Shared helper: swap a global shortcut registration, updating the stored Mutex.
 fn swap_shortcut(
     app: &AppHandle,
@@ -431,7 +454,7 @@ pub fn run() {
                 })
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![set_click_through, set_paused, quit_app, hide_app, get_cursor_in_window, set_toggle_shortcut, get_toggle_shortcut, set_pause_shortcut, get_pause_shortcut, set_unpause_shortcut, get_unpause_shortcut, get_app_version])
+        .invoke_handler(tauri::generate_handler![set_click_through, set_paused, quit_app, hide_app, get_cursor_in_window, set_toggle_shortcut, get_toggle_shortcut, set_pause_shortcut, get_pause_shortcut, set_unpause_shortcut, get_unpause_shortcut, get_app_version, install_update])
         .setup(|app| {
             // Register default toggle shortcut and Escape.
             // If the toggle shortcut is already taken by another app,

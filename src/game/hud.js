@@ -779,18 +779,42 @@ window.__agentArcadeUpdateAvailable = function(version) {
   var banner = document.getElementById('update-banner');
   var versionEl = document.getElementById('update-version');
   var dismissBtn = document.getElementById('update-dismiss');
+  var linkEl = banner ? banner.querySelector('.update-link') : null;
+  var iconEl = banner ? banner.querySelector('.update-icon') : null;
   if (!banner || !versionEl) return;
 
   versionEl.textContent = 'v' + version;
   var autoHideTimer = null;
+  var updating = false;
 
-  // Click the banner to open the releases page
+  // Click the banner to download and install the update
   banner.onclick = function(e) {
     if (e.target === dismissBtn) return;
-    window.open('https://github.com/DanWahlin/agent-arcade/releases/latest', '_blank');
-    // Also try Tauri opener plugin for system browser (works in Tauri, fallback is window.open above)
+    if (updating) return;
+    updating = true;
+    if (linkEl) linkEl.textContent = 'Downloading…';
+    if (iconEl) iconEl.textContent = '📦';
+    if (dismissBtn) dismissBtn.style.display = 'none';
+    if (autoHideTimer) clearTimeout(autoHideTimer);
+
     var ti = window.__TAURI_INTERNALS__;
-    if (ti) { ti.invoke('plugin:opener|open_url', { url: 'https://github.com/DanWahlin/agent-arcade/releases/latest' }).catch(function() {}); }
+    if (ti) {
+      ti.invoke('install_update').catch(function(err) {
+        updating = false;
+        if (linkEl) linkEl.textContent = 'Update failed — View Release';
+        if (iconEl) iconEl.textContent = '🔗';
+        if (dismissBtn) dismissBtn.style.display = '';
+        // Fall back to opening the release page on next click
+        banner.onclick = function(e2) {
+          if (e2.target === dismissBtn) return;
+          window.open('https://github.com/DanWahlin/agent-arcade/releases/latest', '_blank');
+          ti.invoke('plugin:opener|open_url', { url: 'https://github.com/DanWahlin/agent-arcade/releases/latest' }).catch(function() {});
+        };
+      });
+    } else {
+      // Not running in Tauri — open release page
+      window.open('https://github.com/DanWahlin/agent-arcade/releases/latest', '_blank');
+    }
   };
 
   // Dismiss button hides the banner
@@ -805,4 +829,18 @@ window.__agentArcadeUpdateAvailable = function(version) {
 
   // Auto-hide after 30 seconds
   autoHideTimer = setTimeout(function() { banner.classList.remove('show'); }, 30000);
+};
+
+// Called from Rust to update banner status during download/install.
+window.__agentArcadeUpdateStatus = function(status) {
+  var banner = document.getElementById('update-banner');
+  var linkEl = banner ? banner.querySelector('.update-link') : null;
+  var iconEl = banner ? banner.querySelector('.update-icon') : null;
+  if (status === 'downloading') {
+    if (linkEl) linkEl.textContent = 'Downloading…';
+    if (iconEl) iconEl.textContent = '📦';
+  } else if (status === 'restarting') {
+    if (linkEl) linkEl.textContent = 'Installing… Restarting!';
+    if (iconEl) iconEl.textContent = '✨';
+  }
 };

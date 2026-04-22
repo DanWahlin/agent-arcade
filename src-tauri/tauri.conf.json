@@ -45,7 +45,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "createUpdaterArtifacts": true,
+    "createUpdaterArtifacts": "v1Compatible",
     "targets": "all",
     "category": "Game",
     "macOS": {
