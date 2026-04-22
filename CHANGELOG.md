@@ -1,6 +1,18 @@
 # Changelog
 
 All notable changes to Agent Arcade.
+## [0.3.1] - 2026-04-22
+
+### 🚀 Features & Improvements
+
+- Docs: add acknowledgment for John Papa's Alien Onslaught game PR
+- Feat: add Valkyrie Drift sound asset
+- Add background image cover to header of website
+
+### 🐛 Bug Fixes
+
+- Fix: narrow artifact upload globs to exclude deb/app internals
+- Fix: unregister ESC shortcut when window is hidden
 ## [0.3.0] - 2026-04-22
 
 ### 🚀 Features & Improvements
@@ -27,6 +39,7 @@ All notable changes to Agent Arcade.
 
 - Update build.yml
 - Update build.yml
+- Release v0.3.0
 
 ### 💼 Other
 

@@ -1,6 +1,6 @@
 [package]
 name = "agent-arcade"
-version = "0.3.0"
+version = "0.3.1"
 description = "Agent Arcade — stress-relief retro platformer overlay to use while your AI agent is working"
 authors = ["Dan Wahlin"]
 edition = "2021"
