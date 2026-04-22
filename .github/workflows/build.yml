@@ -123,9 +123,9 @@ jobs:
           BASE_URL="https://github.com/DanWahlin/agent-arcade/releases/download/${GITHUB_REF_NAME}"
 
           # Read signature files into env vars (safe from shell interpolation)
-          MAC_SIG=$(find artifacts -name "*.app.tar.gz.sig" -type f -exec cat {} \; 2>/dev/null || echo "")
-          WIN_SIG=$(find artifacts -name "*.nsis.zip.sig" -type f -exec cat {} \; 2>/dev/null || echo "")
-          LINUX_SIG=$(find artifacts -name "*.AppImage.tar.gz.sig" -type f -exec cat {} \; 2>/dev/null || echo "")
+          MAC_SIG=$(find artifacts -name "*.app.tar.gz.sig" -type f -exec cat {} \; -quit 2>/dev/null || echo "")
+          WIN_SIG=$(find artifacts -name "*.nsis.zip.sig" -type f -exec cat {} \; -quit 2>/dev/null || echo "")
+          LINUX_SIG=$(find artifacts -name "*.AppImage.tar.gz.sig" -type f -exec cat {} \; -quit 2>/dev/null || echo "")
 
           MAC_FILE=$(find artifacts -name "*.app.tar.gz" ! -name "*.sig" -type f -exec basename {} \; 2>/dev/null | head -1)
           WIN_FILE=$(find artifacts -name "*.nsis.zip" ! -name "*.sig" -type f -exec basename {} \; 2>/dev/null | head -1)

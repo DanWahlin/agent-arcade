@@ -136,6 +136,7 @@
 
   // ---------- GIF Carousel ----------
   const GIF_DATA = [
+    { src: 'images/agent-arcade-aliens.gif', label: '👾 Alien Onslaught', duration: 16070 },
     { src: 'images/agent-arcade-ninja.gif',  label: '🥷 Ninja Runner',   duration: 14670 },
     { src: 'images/agent-arcade-galaxy.gif', label: '🚀 Galaxy Blaster', duration: 10070 },
     { src: 'images/agent-arcade-rocks.gif',  label: '☄️ Cosmic Rocks',   duration: 9800 },

@@ -9,6 +9,11 @@ A retro arcade game collection that runs as a transparent overlay on your deskto
 🔗 Website: [https://danwahlin.github.io/agent-arcade](https://danwahlin.github.io/agent-arcade)
 
 <p align="center">
+  <img src="docs/images/agent-arcade-aliens.gif" alt="Alien Onslaught" width="600" /><br/>
+  <em>👾 Alien Onslaught</em>
+</p>
+
+<p align="center">
   <img src="docs/images/agent-arcade-rocks.gif" alt="Cosmic Rocks" width="600" /><br/>
   <em>☄️ Cosmic Rocks</em>
 </p>
@@ -31,26 +36,6 @@ A retro arcade game collection that runs as a transparent overlay on your deskto
 | ☄️ **Cosmic Rocks** | Asteroids-style vector shooter with thrust physics and splitting asteroids |
 | 🚀 **Galaxy Blaster** | Galaga-style space shooter with formation enemies and attack patterns |
 | 🥷 **Ninja Runner** | Classic platformer with double jumps, power-ups, warp pipes, and enemies |
-
-<details>
-<summary>📸 Screenshots</summary>
-
-<p align="center">
-  <img src="docs/images/screenshot-ninja-runner.png" alt="Ninja Runner Screenshot" width="600" /><br/>
-  <em>🥷 Ninja Runner — platforming with coins, enemies, and question blocks</em>
-</p>
-
-<p align="center">
-  <img src="docs/images/screenshot-galaxy-blaster.png" alt="Galaxy Blaster Screenshot" width="600" /><br/>
-  <em>🚀 Galaxy Blaster — dodge and blast enemy ships in formation</em>
-</p>
-
-<p align="center">
-  <img src="docs/images/screenshot-cosmic-rocks.png" alt="Cosmic Rocks Screenshot" width="600" /><br/>
-  <em>☄️ Cosmic Rocks — Asteroids-style vector combat</em>
-</p>
-
-</details>
 
 ## How This Was Made
 

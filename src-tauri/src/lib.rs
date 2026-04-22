@@ -9,6 +9,7 @@ use std::sync::Mutex;
 
 static VISIBLE: AtomicBool = AtomicBool::new(false);
 static PAUSED: AtomicBool = AtomicBool::new(false);
+static UPDATE_CHECK_DONE: AtomicBool = AtomicBool::new(false);
 
 /// The current toggle shortcut string (e.g. "Ctrl+Alt+M").
 /// Updated by the `set_toggle_shortcut` command from JS.
@@ -558,9 +559,9 @@ pub fn run() {
                     }
                 });
 
-                // Check for app updates after a short delay
+                // Check for app updates after a short delay (once per session)
                 let app_handle = app.handle().clone();
-                std::thread::spawn(move || {
+                if !UPDATE_CHECK_DONE.swap(true, Ordering::SeqCst) { std::thread::spawn(move || {
                     std::thread::sleep(std::time::Duration::from_secs(5));
                     tauri::async_runtime::spawn(async move {
                         use tauri_plugin_updater::UpdaterExt;
@@ -585,7 +586,7 @@ pub fn run() {
                             Err(e) => log::warn!("Update check failed: {}", e),
                         }
                     });
-                });
+                }); }
             }
 
             Ok(())
