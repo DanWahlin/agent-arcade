@@ -107,6 +107,7 @@ if ('mediaSession' in navigator) {
   var hudEl = document.getElementById('hud');
   var helpOv = document.getElementById('help-overlay');
   var settingsOv = document.getElementById('settings-overlay');
+  var updateBanner = document.getElementById('update-banner');
 
   function isOverHudArea(x, y) {
     if (!hudEl) return false;
@@ -114,6 +115,10 @@ if ('mediaSession' in navigator) {
     var over = x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
     if (helpOv && helpOv.classList.contains('show')) over = true;
     if (settingsOv && settingsOv.classList.contains('show')) over = true;
+    if (updateBanner && updateBanner.classList.contains('show')) {
+      var br = updateBanner.getBoundingClientRect();
+      if (x >= br.left && x <= br.right && y >= br.top && y <= br.bottom) over = true;
+    }
     return over;
   }
 
