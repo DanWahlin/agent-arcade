@@ -243,14 +243,26 @@ img { max-width: 100%; height: auto; }
   width: 100vw;
   margin-bottom: 32px;
   padding: 20px 0;
-  background: linear-gradient(180deg,
-    transparent 0%,
-    rgba(10,6,24,0.6) 10%,
-    rgba(10,6,24,0.85) 30%,
-    rgba(10,6,24,0.85) 70%,
-    rgba(10,6,24,0.6) 90%,
-    transparent 100%
-  );
+  background:
+    linear-gradient(180deg,
+      transparent 0%,
+      rgba(10,6,24,0.3) 10%,
+      rgba(10,6,24,0.45) 30%,
+      rgba(10,6,24,0.45) 70%,
+      rgba(10,6,24,0.3) 90%,
+      transparent 100%
+    ),
+    url('images/agent-arcade-background.png') center / cover no-repeat;
+  background:
+    linear-gradient(180deg,
+      transparent 0%,
+      rgba(10,6,24,0.3) 10%,
+      rgba(10,6,24,0.45) 30%,
+      rgba(10,6,24,0.45) 70%,
+      rgba(10,6,24,0.3) 90%,
+      transparent 100%
+    ),
+    url('images/agent-arcade-background.webp') center / cover no-repeat;
   display: flex;
   justify-content: center;
   animation: bannerFloat 6s ease-in-out infinite;
@@ -262,6 +274,8 @@ img { max-width: 100%; height: auto; }
   height: auto;
   display: block;
   filter: drop-shadow(0 0 40px rgba(155,77,255,0.2)) drop-shadow(0 0 80px rgba(255,198,41,0.08));
+  -webkit-mask-image: radial-gradient(ellipse 62% 62% at 48% 48%, black 67%, transparent 84%);
+  mask-image: radial-gradient(ellipse 62% 62% at 48% 48%, black 67%, transparent 84%);
 }
 
 @keyframes bannerFloat {
