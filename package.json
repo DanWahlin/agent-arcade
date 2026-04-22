@@ -1,6 +1,6 @@
 {
   "name": "agent-arcade",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Agent Arcade — stress-relief retro platformer overlay to use while your AI agent is working",
   "scripts": {
     "build:frontend": "rm -rf dist/game dist/assets && tsc -p tsconfig.renderer.json && cp src/game/index.html dist/game/ && cp src/game/hud.js dist/game/ && cp node_modules/phaser/dist/phaser.min.js dist/game/ && cp -R assets dist/assets",

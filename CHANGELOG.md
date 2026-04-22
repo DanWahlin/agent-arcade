@@ -1,6 +1,11 @@
 # Changelog
 
 All notable changes to Agent Arcade.
+## [0.3.2] - 2026-04-22
+
+### 🐛 Bug Fixes
+
+- Fix: make update banner clickable during gameplay
 ## [0.3.1] - 2026-04-22
 
 ### 🚀 Features & Improvements
@@ -13,6 +18,10 @@ All notable changes to Agent Arcade.
 
 - Fix: narrow artifact upload globs to exclude deb/app internals
 - Fix: unregister ESC shortcut when window is hidden
+
+### ⚙️ CI/CD & Build
+
+- Release v0.3.1
 ## [0.3.0] - 2026-04-22
 
 ### 🚀 Features & Improvements
