@@ -13,7 +13,7 @@ A 3-part video series showing how Agent Arcade was built using GitHub Copilot CL
 
 **[0:00–0:30] Hook and concept**
 
-"You know that feeling when you're waiting for your AI agent to finish a task and you've got nothing to do but stare at the terminal? I wanted to build a little retro arcade game that runs as a transparent overlay right on my desktop. Something I could play between tasks without losing sight of what my agents are doing. That idea became Agent Arcade."
+"You know that feeling when you're waiting for your AI agent to finish a task and you've got nothing to do but stare at the terminal? Normally, I jump to another terminal since I run multiple agents simultaneously, but sometimes I just want to take a break. I saw a cool concept online by someone named Aman called "Mario Desktop" that placed a transparent game over the desktop to let you see what was going on in the background. It only worked on Windows though and I wanted something cross-platform. So, I decided to experiment with building my own version of a retro arcade game that can run as a transparent overlay right on my desktop. Something I could play between tasks when I need a mental break without losing sight of what my agents are doing. That idea became Agent Arcade."
 
 Show: Agent Arcade running transparently over VS Code with a terminal visible underneath.
 

@@ -3,9 +3,26 @@
 All notable changes to Agent Arcade.
 ## [0.3.2] - 2026-04-22
 
+### 🚀 Features & Improvements
+
+- Feat: add blog post link about creation process and remove outdated blog file
+
 ### 🐛 Bug Fixes
 
 - Fix: make update banner clickable during gameplay
+
+### ⚙️ CI/CD & Build
+
+- Release v0.3.2
+- Expand Running Locally prerequisites with explicit install steps ([#5](https://github.com/DanWahlin/agent-arcade/issues/5))
+
+### 📦 Updates
+
+- Feat: auto-download and install updates via Tauri updater
+
+### 💼 Other
+
+- Feat: display app version in settings dialog
 ## [0.3.1] - 2026-04-22
 
 ### 🚀 Features & Improvements
