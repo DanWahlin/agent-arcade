@@ -163,6 +163,8 @@ git push origin v0.2.0
 
 Initially inspired by [Aman](https://x.com/Amank1412) and his [Desktop Mario project](https://github.com/bxf1001g/desktop_mario/releases) as well as [Anthony Shaw](https://github.com/tonybaloney) and his [VS Code Pets](https://marketplace.visualstudio.com/items?itemName=tonybaloney.vscode-pets) project.
 
+Thanks to [John Papa](https://github.com/johnpapa) for his Alien Onslaught game PR.
+
 Sprite assets: [Simple Platformer 16](https://juhosprite.itch.io/simple-platformer-16) by JuhoSprite
 
 Space shooter assets: [Space Shooter Redux](https://opengameart.org/content/space-shooter-redux) by Kenney.nl
