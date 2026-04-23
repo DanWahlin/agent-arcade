@@ -77,3 +77,77 @@ This script (`scripts/release.js`) handles everything:
 4. CI automatically builds installers and creates the GitHub Release with auto-generated notes
 
 **Important:** Version must be updated in all three config files for installer filenames to be correct. The release script does this automatically — do not manually tag without bumping versions first.
+
+## Adding a New Game
+
+To add a new game to Agent Arcade, follow this exact checklist:
+
+### 1. Create the Scene File
+
+Create `src/game/scenes/<PascalName>.ts`:
+- Import and extend `BaseScene` from `./BaseScene`
+- Import `W`, `H`, `refreshDimensions` from `./BaseScene`
+- Constructor: `super('<kebab-name>')`
+- Implement `get displayName(): string`
+- Implement `preload()` — load assets from `assets/<kebab-name>/`
+- Implement `create()` — MUST call `this.initBase()` as the first line
+- Implement `update()` — game loop
+
+BaseScene provides for free: score/highScore/lives/level state, HUD sync, score animation (addScore()), game-over overlay (showGameOver()), pause/resume, starfield helpers, wave banner, backdrop transparency.
+
+### 2. Create Asset Folder
+
+Create `assets/<kebab-name>/sounds/` for audio files. Images and sprite sheets go in `assets/<kebab-name>/`.
+
+### 3. Register the Scene
+
+Edit `src/game/game.ts`:
+- Add `import { <PascalName> } from './scenes/<PascalName>';`
+- Add `{ key: '<kebab-name>', scene: <PascalName>, label: '<Display Name>' }` to the `GAMES` array
+
+No HTML changes needed — the dropdown is built from `GAMES` automatically.
+
+### 4. Create Tests
+
+Create `tests/<kebab-name>.spec.ts` following the existing pattern:
+- State helper reading `window.__phaserGame`
+- Startup test (scene loads, HUD displays)
+- Controls test (input works)
+- Game-switch test (can switch to/from this game)
+- Viewport test (important objects visible at 4K → 1024×768)
+
+### 5. Build and Verify
+
+```bash
+npm run build:frontend
+npx playwright test
+```
+
+## Screen Size Adaptation
+
+Screen size adaptation has been a recurring challenge. Follow these rules strictly:
+
+### Rules
+
+1. **Always use `W`/`H` from BaseScene** — these globals come from `window.innerWidth`/`innerHeight` and are refreshed by `refreshDimensions()`.
+
+2. **Never cache screen-dependent values at module level** — module-level constants like `const SCALE = W / 1920` are computed once at import time and go stale. Always compute in `create()`.
+
+3. **Use proportional positioning** — write `W * 0.5` instead of `960`. Write `H * 0.85` instead of `918`.
+
+4. **Viewport tests are mandatory** — every game must have tests that verify important objects (player, enemies, UI) stay within bounds at multiple resolutions: 3840×2160, 1920×1080, 1280×720, 1024×768.
+
+### How Resizing Works
+
+- `game.ts` listens for window resize events and calls `game.scale.resize(W, H)`
+- BaseScene's `refreshDimensions()` re-reads `window.innerWidth`/`innerHeight`
+- Tauri starts at 1920×1080 (configured in `src-tauri/tauri.conf.json`) but actual screen may differ
+- There is no Phaser Scale Manager mode — resizing is manual
+
+### Common Pitfalls
+
+- **Forgetting `initBase()`** — must be the first call in `create()` or HUD/scoring won't work
+- **Stale module-level constants** — any `const` outside the class that depends on `W`/`H` will be wrong if the window resizes or if the value was computed before the Tauri window finished resizing
+- **Wrong scene key** — the key in `super('...')` must match the key in the GAMES registry
+- **Missing `displayName`** — the game-over screen uses this for the leaderboard
+- **Hardcoded pixel positions** — these break on different screen sizes; always derive from W/H

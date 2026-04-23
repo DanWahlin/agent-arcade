@@ -1,0 +1,44 @@
+name: 🎮 New Game Proposal
+description: Propose a new mini-game for Agent Arcade
+labels: ["game", "enhancement"]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Game Name
+      placeholder: e.g., "Meteor Madness"
+    validations:
+      required: true
+  - type: dropdown
+    id: genre
+    attributes:
+      label: Genre
+      options:
+        - Shooter (top-down)
+        - Shooter (side-scroll)
+        - Platformer
+        - Asteroids-style
+        - Puzzle
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: mechanics
+    attributes:
+      label: Core Mechanics
+      description: Describe the main gameplay mechanics
+      placeholder: "Player controls a ship that..."
+    validations:
+      required: true
+  - type: textarea
+    id: assets
+    attributes:
+      label: Asset Requirements
+      description: What sprites, sounds, or other assets are needed?
+      placeholder: "Procedural graphics / sprite sheets from..."
+  - type: textarea
+    id: controls
+    attributes:
+      label: Controls
+      description: What keyboard controls should the game use?
+      placeholder: "Arrow keys to move, Space to fire"

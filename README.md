@@ -159,6 +159,42 @@ git tag v0.2.0
 git push origin v0.2.0
 ```
 
+## Contributing
+
+### AI-Assisted Development
+
+This project uses three complementary Copilot customization mechanisms to make AI-assisted development efficient and consistent:
+
+#### 📋 AGENTS.md — Project Context for the Cloud Agent
+
+[AGENTS.md](AGENTS.md) provides project-level context to the Copilot coding agent (the cloud agent that works autonomously on PRs and issues). It contains the repo structure, build/test/release commands, and architectural decisions. The cloud agent reads this automatically whenever it works on the repo.
+
+#### 📐 copilot-instructions.md — Coding Conventions for All Copilot
+
+[.github/copilot-instructions.md](.github/copilot-instructions.md) defines coding conventions that apply to every Copilot interaction — Chat, code completions, PR reviews, and CLI. It covers TypeScript patterns, Phaser 4 conventions, BaseScene lifecycle rules, screen size adaptation, and test patterns.
+
+#### 🎮 Skills — On-Demand Task Recipes
+
+Copilot CLI skills are task-specific procedures you invoke by name. For example, the `new-game` skill scaffolds a complete new mini-game (scene file, assets, registry entry, tests) by following the exact patterns established in the codebase.
+
+### Adding a New Game
+
+See [AGENTS.md — Adding a New Game](AGENTS.md#adding-a-new-game) for the complete guide. The short version:
+
+1. Create a scene file extending `BaseScene` in `src/game/scenes/`
+2. Create an asset folder in `assets/<game-name>/`
+3. Register the scene in `src/game/game.ts`
+4. Create tests in `tests/<game-name>.spec.ts`
+5. Build and verify: `npm run build:frontend && npx playwright test`
+
+### Running Tests
+
+```bash
+npm run build:frontend          # Required before tests
+npx playwright test             # Run all tests
+npx playwright test --headed    # Run with visible browser
+```
+
 ## Credits
 
 Initially inspired by [Aman](https://x.com/Amank1412) and his [Desktop Mario project](https://github.com/bxf1001g/desktop_mario/releases) as well as [Anthony Shaw](https://github.com/tonybaloney) and his [VS Code Pets](https://marketplace.visualstudio.com/items?itemName=tonybaloney.vscode-pets) project.
