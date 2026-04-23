@@ -161,31 +161,26 @@ git push origin v0.2.0
 
 ## Contributing
 
-### AI-Assisted Development
+### Want to Add a New Game?
 
-This project uses three complementary Copilot customization mechanisms to make AI-assisted development efficient and consistent:
+The fastest way is with the **Copilot CLI `new-game` skill** — it scaffolds every file you need:
 
-#### 📋 AGENTS.md — Project Context for the Cloud Agent
+```
+copilot "use the new-game skill to create a Pitfall-style platformer called Jungle Runner"
+```
 
-[AGENTS.md](AGENTS.md) provides project-level context to the Copilot coding agent (the cloud agent that works autonomously on PRs and issues). It contains the repo structure, build/test/release commands, and architectural decisions. The cloud agent reads this automatically whenever it works on the repo.
+The skill walks the AI through creating the scene file, asset folder, game registry entry, tests, and documentation updates — all following the project's exact patterns.
 
-#### 📐 copilot-instructions.md — Coding Conventions for All Copilot
+**Prefer to do it manually?** See [AGENTS.md — Adding a New Game](AGENTS.md#adding-a-new-game) for the step-by-step checklist.
 
-[.github/copilot-instructions.md](.github/copilot-instructions.md) defines coding conventions that apply to every Copilot interaction — Chat, code completions, PR reviews, and CLI. It covers TypeScript patterns, Phaser 4 conventions, BaseScene lifecycle rules, screen size adaptation, and test patterns.
+**Proposing a game idea?** [Open a New Game Proposal issue](../../issues/new?template=new-game.yml) to discuss the concept before building.
 
-#### 🎮 Skills — On-Demand Task Recipes
+### Contribution Workflow
 
-Copilot CLI skills are task-specific procedures you invoke by name. For example, the `new-game` skill scaffolds a complete new mini-game (scene file, assets, registry entry, tests) by following the exact patterns established in the codebase.
-
-### Adding a New Game
-
-See [AGENTS.md — Adding a New Game](AGENTS.md#adding-a-new-game) for the complete guide. The short version:
-
-1. Create a scene file extending `BaseScene` in `src/game/scenes/`
-2. Create an asset folder in `assets/<game-name>/`
-3. Register the scene in `src/game/game.ts`
-4. Create tests in `tests/<game-name>.spec.ts`
-5. Build and verify: `npm run build:frontend && npx playwright test`
+1. Fork the repo and create a feature branch
+2. Add your game (via the skill or manually)
+3. Build and test: `npm run build:frontend && npx playwright test`
+4. Open a PR — CI will run typecheck, build, and tests automatically
 
 ### Running Tests
 
@@ -194,6 +189,14 @@ npm run build:frontend          # Required before tests
 npx playwright test             # Run all tests
 npx playwright test --headed    # Run with visible browser
 ```
+
+### How the AI Tooling Works
+
+This project uses three complementary Copilot customization mechanisms:
+
+- **[AGENTS.md](AGENTS.md)** — Project context for the Copilot coding agent (cloud agent). Read automatically when the cloud agent works on PRs/issues.
+- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Coding conventions injected into every Copilot interaction (Chat, completions, PR reviews, CLI).
+- **[.github/skills/](.github/skills/)** — On-demand task recipes invoked by name (e.g., the `new-game` skill).
 
 ## Credits
 

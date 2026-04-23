@@ -81,7 +81,13 @@ This script (`scripts/release.js`) handles everything:
 
 ## Adding a New Game
 
-To add a new game to Agent Arcade, follow this exact checklist:
+> **Fastest path:** Use the Copilot CLI `new-game` skill — it scaffolds every file automatically:
+> ```
+> copilot "use the new-game skill to create a Pitfall-style platformer called Jungle Runner"
+> ```
+> See `.github/skills/new-game.md` for the full skill recipe.
+
+To add a new game manually, follow this exact checklist:
 
 ### 1. Create the Scene File
 
