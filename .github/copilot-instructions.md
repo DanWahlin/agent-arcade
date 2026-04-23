@@ -67,3 +67,12 @@ BaseScene provides: score/lives/level state, HUD sync, score animation, game-ove
 - Prefer procedural graphics (Phaser Graphics) when possible — reduces asset dependencies
 - Keep game-specific logic in the scene file; only add to BaseScene if it's shared across 2+ games
 - Use descriptive variable names for game objects (`player`, `enemies`, `bullets`, not `p`, `e`, `b`)
+
+## Keeping Docs and Templates in Sync
+
+When adding a new game or modifying existing game features, also update:
+
+- **`.github/ISSUE_TEMPLATE/bug-report.yml`** — add new games to the "Affected Game" dropdown
+- **`AGENTS.md`** — update the game count, game names, and scene file list in the project overview and repo structure
+- **`README.md`** — add/update controls tables and game descriptions
+- **Tests** — add or update Playwright tests for any new or changed gameplay mechanics, and ensure viewport tests cover the change

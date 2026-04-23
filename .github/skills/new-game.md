@@ -247,7 +247,17 @@ for (const vp of VIEWPORTS) {
 }
 ```
 
-### Step 6 — Build and test
+### Step 6 — Update documentation and templates
+
+When adding a new game, these files reference the game list and **must** be updated:
+
+1. **`.github/ISSUE_TEMPLATE/bug-report.yml`** — add `<Display Name>` to the `options` list under the "Affected Game" dropdown.
+
+2. **`AGENTS.md`** — update the project overview (line mentioning the mini-game count and names) and the repo structure (scene file list) to include the new game.
+
+3. **`README.md`** — if the game has unique controls, add a controls table under `## Controls`.
+
+### Step 7 — Build and test
 
 ```bash
 npm run build:frontend

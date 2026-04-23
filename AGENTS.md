@@ -116,7 +116,15 @@ Create `tests/<kebab-name>.spec.ts` following the existing pattern:
 - Game-switch test (can switch to/from this game)
 - Viewport test (important objects visible at 4K → 1024×768)
 
-### 5. Build and Verify
+### 5. Update Documentation and Templates
+
+When adding a new game, these files reference the game list and must be updated:
+
+- **`.github/ISSUE_TEMPLATE/bug-report.yml`** — add the new game to the "Affected Game" dropdown options
+- **`AGENTS.md`** — update the project overview (game count and names) and repo structure (scene file list)
+- **`README.md`** — add a controls table under `## Controls` if the game has unique controls
+
+### 6. Build and Verify
 
 ```bash
 npm run build:frontend
