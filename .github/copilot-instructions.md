@@ -76,3 +76,56 @@ When adding a new game or modifying existing game features, also update:
 - **`AGENTS.md`** — update the game count, game names, and scene file list in the project overview and repo structure
 - **`README.md`** — add/update controls tables and game descriptions
 - **Tests** — add or update Playwright tests for any new or changed gameplay mechanics, and ensure viewport tests cover the change
+
+## Maintenance Matrix — What to Update When Code Changes
+
+Every code change must keep the full project in sync. Use this matrix to determine what else needs updating:
+
+### When a new game is added
+
+| Artifact | What to update |
+|----------|----------------|
+| `src/game/game.ts` | Add import + GAMES registry entry |
+| `tests/<game>.spec.ts` | Create game-specific tests (startup, controls, switching, viewport) |
+| `assets/<game>/` | Create asset folder structure |
+| `.github/ISSUE_TEMPLATE/bug-report.yml` | Add game to "Affected Game" dropdown |
+| `AGENTS.md` | Update game count, game names, repo structure scene list |
+| `README.md` | Add controls table, game screenshot/description |
+| `docs/` | Update website if it lists games |
+
+### When an existing game is modified
+
+| Artifact | What to update |
+|----------|----------------|
+| `tests/<game>.spec.ts` | Add/update tests covering new or changed mechanics |
+| `tests/viewport-test.spec.ts` | Update if layout or positioning changed |
+| `README.md` | Update controls table if controls changed |
+| `AGENTS.md` | Update if architectural patterns or conventions changed |
+| `.github/copilot-instructions.md` | Update if new coding conventions were established |
+
+### When BaseScene is modified
+
+| Artifact | What to update |
+|----------|----------------|
+| All game scenes | Verify compatibility with BaseScene changes |
+| All game tests | Run full test suite — shared behavior may have changed |
+| `.github/copilot-instructions.md` | Update BaseScene contract section |
+| `.github/skills/new-game.md` | Update template code and API reference table |
+| `AGENTS.md` | Update game creation guide if lifecycle changed |
+
+### When build, CI, or tooling changes
+
+| Artifact | What to update |
+|----------|----------------|
+| `AGENTS.md` | Update build/test/release commands |
+| `.github/copilot-setup-steps.yml` | Update cloud agent environment setup |
+| `.github/workflows/ci.yml` | Update CI steps to match |
+| `.github/copilot-instructions.md` | Update if conventions or patterns changed |
+
+### When project structure changes
+
+| Artifact | What to update |
+|----------|----------------|
+| `AGENTS.md` | Update repo structure section |
+| `.github/copilot-instructions.md` | Update path references |
+| `.github/CODEOWNERS` | Update ownership mappings |

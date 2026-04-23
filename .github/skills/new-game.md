@@ -249,13 +249,19 @@ for (const vp of VIEWPORTS) {
 
 ### Step 6 — Update documentation and templates
 
-When adding a new game, these files reference the game list and **must** be updated:
+When adding a new game, **all** of these must be updated to stay in sync:
 
 1. **`.github/ISSUE_TEMPLATE/bug-report.yml`** — add `<Display Name>` to the `options` list under the "Affected Game" dropdown.
 
-2. **`AGENTS.md`** — update the project overview (line mentioning the mini-game count and names) and the repo structure (scene file list) to include the new game.
+2. **`AGENTS.md`** — update the project overview (game count and names) and repo structure (scene file list) to include the new game.
 
-3. **`README.md`** — if the game has unique controls, add a controls table under `## Controls`.
+3. **`README.md`** — add a controls table under `## Controls` for the new game. Add a screenshot/GIF if available.
+
+4. **`docs/`** — update the website if it lists games or features.
+
+5. **Verify** that `.github/copilot-instructions.md` and this skill's template code still match the current BaseScene API. If BaseScene was modified as part of adding the game, update both.
+
+See the full maintenance matrix in `.github/copilot-instructions.md` under "Maintenance Matrix" for all sync points.
 
 ### Step 7 — Build and test
 

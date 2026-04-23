@@ -159,3 +159,19 @@ Screen size adaptation has been a recurring challenge. Follow these rules strict
 - **Wrong scene key** — the key in `super('...')` must match the key in the GAMES registry
 - **Missing `displayName`** — the game-over screen uses this for the leaderboard
 - **Hardcoded pixel positions** — these break on different screen sizes; always derive from W/H
+
+## Maintenance — Keeping Everything in Sync
+
+Every code change must keep the full project in sync. This is a rule, not a suggestion — the CI, tests, documentation, agentic files, and builds must all reflect the current state of the codebase.
+
+The full maintenance matrix is in [`.github/copilot-instructions.md`](.github/copilot-instructions.md#maintenance-matrix--what-to-update-when-code-changes). Summary of key sync points:
+
+- **Tests**: Every game change (new game, new mechanic, bug fix) must have corresponding test updates. Viewport tests are mandatory for layout changes.
+- **README.md**: Controls tables, game descriptions, and screenshots must reflect current games.
+- **AGENTS.md** (this file): Game count, game names, repo structure, and build commands must be current.
+- **`.github/copilot-instructions.md`**: Coding conventions, BaseScene contract, and path references must be current.
+- **`.github/skills/new-game.md`**: Template code and API reference must match the actual BaseScene API.
+- **`.github/ISSUE_TEMPLATE/bug-report.yml`**: Game dropdown must list all current games.
+- **`.github/copilot-setup-steps.yml`**: Must match the actual build/test toolchain.
+- **`docs/`**: Website content should reflect current game list and features.
+- **Changelog**: Handled automatically by git-cliff — no manual updates needed.
