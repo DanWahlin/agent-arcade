@@ -163,7 +163,7 @@ git push origin v0.2.0
 
 ### Want to Add a New Game?
 
-The fastest way is with the [GitHub Copilot CLI](https://github.com/features/copilot/cli/) `new-game` skill — it scaffolds every file you need:
+The fastest way is with the [Copilot CLI](https://github.com/features/copilot/cli/) `new-game` skill — it scaffolds every file you need:
 
 > **Don't have Copilot CLI?** [Install it here](https://github.com/features/copilot/cli/) — or follow the [manual steps](#adding-a-new-game) below without it.
 
