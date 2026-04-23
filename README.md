@@ -165,7 +165,7 @@ git push origin v0.2.0
 
 The fastest way is with the [GitHub Copilot CLI](https://github.com/features/copilot/cli/) `new-game` skill — it scaffolds every file you need:
 
-> **Don't have Copilot CLI?** Install it with `npm install -g @github/copilot-cli`, or see the [getting started guide](https://github.com/github/copilot-cli-for-beginners). You can also follow the [manual steps](#adding-a-new-game) below without it.
+> **Don't have Copilot CLI?** [Install it here](https://github.com/features/copilot/cli/) — or follow the [manual steps](#adding-a-new-game) below without it.
 
 ```
 copilot "use the new-game skill to create a Pitfall-style platformer called Jungle Runner"
