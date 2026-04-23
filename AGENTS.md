@@ -182,3 +182,16 @@ The full maintenance matrix is in [`.github/copilot-instructions.md`](.github/co
 - **`.github/copilot-setup-steps.yml`**: Must match the actual build/test toolchain.
 - **`docs/`**: Website content should reflect current game list and features.
 - **Changelog**: Handled automatically by git-cliff — no manual updates needed.
+
+## License and Content Rules
+
+All contributions must comply with these rules:
+
+- **Original names only**: Game names must be original — do not use trademarked names (Pac-Man, Galaga, Space Invaders, Pitfall, Defender, etc.). Inspired-by names are fine (e.g., "Jungle Dash" instead of "Pitfall").
+- **Original code**: Do not copy code from other repositories without verifying license compatibility. Mechanics may be inspired by classic games.
+- **Asset licensing**: All sprites, sounds, and images must have a license that permits free distribution (CC0, CC-BY, MIT, public domain, or original work). No assets ripped from commercial games.
+- **Attribution**: All third-party asset sources must be credited in the PR description and `README.md` under `## Credits`.
+- **Content standards**: Assets must be appropriate for professional environments, not violent/offensive beyond retro arcade level, and consistent with the project's retro arcade theme.
+- **Prefer procedural graphics**: Generated/procedural visuals avoid licensing issues entirely and are preferred when feasible.
+
+The full asset review checklist is in `.github/skills/new-game.md` and `.github/copilot-instructions.md`.

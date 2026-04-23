@@ -51,6 +51,26 @@ BaseScene provides: score/lives/level state, HUD sync, score animation, game-ove
 - Audio formats: `.m4a` or `.ogg`
 - Sprite sheets and images go in the game's root asset folder
 - Some sounds are shared across games (e.g., `sfx_laser`, `sfx_zap`)
+- **Prefer procedural/generated graphics** — this avoids licensing issues entirely
+- Image formats: PNG for sprites, WebP for larger images
+
+## Asset and Image Review Rules
+
+When any images, sprites, sounds, or visual assets are added or contributed, verify ALL of these:
+
+- **Appropriate**: No violent, offensive, or disturbing content beyond cartoon/retro arcade level
+- **Suitable for work**: Content must be appropriate for professional environments
+- **Legally usable**: License must permit use in a free, open-source app (CC0, CC-BY, MIT, public domain, or original work). Do not use assets ripped from commercial games.
+- **Properly attributed**: Source and license must be noted in the PR description and in `README.md` under `## Credits`
+- **Relevant**: Art style should be consistent with the retro arcade theme of the project
+- **Right format**: PNG for sprites, WebP for larger images; keep file sizes reasonable
+
+## License Rules
+
+- Game names must be **original** — do not use trademarked names (Pac-Man, Galaga, Space Invaders, Pitfall, etc.)
+- Game mechanics may be inspired by classics (side-scrolling platformer is a genre, not a trademark) but do not copy specific copyrighted elements
+- Any third-party code or assets must have a license compatible with this project
+- All sources must be credited in `README.md` under `## Credits`
 
 ## Test Conventions
 

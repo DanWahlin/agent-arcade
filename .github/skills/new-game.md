@@ -10,14 +10,50 @@ Use when the user asks to "add a new game", "create a game", "scaffold a game", 
 
 ## Inputs
 
-Ask the user for:
-- **Game name** — a short display name (e.g. "Meteor Dash")
-- **Brief description** — one-line gameplay concept
+Ask the user for their **game concept** — a brief idea of what they want to build (e.g., "a Pitfall-style jungle platformer" or "a Defender-style side-scrolling shooter").
 
-Derive from the display name:
-- `<PascalName>` — PascalCase with `Scene` suffix (e.g. `MeteorDashScene`)
-- `<kebab-name>` — lowercase kebab-case (e.g. `meteor-dash`)
-- `<Display Name>` — the user-provided label with an emoji prefix (e.g. `🌠 Meteor Dash`)
+Based on their concept, **suggest** a name and description:
+- Propose a creative, original game name that fits the retro arcade theme (e.g., "Jungle Dash" instead of "Pitfall")
+- Propose a one-line description of the gameplay
+- Present both to the user and let them accept or modify before proceeding
+
+**Important — do NOT use trademarked or copyrighted game names.** The name must be original. "Pitfall", "Pac-Man", "Defender", "Galaga" are trademarked — use inspired-by names like "Jungle Dash", "Dot Chomper", "Planet Defender", "Star Formation".
+
+Once the user confirms the name and description, derive:
+- `<PascalName>` — PascalCase with `Scene` suffix (e.g. `JungleDashScene`)
+- `<kebab-name>` — lowercase kebab-case (e.g. `jungle-dash`)
+- `<Display Name>` — the confirmed label with an emoji prefix (e.g. `🌴 Jungle Dash`)
+
+## License and Content Rules
+
+Before generating any code or assets, verify these rules:
+
+### Naming
+- Game name must be **original** — no trademarked names (Pac-Man, Galaga, Space Invaders, Pitfall, Defender, etc.)
+- Game name must not be confusingly similar to existing trademarked games
+- Scene class names, file names, and asset folder names must all use the original name
+
+### Code and Mechanics
+- Game mechanics may be **inspired by** classic games (e.g., "side-scrolling platformer" is a genre, not a trademark)
+- Do not copy specific copyrighted elements (exact level layouts, character designs, story text)
+- Code must be original — do not copy code from other repositories without checking their license
+- Any third-party code must be compatible with this project's license
+
+### Assets (sprites, sounds, images)
+- **Prefer procedural/generated graphics** — this avoids all licensing issues
+- If using external assets, they must have a license that permits free distribution (CC0, CC-BY, MIT, public domain)
+- Do not use assets ripped from commercial games
+- All asset sources must be credited in the PR description and in `README.md` under `## Credits`
+- Sound effects should use royalty-free or CC-licensed sources
+
+### Image Review Checklist
+When any images, sprites, or visual assets are added or contributed, verify:
+- [ ] **Appropriate**: No violent, offensive, or disturbing content beyond cartoon/retro arcade level
+- [ ] **Suitable for work**: Content is appropriate for professional environments
+- [ ] **Legally usable**: License permits use in a free, open-source app (CC0, CC-BY, MIT, public domain, or original work)
+- [ ] **Properly attributed**: Source and license noted in PR description and README Credits
+- [ ] **Relevant**: Art style is consistent with the retro arcade theme of the project
+- [ ] **Right format**: PNG for sprites, WebP for larger images; reasonable file sizes
 
 ---
 
