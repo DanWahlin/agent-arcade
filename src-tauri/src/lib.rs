@@ -10,6 +10,7 @@ use std::sync::Mutex;
 static VISIBLE: AtomicBool = AtomicBool::new(false);
 static PAUSED: AtomicBool = AtomicBool::new(false);
 static UPDATE_CHECK_DONE: AtomicBool = AtomicBool::new(false);
+static UPDATE_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
 
 /// The current toggle shortcut string (e.g. "Ctrl+Alt+M").
 /// Updated by the `set_toggle_shortcut` command from JS.
@@ -110,24 +111,39 @@ fn get_app_version() -> String {
 
 /// Download and install an available update, then restart the app.
 #[tauri::command]
-async fn install_update(app: AppHandle) -> Result<String, String> {
+async fn install_update(app: AppHandle) -> Result<(), String> {
+    if UPDATE_IN_PROGRESS.swap(true, Ordering::SeqCst) {
+        return Err("Update already in progress".to_string());
+    }
     use tauri_plugin_updater::UpdaterExt;
-    let updater = app.updater_builder().build().map_err(|e| e.to_string())?;
+    let updater = app.updater_builder().build().map_err(|e| {
+        UPDATE_IN_PROGRESS.store(false, Ordering::SeqCst);
+        e.to_string()
+    })?;
     match updater.check().await {
         Ok(Some(update)) => {
             // Notify JS that download is starting
             if let Some(win) = app.get_webview_window("main") {
                 let _ = win.eval("if(window.__agentArcadeUpdateStatus)window.__agentArcadeUpdateStatus('downloading')");
             }
-            update.download_and_install(|_, _| {}, || {}).await.map_err(|e| e.to_string())?;
+            if let Err(e) = update.download_and_install(|_, _| {}, || {}).await {
+                UPDATE_IN_PROGRESS.store(false, Ordering::SeqCst);
+                return Err(e.to_string());
+            }
             // Notify JS that install is complete, then restart
             if let Some(win) = app.get_webview_window("main") {
                 let _ = win.eval("if(window.__agentArcadeUpdateStatus)window.__agentArcadeUpdateStatus('restarting')");
             }
             app.restart();
         }
-        Ok(None) => Err("No update available".to_string()),
-        Err(e) => Err(format!("Update check failed: {}", e)),
+        Ok(None) => {
+            UPDATE_IN_PROGRESS.store(false, Ordering::SeqCst);
+            Err("No update available".to_string())
+        }
+        Err(e) => {
+            UPDATE_IN_PROGRESS.store(false, Ordering::SeqCst);
+            Err(format!("Update check failed: {}", e))
+        }
     }
 }
 

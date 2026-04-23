@@ -188,7 +188,7 @@ git push origin v0.2.0
 
 ## Credits
 
-Initially inspired by [Aman](https://x.com/Amank1412) and his [Desktop Mario project](https://github.com/bxf1001g/desktop_mario/releases) as well as [Anthony Shaw](https://github.com/tonybaloney) and his [VS Code Pets](https://marketplace.visualstudio.com/items?itemName=tonybaloney.vscode-pets) project.
+Initially inspired by [Aman's post on X](https://x.com/Amank1412/status/2044489263799275722) about the [Desktop Mario project](https://github.com/bxf1001g/desktop_mario/releases) as well as [Anthony Shaw](https://github.com/tonybaloney) and his [VS Code Pets](https://marketplace.visualstudio.com/items?itemName=tonybaloney.vscode-pets) project.
 
 Thanks to [John Papa](https://github.com/johnpapa) for his Alien Onslaught game PR.
 
