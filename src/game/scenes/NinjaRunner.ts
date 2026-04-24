@@ -282,6 +282,7 @@ export class NinjaRunnerScene extends BaseScene {
     this.currentLevel = 1;
     this.syncLevelToHUD(this.currentLevel);
     this.sfx('nr_startlevel', 0.25);
+    this.startWithReadyScreen();
   }
 
   // ---------- Brick / block textures generated at runtime via Graphics ----------

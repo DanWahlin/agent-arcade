@@ -223,8 +223,7 @@ export class AlienOnslaughtScene extends BaseScene {
     this.syncScoreToHUD();
     this.loadHighScore();
 
-    // Start first wave
-    this.startWave();
+    this.startWithReadyScreen(() => this.startWave());
   }
 
   update(_t: number, dtMs: number) {

@@ -147,7 +147,7 @@ export class CosmicRocksScene extends BaseScene {
     this.syncLivesToHUD();
     this.syncScoreToHUD();
     this.loadHighScore();
-    this.startWave();
+    this.startWithReadyScreen(() => this.startWave());
   }
 
   update(_t: number, dtMs: number) {

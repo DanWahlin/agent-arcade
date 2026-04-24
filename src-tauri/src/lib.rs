@@ -27,10 +27,26 @@ static UNPAUSE_SHORTCUT: Mutex<String> = Mutex::new(String::new());
 // ── Tauri commands (called from JS via invoke()) ──────────────────────
 
 /// Enable/disable click-through so clicks pass to apps below the overlay.
+/// When disabling click-through (window becomes interactive), proactively
+/// request OS keyboard focus. Focus during active gameplay is maintained
+/// reactively by the blur handler in hud.js via the request_focus command.
 #[tauri::command]
 fn set_click_through(app: AppHandle, enabled: bool) {
     if let Some(win) = app.get_webview_window("main") {
         let _ = win.set_ignore_cursor_events(enabled);
+        if !enabled {
+            let _ = win.set_focus();
+        }
+    }
+}
+
+/// Immediately request OS keyboard focus without changing click-through state.
+/// Called by the blur handler in hud.js to reclaim focus the instant
+/// another window steals it during active gameplay.
+#[tauri::command]
+fn request_focus(app: AppHandle) {
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.set_focus();
     }
 }
 
@@ -470,7 +486,7 @@ pub fn run() {
                 })
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![set_click_through, set_paused, quit_app, hide_app, get_cursor_in_window, set_toggle_shortcut, get_toggle_shortcut, set_pause_shortcut, get_pause_shortcut, set_unpause_shortcut, get_unpause_shortcut, get_app_version, install_update])
+        .invoke_handler(tauri::generate_handler![set_click_through, request_focus, set_paused, quit_app, hide_app, get_cursor_in_window, set_toggle_shortcut, get_toggle_shortcut, set_pause_shortcut, get_pause_shortcut, set_unpause_shortcut, get_unpause_shortcut, get_app_version, install_update])
         .setup(|app| {
             // Register default toggle shortcut and Escape.
             // If the toggle shortcut is already taken by another app,

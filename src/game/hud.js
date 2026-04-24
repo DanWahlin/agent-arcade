@@ -42,25 +42,50 @@ if ('mediaSession' in navigator) {
     }
   };
 
-  // Called from Rust via win.eval() when global Escape fires
-  window.__agentArcadeResumeFromRust = function() {
-    resumeCallbacks.forEach(function(cb) { try { cb(); } catch(e) {} });
+  // Restores overlay/canvas state after a resume and sets the definitive click-through
+  // value based on which interactive overlays are currently visible. Called inside a
+  // 300ms setTimeout to let the Tauri window finish resizing before touching the DOM.
+  // Both resume paths (Ctrl+Escape via Rust and Resume-button via HUD) use this so the
+  // click-through logic lives in exactly one place.
+  // Note: settingsOv / helpOv / updateBanner are var-hoisted from line ~119 in this IIFE
+  // and are fully assigned before any resume event can fire.
+  function restoreAfterResume() {
+    var go = document.getElementById('gameover-overlay');
+    if (go) go.setAttribute('style',
+      'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;' +
+      'display:flex;align-items:center;justify-content:center;' +
+      'background:rgba(0,0,0,0.75);pointer-events:auto;');
+    var wb = document.getElementById('wave-banner');
+    if (wb) wb.style.display = '';
+    var c = document.querySelector('canvas');
+    if (c) c.focus();
+    // Determine whether any interactive overlay needs click-through OFF.
+    var hasOverlay = !!go ||
+      !!(settingsOv && settingsOv.classList.contains('show')) ||
+      !!(helpOv && helpOv.classList.contains('show')) ||
+      !!(updateBanner && updateBanner.classList.contains('show'));
+    ti.invoke('set_click_through', { enabled: !hasOverlay });
+  }
+
+  // Shared logic for both resume paths: notify game, clear paused CSS, then restore
+  // overlays + click-through after the window resize settles.
+  function onResume() {
+    // Skip scene resume callbacks if a game switch is in progress
+    if (!window.__agentArcadeSkipResume) {
+      resumeCallbacks.forEach(function(cb) { try { cb(); } catch(e) {} });
+    }
+    window.__agentArcadeSkipResume = false;
     var hud = document.getElementById('hud');
     if (hud) hud.classList.remove('paused');
     document.body.classList.remove('paused');
-    // Restore overlays after window resize settles
-    setTimeout(function() {
-      var go = document.getElementById('gameover-overlay');
-      if (go) go.setAttribute('style',
-        'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;' +
-        'display:flex;align-items:center;justify-content:center;' +
-        'background:rgba(0,0,0,0.75);pointer-events:auto;');
-      var wb = document.getElementById('wave-banner');
-      if (wb) wb.style.display = '';
-      var c = document.querySelector('canvas');
-      if (c) c.focus();
-    }, 300);
-  };
+    setTimeout(restoreAfterResume, 300);
+  }
+
+  // Called from Rust via win.eval() when the global Ctrl+Escape shortcut fires.
+  window.__agentArcadeResumeFromRust = onResume;
+
+  // Called from Rust when the Resume HUD button triggers set_paused(false).
+  window.__agentArcadeOnResume = onResume;
 
   // Called from Rust when game should enter paused state
   // Uses __agentArcadePauseScene (scene-only, no Rust callback) to avoid feedback loops.
@@ -77,25 +102,8 @@ if ('mediaSession' in navigator) {
     if (wb) wb.style.display = 'none';
     var ho = document.getElementById('help-overlay');
     if (ho) ho.classList.remove('show');
-  };
-
-  // Called from Rust when game should exit paused state
-  window.__agentArcadeOnResume = function() {
-    resumeCallbacks.forEach(function(cb) { try { cb(); } catch(e) {} });
-    var hud = document.getElementById('hud');
-    if (hud) hud.classList.remove('paused');
-    document.body.classList.remove('paused');
-    setTimeout(function() {
-      var go = document.getElementById('gameover-overlay');
-      if (go) go.setAttribute('style',
-        'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;' +
-        'display:flex;align-items:center;justify-content:center;' +
-        'background:rgba(0,0,0,0.75);pointer-events:auto;');
-      var wb = document.getElementById('wave-banner');
-      if (wb) wb.style.display = '';
-      var c = document.querySelector('canvas');
-      if (c) c.focus();
-    }, 300);
+    var ro = document.getElementById('ready-overlay');
+    if (ro) ro.remove();
   };
 
   // Hybrid cursor tracking: event-based when over HUD, IPC polling otherwise.
@@ -167,6 +175,18 @@ if ('mediaSession' in navigator) {
   }
 
   schedulePoll();
+
+  // Reclaim OS keyboard focus the instant the window loses it during active
+  // gameplay. Click-through lets clicks pass to apps below, which causes macOS
+  // to hand keyboard focus to that app. The blur event fires immediately when
+  // that happens — we invoke request_focus to take it back without touching
+  // click-through state. Does nothing when paused or hidden so the user can
+  // freely switch apps after pressing Escape.
+  window.addEventListener('blur', function() {
+    if (!document.body.classList.contains('paused') && !document.hidden) {
+      ti.invoke('request_focus');
+    }
+  });
 })();
 
 // ── HUD controls ──
@@ -785,35 +805,18 @@ window.__agentArcadeUpdateAvailable = function(version) {
 
   versionEl.textContent = 'v' + version;
   var autoHideTimer = null;
-  var updating = false;
 
-  // Click the banner to download and install the update
+  // Click the banner to open the releases page
   banner.onclick = function(e) {
     if (e.target === dismissBtn) return;
-    if (updating) return;
-    updating = true;
-    if (linkEl) linkEl.textContent = 'Downloading…';
-    if (iconEl) iconEl.textContent = '📦';
-    if (dismissBtn) dismissBtn.style.display = 'none';
-    if (autoHideTimer) clearTimeout(autoHideTimer);
-
+    var url = 'https://github.com/DanWahlin/agent-arcade/releases/latest';
     var ti = window.__TAURI_INTERNALS__;
     if (ti) {
-      ti.invoke('install_update').catch(function(err) {
-        updating = false;
-        if (linkEl) linkEl.textContent = 'Update failed — View Release';
-        if (iconEl) iconEl.textContent = '🔗';
-        if (dismissBtn) dismissBtn.style.display = '';
-        // Fall back to opening the release page on next click
-        banner.onclick = function(e2) {
-          if (e2.target === dismissBtn) return;
-          window.open('https://github.com/DanWahlin/agent-arcade/releases/latest', '_blank');
-          ti.invoke('plugin:opener|open_url', { url: 'https://github.com/DanWahlin/agent-arcade/releases/latest' }).catch(function() {});
-        };
+      ti.invoke('plugin:opener|open_url', { url: url }).catch(function() {
+        window.open(url, '_blank');
       });
     } else {
-      // Not running in Tauri — open release page
-      window.open('https://github.com/DanWahlin/agent-arcade/releases/latest', '_blank');
+      window.open(url, '_blank');
     }
   };
 

@@ -126,8 +126,8 @@ let SHIP_SPEED = 0.25 * 1000 * SCALE;
 let BULLET_SPEED = 0.45 * 1000 * SCALE;
 const MAX_BULLETS = 3;
 let ENEMY_BULLET_SPEED = 0.3 * 1000 * SCALE;
-const BASE_MAX_DIVERS = 2;
-const MAX_ENEMY_BULLETS = 6;  // cap on-screen enemy bullets (original Galaga: 3-4)
+const BASE_MAX_DIVERS = 4;
+const MAX_ENEMY_BULLETS = 3;  // authentic Galaga: max 3 enemy bullets on screen
 
 /* Formation: 5 rows × 10 cols, centered, in design coords scaled to screen */
 const FORM_COLS = 10;
@@ -384,6 +384,21 @@ function getAttackPath(currPos: { x: number; y: number }): { x: number; y: numbe
     rightAttackPattern(path);
   }
   path.push({ x: currPos.x, y: currPos.y }); // return to formation
+
+  // Scale the dive deeper so enemies reach the player's zone.
+  // Find how deep the pattern goes vs how deep it SHOULD go (near the ship).
+  const targetY = H - OPPONENT_SIZE * 4; // just above the player ship
+  let maxY = -Infinity;
+  for (const p of path) { if (p.y > maxY) maxY = p.y; }
+  if (maxY > currPos.y && maxY < targetY) {
+    const yScale = (targetY - currPos.y) / (maxY - currPos.y);
+    for (const p of path) {
+      if (p !== path[path.length - 1]) { // don't scale the return-to-formation point
+        p.y = currPos.y + (p.y - currPos.y) * yScale;
+      }
+    }
+  }
+
   return generatePointsOnBezierCurve(path, 75);
 }
 
@@ -534,7 +549,7 @@ export class GalaxyBlasterScene extends BaseScene {
     this.syncLevelToHUD(this.wave);
     this.syncScoreToHUD();
     this.loadHighScore();
-    this.startWave();
+    this.startWithReadyScreen(() => this.startWave());
   }
 
   update(_t: number, dtMs: number) {
@@ -837,11 +852,11 @@ export class GalaxyBlasterScene extends BaseScene {
       }
     }
 
-    // Attack coordination: scale max divers with wave (2 base, +1 per 3 waves, cap at 5)
-    const maxDivers = Math.min(BASE_MAX_DIVERS + Math.floor((this.wave - 1) / 3), 5);
+    // Attack coordination: scale max divers with wave (4 base, +1 per 2 waves, cap at 8)
+    const maxDivers = Math.min(BASE_MAX_DIVERS + Math.floor((this.wave - 1) / 2), 8);
     this.attackTimer += dt;
-    if (this.attackTimer >= 1000) {
-      this.attackTimer -= 1000;
+    if (this.attackTimer >= 600) {
+      this.attackTimer -= 600;
       const attackers = this.enemies.filter(e => e.state === 'attack').length;
       if (attackers < maxDivers) {
         this.triggerDive();
@@ -949,13 +964,15 @@ export class GalaxyBlasterScene extends BaseScene {
   }
 
   private fireEnemyBullet(x: number, y: number) {
-    // Cap on-screen enemy bullets (authentic Galaga limits to 3-4)
+    // Cap on-screen enemy bullets (authentic Galaga: max 3)
     if (this.enemyBullets.length >= MAX_ENEMY_BULLETS) return;
+    // Don't fire if enemy is below or at the player's level
+    if (y >= this.shipY) return;
 
-    // Galaga-authentic discrete 3-direction system:
-    // Slight horizontal bias toward player, but always nearly vertical
+    // Galaga-authentic: bullets go nearly straight down with discrete
+    // 3-direction aiming (straight, slight-left, slight-right).
     const dx = this.shipX - x;
-    const horizontalBias = 0.15; // ratio of horizontal to vertical speed (~8.5° angle)
+    const horizontalBias = 0.18;
     let vx = 0;
     if (dx < -OPPONENT_SIZE) vx = -ENEMY_BULLET_SPEED * horizontalBias;
     else if (dx > OPPONENT_SIZE) vx = ENEMY_BULLET_SPEED * horizontalBias;

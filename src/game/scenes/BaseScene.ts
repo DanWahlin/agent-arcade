@@ -25,6 +25,12 @@ export abstract class BaseScene extends Phaser.Scene {
   private gameOverKeyListener?: (ev: KeyboardEvent) => void;
   /** Full-screen dark backdrop controlled by the transparency slider. */
   private _backdrop: any = null;
+  /** Ready-screen state */
+  private _readyOverlay: HTMLElement | null = null;
+  private _readyTimers: number[] = [];
+  private _readyKeyListener?: (e: KeyboardEvent) => void;
+  private _readyOnStart?: () => void;
+  private _wasOnReadyScreen = false;
 
   constructor(key: string) {
     super(key);
@@ -388,6 +394,113 @@ export abstract class BaseScene extends Phaser.Scene {
     });
   }
 
+  // ── Ready screen ───────────────────────────────────────────────────────────
+
+  /**
+   * Freeze the scene and show the "Press any key to start" screen.
+   * Call as the LAST statement in every scene's create() so all game objects
+   * exist but nothing moves until the player is ready.
+   * @param onStart Optional callback invoked the moment the player presses a
+   *   key and the scene resumes — use this to defer first-wave setup so it
+   *   doesn't render on top of the ready screen.
+   */
+  protected startWithReadyScreen(onStart?: () => void) {
+    this._readyOnStart = onStart;
+    this.scene.pause();
+    this.sound.stopAll(); // stop any sounds that fired during create()
+    this._showPressAnyKey();
+  }
+
+  private _showPressAnyKey() {
+    this._cleanupReadyScreen();
+
+    if (!document.getElementById('ready-screen-style')) {
+      const style = document.createElement('style');
+      style.id = 'ready-screen-style';
+      style.textContent = `
+        @keyframes readyBlink { 0%,100%{opacity:1} 50%{opacity:.3} }
+        @keyframes readyGlow { 0%,100%{text-shadow:0 0 10px rgba(0,200,255,0.6),0 0 30px rgba(0,200,255,0.3)} 50%{text-shadow:0 0 20px rgba(0,200,255,0.9),0 0 50px rgba(0,200,255,0.5),0 0 80px rgba(0,100,255,0.2)} }
+        @keyframes titleShimmer { 0%{background-position:200% center} 100%{background-position:-200% center} }
+      `;
+      document.head.appendChild(style);
+    }
+
+    const overlay = document.createElement('div');
+    overlay.id = 'ready-overlay';
+    overlay.style.cssText = `
+      position:fixed;inset:0;z-index:8000;pointer-events:none;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      background:radial-gradient(ellipse at center,rgba(0,10,40,0.75) 0%,rgba(0,0,0,0.85) 70%);
+    `;
+
+    const title = document.createElement('div');
+    title.textContent = this.displayName.toUpperCase();
+    title.style.cssText = `
+      font-family:'Press Start 2P',monospace;font-size:44px;letter-spacing:5px;
+      background:linear-gradient(90deg,#ffd54a,#ff6b35,#ffd54a,#ffee58,#ffd54a);
+      background-size:200% auto;
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+      background-clip:text;
+      animation:titleShimmer 3s linear infinite;
+      filter:drop-shadow(0 0 20px rgba(255,160,40,0.6));
+      margin-bottom:20px;
+    `;
+
+    const divider = document.createElement('div');
+    divider.style.cssText = `
+      width:280px;height:2px;margin-bottom:24px;
+      background:linear-gradient(90deg,transparent,#00c8ff,#ff6b35,#00c8ff,transparent);
+      border-radius:1px;
+    `;
+
+    const prompt = document.createElement('div');
+    prompt.textContent = 'PRESS ANY KEY TO START';
+    prompt.style.cssText = `
+      font-family:'Press Start 2P',monospace;font-size:16px;letter-spacing:3px;
+      color:#fff;
+      animation:readyBlink 1.4s ease-in-out infinite,readyGlow 2s ease-in-out infinite;
+    `;
+
+    overlay.appendChild(title);
+    overlay.appendChild(divider);
+    overlay.appendChild(prompt);
+    document.body.appendChild(overlay);
+    this._readyOverlay = overlay;
+
+    const onKey = (e: KeyboardEvent) => {
+      if (['Meta', 'Alt', 'Control', 'Shift'].includes(e.key)) return;
+      document.removeEventListener('keydown', onKey);
+      this._readyKeyListener = undefined;
+      this._cleanupReadyScreen();
+      if (e.key === 'Escape') {
+        // Let the normal pause system take over; re-show ready screen on resume
+        this._wasOnReadyScreen = true;
+        return;
+      }
+      e.preventDefault();
+      this.scene.resume();
+      this._fireReadyOnStart();
+    };
+    this._readyKeyListener = onKey;
+    document.addEventListener('keydown', onKey);
+  }
+
+  private _cleanupReadyScreen() {
+    if (this._readyOverlay) { this._readyOverlay.remove(); this._readyOverlay = null; }
+    if (this._readyKeyListener) {
+      document.removeEventListener('keydown', this._readyKeyListener);
+      this._readyKeyListener = undefined;
+    }
+  }
+
+  private _fireReadyOnStart() {
+    if (this._readyOnStart) {
+      const fn = this._readyOnStart;
+      this._readyOnStart = undefined;
+      fn();
+    }
+  }
+
   /** Called by the pause system. Override if the scene needs custom cleanup. */
   pauseGame() {
     this.scene.pause();
@@ -396,8 +509,15 @@ export abstract class BaseScene extends Phaser.Scene {
 
   /** Called by the resume system. Override if needed. */
   resumeGame() {
+    if (this._wasOnReadyScreen) {
+      // Re-show the ready screen instead of resuming gameplay
+      this._wasOnReadyScreen = false;
+      this._showPressAnyKey();
+      return;
+    }
     this.scene.resume();
     this.sound.resumeAll();
+    this._fireReadyOnStart();
   }
 
   /**
@@ -528,6 +648,11 @@ export abstract class BaseScene extends Phaser.Scene {
       document.removeEventListener('keydown', this.gameOverKeyListener);
       this.gameOverKeyListener = undefined;
     }
+    this._cleanupReadyScreen();
+    this._readyOnStart = undefined;
+    this._wasOnReadyScreen = false;
+    this._readyTimers.forEach(t => clearTimeout(t));
+    this._readyTimers = [];
     const overlay = document.getElementById('gameover-overlay');
     if (overlay) overlay.remove();
   }
