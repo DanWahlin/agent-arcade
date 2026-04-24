@@ -34,7 +34,7 @@ A retro arcade game collection that runs as a transparent overlay on your deskto
 |------|-------------|
 | 👾 **Alien Onslaught** | Space Invaders-style arcade action with marching aliens, shields, and mystery ships |
 | ☄️ **Cosmic Rocks** | Asteroids-style vector shooter with thrust physics and splitting asteroids |
-| 🚀 **Galaxy Blaster** | Galaga-style space shooter with formation enemies and attack patterns |
+| 🚀 **Galaxy Blaster** | Galaga-style space shooter with formation enemies, attack patterns, and dual-shot power-up |
 | 🥷 **Ninja Runner** | Classic platformer with double jumps, power-ups, warp pipes, and enemies |
 
 ## How This Was Made
