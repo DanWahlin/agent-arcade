@@ -1,6 +1,21 @@
 # Changelog
 
 All notable changes to Agent Arcade.
+## [0.4.0] - 2026-04-24
+
+### 🚀 Features & Improvements
+
+- Add dual-shot power-up to Galaxy Blaster
+- Feat: add ready screen, fix game switching, improve Galaxy Blaster enemies
+
+### 🐛 Bug Fixes
+
+- Fix: update credits and remove a planning doc
+## [0.3.3] - 2026-04-22
+
+### ⚙️ CI/CD & Build
+
+- Release v0.3.3
 ## [0.3.2] - 2026-04-22
 
 ### 🚀 Features & Improvements
