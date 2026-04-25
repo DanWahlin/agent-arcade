@@ -1,0 +1,18 @@
+# Copilot Cloud Agent Setup Steps
+# This file configures the environment for the Copilot coding agent
+# so it can build, test, and validate changes autonomously.
+
+steps:
+  - name: Install Node.js
+    uses: actions/setup-node@v4
+    with:
+      node-version: '22'
+
+  - name: Install dependencies
+    run: npm ci
+
+  - name: Install Playwright browsers
+    run: npx playwright install chromium
+
+  - name: Build frontend
+    run: npm run build:frontend

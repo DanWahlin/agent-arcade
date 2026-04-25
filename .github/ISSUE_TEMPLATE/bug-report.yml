@@ -1,0 +1,57 @@
+name: 🐛 Bug Report
+description: Report a bug in Agent Arcade
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: game
+    attributes:
+      label: Affected Game
+      options:
+        - Alien Onslaught
+        - Cosmic Rocks
+        - Galaxy Blaster
+        - Ninja Runner
+        - General / All Games
+        - Overlay / Window
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce the bug?
+      placeholder: |
+        1. Launch the app
+        2. Select Cosmic Rocks
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What should have happened?
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating System
+      placeholder: "macOS 15.2 / Windows 11 / Ubuntu 24.04"
+  - type: input
+    id: resolution
+    attributes:
+      label: Screen Resolution
+      placeholder: "1920x1080 / 3840x2160"
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: If applicable, add screenshots to help explain the problem

@@ -186,6 +186,47 @@ git tag v0.2.0
 git push origin v0.2.0
 ```
 
+## Contributing
+
+### Want to Add a New Game?
+
+The fastest way is with the [Copilot CLI](https://github.com/features/copilot/cli/) `new-game` skill — it scaffolds every file you need:
+
+> **Don't have Copilot CLI?** [Install it here](https://github.com/features/copilot/cli/) — or follow the [manual steps](#adding-a-new-game) below without it.
+
+```
+copilot "use the new-game skill to create a Pitfall-style platformer called Jungle Runner"
+```
+
+The skill walks the AI through creating the scene file, asset folder, game registry entry, tests, and documentation updates — all following the project's exact patterns.
+
+**Prefer to do it manually?** See [AGENTS.md — Adding a New Game](AGENTS.md#adding-a-new-game) for the step-by-step checklist.
+
+**Proposing a game idea?** [Open a New Game Proposal issue](../../issues/new?template=new-game.yml) to discuss the concept before building.
+
+### Contribution Workflow
+
+1. Fork the repo and create a feature branch
+2. Add your game (via the skill or manually)
+3. Build and test: `npm run build:frontend && npx playwright test`
+4. Open a PR — CI will run typecheck, build, and tests automatically
+
+### Running Tests
+
+```bash
+npm run build:frontend          # Required before tests
+npx playwright test             # Run all tests
+npx playwright test --headed    # Run with visible browser
+```
+
+### How the AI Tooling Works
+
+This project uses three complementary Copilot customization mechanisms:
+
+- **[AGENTS.md](AGENTS.md)** — Project context for the Copilot coding agent (cloud agent). Read automatically when the cloud agent works on PRs/issues.
+- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Coding conventions injected into every Copilot interaction (Chat, completions, PR reviews, CLI).
+- **[.github/skills/](.github/skills/)** — On-demand task recipes invoked by name (e.g., the `new-game` skill).
+
 ## Credits
 
 Initially inspired by [Aman's post on X](https://x.com/Amank1412/status/2044489263799275722) about the [Desktop Mario project](https://github.com/bxf1001g/desktop_mario/releases) as well as [Anthony Shaw](https://github.com/tonybaloney) and his [VS Code Pets](https://marketplace.visualstudio.com/items?itemName=tonybaloney.vscode-pets) project.

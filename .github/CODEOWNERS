@@ -1,0 +1,16 @@
+# Game scenes and shared game code
+src/game/ @johnpapa
+
+# Tauri / Rust backend
+src-tauri/ @johnpapa
+
+# CI/CD workflows
+.github/workflows/ @johnpapa
+
+# Documentation and website
+docs/ @johnpapa
+README.md @johnpapa
+AGENTS.md @johnpapa
+
+# Tests
+tests/ @johnpapa
