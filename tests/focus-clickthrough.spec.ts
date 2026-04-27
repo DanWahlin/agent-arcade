@@ -13,7 +13,7 @@
  */
 
 import { test, expect, type Page } from '@playwright/test';
-import { GAME_URL, waitForGame, setLives, killPlayer } from './helpers';
+import { GAME_URL, waitForGame, setLives, killPlayer, dismissReadyScreen } from './helpers';
 
 // ── Mock Tauri bridge ──────────────────────────────────────────────────────────
 
@@ -51,15 +51,6 @@ async function lastClickThrough(page: Page): Promise<boolean | null> {
   const calls = await getInvokeCalls(page);
   const ctCalls = calls.filter(c => c.cmd === 'set_click_through');
   return ctCalls.length > 0 ? ctCalls[ctCalls.length - 1].args.enabled : null;
-}
-
-/** Dismiss the "Press any key to start" ready screen if present. */
-async function dismissReadyScreen(page: Page) {
-  const overlay = page.locator('#ready-overlay');
-  if (await overlay.isVisible({ timeout: 1000 }).catch(() => false)) {
-    await page.keyboard.press('Space');
-    await expect(overlay).not.toBeVisible({ timeout: 2000 });
-  }
 }
 
 /** Trigger game over by setting 1 life then killing the player. */

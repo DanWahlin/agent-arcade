@@ -80,6 +80,20 @@ export class NinjaRunnerScene extends BaseScene {
 
   get displayName() { return 'Ninja Runner'; }
 
+  protected getDescription() {
+    return 'Run, jump, and dash through endless obstacles. How far can you go?';
+  }
+
+  protected getControls() {
+    return [
+      { key: '← →', action: 'Move Left / Right' },
+      { key: 'SPACE', action: 'Jump' },
+      { key: 'SHIFT', action: 'Run' },
+      { key: 'F', action: 'Fireball' },
+      { key: 'Z', action: 'Stomp Attack' },
+    ];
+  }
+
   private sfx(key: string, volume = 0.3) {
     try { this.sound.play(key, { volume }); } catch { /* ignore audio errors */ }
   }
@@ -2674,5 +2688,37 @@ export class NinjaRunnerScene extends BaseScene {
     this.parachuteFlyingEnemies.forEach(e => { if (e.active) e.destroy(); });
     this.parachuteFlyingEnemies = [];
     this.addScore(500, this.player.x, this.player.y - 30);
+  }
+
+  shutdown() {
+    super.shutdown();
+
+    // Destroy all physics groups and their children
+    const groups = [
+      this.groundGroup, this.brickGroup, this.qblockGroup, this.pipeGroup,
+      this.coinGroup, this.mushroomGroup, this.heartGroup, this.fireballGroup,
+      this.enemyGroup, this.bridgeGroup, this.bounceGroup, this.flagGroup,
+      this.piranhaGroup, this.fireGroup, this.crocGroup, this.fishGroup,
+    ];
+    for (const g of groups) {
+      if (g && g.clear) try { g.clear(true, true); } catch {}
+    }
+
+    // Destroy player and extra sprites
+    this.destroyObj(this.player);
+    this.destroyObj(this.parachuteSprite);
+    this.parachuteSprite = undefined;
+    this.destroyObj(this.glowSprite);
+    this.glowSprite = undefined;
+
+    // Stop wind sound
+    if (this.windSound) {
+      try { this.windSound.stop(); } catch {}
+      this.windSound = undefined;
+    }
+
+    // Clean up flying enemies from parachute mode
+    this.parachuteFlyingEnemies.forEach(e => { if (e.active) e.destroy(); });
+    this.parachuteFlyingEnemies = [];
   }
 }

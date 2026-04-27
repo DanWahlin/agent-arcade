@@ -6,6 +6,7 @@ import { NinjaRunnerScene } from './scenes/NinjaRunner.js';
 import { GalaxyBlasterScene } from './scenes/GalaxyBlaster.js';
 import { CosmicRocksScene } from './scenes/CosmicRocks.js';
 import { AlienOnslaughtScene } from './scenes/AlienOnslaught.js';
+import { PlanetGuardScene } from './scenes/PlanetGuard.js';
 
 declare const Phaser: any;
 
@@ -15,6 +16,7 @@ const GAMES = [
   { key: 'alien-onslaught', scene: AlienOnslaughtScene, label: '👾 Alien Onslaught' },
   { key: 'galaxy-blaster', scene: GalaxyBlasterScene, label: '🚀 Galaxy Blaster' },
   { key: 'ninja-runner', scene: NinjaRunnerScene, label: '🥷 Ninja Runner' },
+  { key: 'defender', scene: PlanetGuardScene, label: '🛡️ Planet Guard' },
 ];
 
 let currentGameKey: string;
@@ -85,6 +87,12 @@ function setupGameSwitcher() {
 
     // Stop all audio globally (covers paused sounds too)
     if (game.sound) game.sound.stopAll();
+
+    // Remove DOM overlays from the previous scene (game-over, wave banner, ready screen)
+    for (const id of ['gameover-overlay', 'wave-banner', 'ready-overlay']) {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    }
 
     // Stop current scene, start new one
     game.scene.stop(currentGameKey);

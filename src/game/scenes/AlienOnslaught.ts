@@ -145,6 +145,17 @@ export class AlienOnslaughtScene extends BaseScene {
   constructor() { super('alien-onslaught'); }
   get displayName() { return 'Alien Onslaught'; }
 
+  protected getDescription() {
+    return 'Blast waves of descending aliens before they reach the bottom!';
+  }
+
+  protected getControls() {
+    return [
+      { key: '← →', action: 'Move Left / Right' },
+      { key: 'SPACE', action: 'Fire' },
+    ];
+  }
+
   /* ================================================================
      LIFECYCLE
      ================================================================ */
@@ -923,17 +934,7 @@ export class AlienOnslaughtScene extends BaseScene {
      ================================================================ */
 
   private spawnExplosion(x: number, y: number, color: number) {
-    const particles = this.add.particles(x, y, 'spark', {
-      speed: { min: 50, max: 200 },
-      scale: { start: 0.8, end: 0 },
-      lifespan: 400,
-      quantity: 12,
-      tint: color,
-      emitting: false,
-    });
-    particles.setDepth(20);
-    particles.explode(12);
-    this.time.delayedCall(600, () => particles.destroy());
+    this.spawnParticleExplosion(x, y, color, 10);
   }
 
   /* ================================================================

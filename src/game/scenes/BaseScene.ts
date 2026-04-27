@@ -27,10 +27,13 @@ export abstract class BaseScene extends Phaser.Scene {
   private _backdrop: any = null;
   /** Ready-screen state */
   private _readyOverlay: HTMLElement | null = null;
-  private _readyTimers: number[] = [];
   private _readyKeyListener?: (e: KeyboardEvent) => void;
   private _readyOnStart?: () => void;
   private _wasOnReadyScreen = false;
+  /** Timer for game-over delayed callback (cancel on shutdown to prevent leaks). */
+  private _gameOverDelayTimer: any = null;
+  /** Tracked particle emitters for cleanup on shutdown. */
+  protected activeEmitters: any[] = [];
 
   constructor(key: string) {
     super(key);
@@ -45,6 +48,38 @@ export abstract class BaseScene extends Phaser.Scene {
   }
   private storageRemove(key: string) {
     try { localStorage.removeItem(key); } catch { /* ignore */ }
+  }
+
+  /** Safely destroy a Phaser game object and return null for assignment. */
+  protected destroyObj<T extends { destroy(): void }>(obj: T | null): null {
+    if (obj) { try { obj.destroy(); } catch {} }
+    return null;
+  }
+
+  /** Spawn a particle explosion, track the emitter, and auto-cleanup. */
+  protected spawnParticleExplosion(x: number, y: number, color: number, count: number, lifespan = 400) {
+    try {
+      const emitter = this.add.particles(x, y, 'spark', {
+        speed: { min: 60, max: 180 },
+        angle: { min: 0, max: 360 },
+        scale: { start: 1.2, end: 0 },
+        lifespan,
+        quantity: count,
+        tint: color,
+        emitting: false,
+      });
+      emitter.setDepth(20);
+      emitter.explode(count);
+      this.activeEmitters.push(emitter);
+
+      this.time.delayedCall(lifespan + 100, () => {
+        const idx = this.activeEmitters.indexOf(emitter);
+        if (idx >= 0) this.activeEmitters.splice(idx, 1);
+        emitter.destroy();
+      });
+    } catch {
+      // Particle system unavailable, skip
+    }
   }
 
   /** Load high score for this scene from localStorage. */
@@ -387,7 +422,7 @@ export abstract class BaseScene extends Phaser.Scene {
     this.gameOverKeyListener = onKey;
     // Brief delay before accepting input (prevent accidental dismiss).
     // Guard against the scene being stopped during the delay.
-    this.time.delayedCall(500, () => {
+    this._gameOverDelayTimer = this.time.delayedCall(500, () => {
       if (!this.scene.isActive()) return;
       document.addEventListener('keydown', onKey);
       restartBtn.addEventListener('click', dismiss);
@@ -421,6 +456,11 @@ export abstract class BaseScene extends Phaser.Scene {
         @keyframes readyBlink { 0%,100%{opacity:1} 50%{opacity:.3} }
         @keyframes readyGlow { 0%,100%{text-shadow:0 0 10px rgba(0,200,255,0.6),0 0 30px rgba(0,200,255,0.3)} 50%{text-shadow:0 0 20px rgba(0,200,255,0.9),0 0 50px rgba(0,200,255,0.5),0 0 80px rgba(0,100,255,0.2)} }
         @keyframes titleShimmer { 0%{background-position:200% center} 100%{background-position:-200% center} }
+        @keyframes titleFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+        @keyframes neonPulse { 0%,100%{filter:drop-shadow(0 0 15px rgba(0,255,136,0.8)) drop-shadow(0 0 40px rgba(0,255,136,0.4)) drop-shadow(0 0 80px rgba(0,255,136,0.2))} 50%{filter:drop-shadow(0 0 25px rgba(0,255,136,1)) drop-shadow(0 0 60px rgba(0,255,136,0.6)) drop-shadow(0 0 120px rgba(0,255,136,0.3))} }
+        @keyframes dividerPulse { 0%,100%{opacity:0.6;width:280px} 50%{opacity:1;width:360px} }
+        @keyframes fadeSlideUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes starTwinkle { 0%,100%{opacity:0.2} 50%{opacity:1} }
       `;
       document.head.appendChild(style);
     }
@@ -430,40 +470,146 @@ export abstract class BaseScene extends Phaser.Scene {
     overlay.style.cssText = `
       position:fixed;inset:0;z-index:8000;pointer-events:none;
       display:flex;flex-direction:column;align-items:center;justify-content:center;
-      background:radial-gradient(ellipse at center,rgba(0,10,40,0.75) 0%,rgba(0,0,0,0.85) 70%);
+      background:radial-gradient(ellipse at 50% 40%,rgba(0,15,60,0.80) 0%,rgba(0,5,20,0.92) 60%,rgba(0,0,0,0.95) 100%);
+    `;
+
+    // Decorative star particles
+    for (let i = 0; i < 40; i++) {
+      const star = document.createElement('div');
+      const size = Math.random() < 0.3 ? 3 : 2;
+      const x = Math.random() * 100;
+      const y = Math.random() * 100;
+      const delay = Math.random() * 3;
+      const dur = 1.5 + Math.random() * 2;
+      star.style.cssText = `
+        position:absolute;left:${x}%;top:${y}%;width:${size}px;height:${size}px;
+        background:#fff;border-radius:50%;
+        animation:starTwinkle ${dur}s ease-in-out ${delay}s infinite;
+        opacity:0.3;
+      `;
+      overlay.appendChild(star);
+    }
+
+    // Main content wrapper — styled panel matching the game-over dialog
+    const content = document.createElement('div');
+    content.style.cssText = `
+      display:flex;flex-direction:column;align-items:center;
+      animation:fadeSlideUp 0.6s ease-out both;
+      position:relative;z-index:1;
+      background:linear-gradient(145deg,#0d1b2a 0%,#1b2838 50%,#0d1b2a 100%);
+      border:2px solid rgba(0,200,255,0.25);
+      border-radius:20px;padding:42px 56px;
+      box-shadow:0 0 60px rgba(0,200,255,0.1),0 0 100px rgba(0,0,0,0.8),inset 0 1px 0 rgba(255,255,255,0.05);
+      max-width:700px;
     `;
 
     const title = document.createElement('div');
     title.textContent = this.displayName.toUpperCase();
     title.style.cssText = `
-      font-family:'Press Start 2P',monospace;font-size:44px;letter-spacing:5px;
-      background:linear-gradient(90deg,#ffd54a,#ff6b35,#ffd54a,#ffee58,#ffd54a);
+      font-family:'Press Start 2P',monospace;font-size:48px;letter-spacing:6px;
+      -webkit-text-stroke:2px rgba(0,255,136,0.3);
+      background:linear-gradient(90deg,#00ff88,#ffffff,#00ff88,#ffffff,#00ff88);
       background-size:200% auto;
       -webkit-background-clip:text;-webkit-text-fill-color:transparent;
       background-clip:text;
-      animation:titleShimmer 3s linear infinite;
-      filter:drop-shadow(0 0 20px rgba(255,160,40,0.6));
-      margin-bottom:20px;
+      animation:titleShimmer 8s linear infinite,titleFloat 4s ease-in-out infinite,neonPulse 3s ease-in-out infinite;
+      margin-bottom:22px;
     `;
 
     const divider = document.createElement('div');
     divider.style.cssText = `
-      width:280px;height:2px;margin-bottom:24px;
-      background:linear-gradient(90deg,transparent,#00c8ff,#ff6b35,#00c8ff,transparent);
-      border-radius:1px;
+      width:320px;height:2px;margin-bottom:20px;
+      background:linear-gradient(90deg,transparent 0%,#00c8ff 20%,#ff6b35 50%,#00c8ff 80%,transparent 100%);
+      border-radius:1px;box-shadow:0 0 12px rgba(0,200,255,0.4);
+      animation:dividerPulse 3s ease-in-out infinite;
     `;
 
     const prompt = document.createElement('div');
     prompt.textContent = 'PRESS ANY KEY TO START';
     prompt.style.cssText = `
-      font-family:'Press Start 2P',monospace;font-size:16px;letter-spacing:3px;
+      font-family:'Press Start 2P',monospace;font-size:16px;letter-spacing:4px;
       color:#fff;
       animation:readyBlink 1.4s ease-in-out infinite,readyGlow 2s ease-in-out infinite;
+      text-shadow:0 0 15px rgba(0,200,255,0.8);
     `;
 
-    overlay.appendChild(title);
-    overlay.appendChild(divider);
-    overlay.appendChild(prompt);
+    content.appendChild(title);
+
+    const desc = this.getDescription();
+    if (desc) {
+      const descEl = document.createElement('div');
+      descEl.textContent = desc;
+      descEl.style.cssText = `
+        font-family:'Press Start 2P',monospace;font-size:14px;letter-spacing:1px;
+        color:#d0e8ff;max-width:700px;text-align:center;line-height:2;
+        margin-bottom:18px;
+        text-shadow:0 0 10px rgba(150,210,255,0.4);
+      `;
+      content.appendChild(descEl);
+    }
+
+    content.appendChild(divider);
+
+    // Show control hints if the scene provides them
+    const controls = this.getControls();
+    if (controls.length > 0) {
+      const controlsDiv = document.createElement('div');
+      controlsDiv.style.cssText = `
+        margin-top:24px;padding:18px 28px;
+        background:linear-gradient(135deg,rgba(0,20,60,0.6) 0%,rgba(0,10,40,0.7) 100%);
+        border:1px solid rgba(0,200,255,0.2);
+        border-radius:12px;display:inline-block;
+        box-shadow:0 4px 20px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.05);
+        backdrop-filter:blur(4px);
+      `;
+
+      const controlsTitle = document.createElement('div');
+      controlsTitle.textContent = 'CONTROLS';
+      controlsTitle.style.cssText = `
+        font-family:'Press Start 2P',monospace;font-size:13px;letter-spacing:5px;
+        color:rgba(200,230,255,0.9);margin-bottom:16px;text-align:center;
+        text-shadow:0 0 8px rgba(150,200,255,0.4);
+      `;
+      controlsDiv.appendChild(controlsTitle);
+
+      for (const { key, action } of controls) {
+        const row = document.createElement('div');
+        row.style.cssText = `
+          display:flex;justify-content:space-between;align-items:center;
+          margin:8px 0;gap:28px;
+        `;
+
+        const keyEl = document.createElement('span');
+        keyEl.textContent = key;
+        keyEl.style.cssText = `
+          font-family:'Press Start 2P',monospace;font-size:15px;
+          color:#ffd54a;background:rgba(255,213,74,0.08);
+          padding:7px 16px;border-radius:6px;border:1px solid rgba(255,213,74,0.25);
+          min-width:90px;text-align:center;
+          box-shadow:0 2px 6px rgba(0,0,0,0.2),inset 0 1px 0 rgba(255,255,255,0.05);
+          text-shadow:0 0 6px rgba(255,213,74,0.3);
+        `;
+
+        const actionEl = document.createElement('span');
+        actionEl.textContent = action;
+        actionEl.style.cssText = `
+          font-family:'Press Start 2P',monospace;font-size:14px;
+          color:#d0dde8;text-align:left;
+        `;
+
+        row.appendChild(keyEl);
+        row.appendChild(actionEl);
+        controlsDiv.appendChild(row);
+      }
+
+      content.appendChild(controlsDiv);
+    }
+
+    prompt.style.cssText += 'margin-top:32px;';
+    content.appendChild(prompt);
+
+    overlay.appendChild(content);
+
     document.body.appendChild(overlay);
     this._readyOverlay = overlay;
 
@@ -648,15 +794,27 @@ export abstract class BaseScene extends Phaser.Scene {
       document.removeEventListener('keydown', this.gameOverKeyListener);
       this.gameOverKeyListener = undefined;
     }
+    if (this._gameOverDelayTimer) { this._gameOverDelayTimer.remove(); this._gameOverDelayTimer = null; }
     this._cleanupReadyScreen();
     this._readyOnStart = undefined;
     this._wasOnReadyScreen = false;
-    this._readyTimers.forEach(t => clearTimeout(t));
-    this._readyTimers = [];
+    this.time.removeAllEvents();
+    this.activeEmitters.forEach(e => this.destroyObj(e));
+    this.activeEmitters = [];
     const overlay = document.getElementById('gameover-overlay');
     if (overlay) overlay.remove();
   }
 
   /** Return the display name for the HUD. */
   abstract get displayName(): string;
+
+  /** Return a one-line description for the ready screen. Override in each scene. */
+  protected getDescription(): string {
+    return '';
+  }
+
+  /** Return control hints for the ready screen. Override in each scene. */
+  protected getControls(): { key: string; action: string }[] {
+    return [];
+  }
 }

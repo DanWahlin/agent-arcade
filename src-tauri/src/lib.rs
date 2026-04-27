@@ -83,7 +83,7 @@ fn set_paused(app: AppHandle, paused: bool) {
                 let hud_width = (1200.0 * scale) as u32;
                 let hud_height = (152.0 * scale) as u32;
                 let screen_w = monitor.size().width;
-                let x = ((screen_w - hud_width) / 2) as i32;
+                let x = ((screen_w as i32 - hud_width as i32) / 2).max(0);
                 let y = monitor.position().y;
                 let _ = win.set_size(tauri::PhysicalSize::new(hud_width, hud_height));
                 let _ = win.set_position(tauri::PhysicalPosition::new(x, y));
@@ -98,7 +98,7 @@ fn set_paused(app: AppHandle, paused: bool) {
                 let scale = monitor.scale_factor();
                 let bottom_trim = (5.0 * scale) as u32;
                 let _ = win.set_position(tauri::PhysicalPosition::new(pos.x, pos.y));
-                let _ = win.set_size(tauri::PhysicalSize::new(size.width, size.height - bottom_trim));
+                let _ = win.set_size(tauri::PhysicalSize::new(size.width, size.height.saturating_sub(bottom_trim)));
             }
             // Remove paused class and restore overlays via named JS function
             let _ = win.eval("window.__agentArcadeOnResume && window.__agentArcadeOnResume()");
@@ -348,7 +348,7 @@ fn resume_game(app: &AppHandle) {
             let scale = monitor.scale_factor();
             let bottom_trim = (5.0 * scale) as u32;
             let _ = win.set_position(tauri::PhysicalPosition::new(pos.x, pos.y));
-            let _ = win.set_size(tauri::PhysicalSize::new(size.width, size.height - bottom_trim));
+            let _ = win.set_size(tauri::PhysicalSize::new(size.width, size.height.saturating_sub(bottom_trim)));
         }
         // Resume game — overlay restoration is handled inside __agentArcadeResumeFromRust
         let _ = win.eval("window.__agentArcadeResumeFromRust && window.__agentArcadeResumeFromRust()");
@@ -369,7 +369,7 @@ fn pause_game(app: &AppHandle) {
             let hud_width = (1200.0 * scale) as u32;
             let hud_height = (152.0 * scale) as u32;
             let screen_w = monitor.size().width;
-            let x = ((screen_w - hud_width) / 2) as i32;
+            let x = ((screen_w as i32 - hud_width as i32) / 2).max(0);
             let y = monitor.position().y;
             let _ = win.set_size(tauri::PhysicalSize::new(hud_width, hud_height));
             let _ = win.set_position(tauri::PhysicalPosition::new(x, y));
@@ -590,7 +590,7 @@ pub fn run() {
                         let scale = monitor.scale_factor();
                         let bottom_trim = (5.0 * scale) as u32;
                         let _ = w.set_position(tauri::PhysicalPosition::new(pos.x, pos.y));
-                        let _ = w.set_size(tauri::PhysicalSize::new(size.width, size.height - bottom_trim));
+                        let _ = w.set_size(tauri::PhysicalSize::new(size.width, size.height.saturating_sub(bottom_trim)));
                     }
                 };
 
@@ -620,7 +620,7 @@ pub fn run() {
                         let scale = monitor.scale_factor();
                         let bottom_trim = (5.0 * scale) as u32;
                         let _ = win_clone.set_position(tauri::PhysicalPosition::new(pos.x, pos.y));
-                        let _ = win_clone.set_size(tauri::PhysicalSize::new(size.width, size.height - bottom_trim));
+                        let _ = win_clone.set_size(tauri::PhysicalSize::new(size.width, size.height.saturating_sub(bottom_trim)));
                     }
                 });
 

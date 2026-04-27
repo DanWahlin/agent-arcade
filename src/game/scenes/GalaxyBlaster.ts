@@ -428,9 +428,6 @@ export class GalaxyBlasterScene extends BaseScene {
   private normalShipWidth = 0;
   private normalShipHeight = 0;
 
-  /* particle cleanup */
-  private activeEmitters: any[] = [];
-
   /* enemies */
   private enemies: Enemy[] = [];
   private enemyBullets: Bullet[] = [];
@@ -468,6 +465,17 @@ export class GalaxyBlasterScene extends BaseScene {
 
   constructor() { super('galaxy-blaster'); }
   get displayName() { return 'Galaxy Blaster'; }
+
+  protected getDescription() {
+    return 'Battle alien formations in deep space. Clear each wave to advance!';
+  }
+
+  protected getControls() {
+    return [
+      { key: '← →', action: 'Move Left / Right' },
+      { key: 'SPACE', action: 'Fire' },
+    ];
+  }
 
   /* ================================================================
      LIFECYCLE
@@ -1396,39 +1404,56 @@ export class GalaxyBlasterScene extends BaseScene {
      ================================================================ */
 
   private spawnExplosion(x: number, y: number, kind: EnemyKind | 'player') {
-    const colorMap: Record<string, number[]> = {
-      bug:    [0xffff00, 0xff4444, 0xff8800],
-      drone:  [0x888888, 0x444444, 0xffff00],
-      moth:   [0x4444ff, 0x00aaff, 0xffffff],
-      scout:  [0xff0000, 0xff8800, 0xffff00],
-      heavy:  [0x0066ff, 0x00ccff, 0xffffff],
-      boss:   [0x00ff00, 0xaa00ff, 0xff00ff],
-      player: [0xffffff, 0xffff00, 0xff8800],
+    const tintMap: Record<string, number> = {
+      bug:    0xffff00,
+      drone:  0x888888,
+      moth:   0x4444ff,
+      scout:  0xff0000,
+      heavy:  0x0066ff,
+      boss:   0x00ff00,
+      player: 0xffffff,
     };
-    const colors = colorMap[kind] || colorMap.player;
-
-    const emitter = this.add.particles(x, y, 'spark', {
-      speed: { min: 50, max: 200 },
-      scale: { start: 0.8, end: 0 },
-      lifespan: { min: 300, max: 600 },
-      alpha: { start: 1, end: 0 },
-      color: colors,
-      emitting: false,
-    });
-    emitter.setDepth(50);
-    emitter.explode(kind === 'player' ? 40 : 25);
-    this.activeEmitters.push(emitter);
-    this.time.delayedCall(800, () => {
-      if (emitter && emitter.active) emitter.destroy();
-      this.activeEmitters = this.activeEmitters.filter(e => e !== emitter);
-    });
+    const tint = tintMap[kind] || tintMap.player;
+    const count = kind === 'player' ? 40 : 25;
+    this.spawnParticleExplosion(x, y, tint, count);
   }
 
   shutdown() {
     super.shutdown();
-    this.activeEmitters.forEach(e => { if (e && e.active) e.destroy(); });
-    this.activeEmitters = [];
-    const banner = document.getElementById('wave-banner');
-    if (banner) banner.remove();
+
+    // Destroy player ship
+    this.destroyObj(this.ship);
+
+    // Destroy bullet sprites
+    for (const b of this.bullets) this.destroyObj(b.sprite);
+    this.bullets = [];
+
+    // Destroy enemy sprites
+    for (const e of this.enemies) this.destroyObj(e.sprite);
+    this.enemies = [];
+
+    // Destroy enemy bullet sprites
+    for (const b of this.enemyBullets) this.destroyObj(b.sprite);
+    this.enemyBullets = [];
+
+    // Destroy shield and pickups
+    this.destroyObj(this.shieldSprite);
+    this.shieldSprite = undefined;
+    for (const p of this.shieldPickups) this.destroyObj(p);
+    this.shieldPickups = [];
+
+    // Destroy dual-shot pickups and glow
+    for (const p of this.dualShotPickups) this.destroyObj(p.sprite);
+    this.dualShotPickups = [];
+    this.destroyObj(this.dualShotGlow);
+    this.dualShotGlow = undefined;
+
+    // Destroy meteors
+    for (const m of this.meteors) this.destroyObj(m.sprite);
+    this.meteors = [];
+
+    // Destroy wave text
+    this.destroyObj(this.waveTextSprite);
+    this.waveTextSprite = null;
   }
 }

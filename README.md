@@ -28,6 +28,11 @@ A retro arcade game collection that runs as a transparent overlay on your deskto
   <em>🥷 Ninja Runner</em>
 </p>
 
+<p align="center">
+  <img src="docs/images/agent-arcade-defender.gif" alt="Planet Guard" width="600" /><br/>
+  <em>🛡️ Planet Guard</em>
+</p>
+
 ## 🎮 Games
 
 | Game | Description |
@@ -36,6 +41,7 @@ A retro arcade game collection that runs as a transparent overlay on your deskto
 | ☄️ **Cosmic Rocks** | Asteroids-style vector shooter with thrust physics and splitting asteroids |
 | 🚀 **Galaxy Blaster** | Galaga-style space shooter with formation enemies, attack patterns, and dual-shot power-up |
 | 🥷 **Ninja Runner** | Classic platformer with double jumps, power-ups, warp pipes, and enemies |
+| 🛡️ **Planet Guard** | Defender-style side-scrolling shooter — rescue humanoids, battle 6 enemy types, and protect the planet |
 
 ## How This Was Made
 
@@ -162,6 +168,15 @@ Go to the [releases page](https://github.com/DanWahlin/agent-arcade/releases), e
 | <kbd>F</kbd> / <kbd>Z</kbd> | Fire (when powered up) |
 | <kbd>↓</kbd> | Enter warp/golden pipes |
 
+### 🛡️ Planet Guard
+
+| Key | Action |
+|-----|--------|
+| <kbd>←</kbd> <kbd>→</kbd> | Thrust / Reverse |
+| <kbd>↑</kbd> <kbd>↓</kbd> | Move Up / Down |
+| <kbd>Space</kbd> | Fire Laser (hold) |
+| <kbd>Z</kbd> | Smart Bomb |
+
 ### General
 
 | Key | Action |
@@ -182,8 +197,7 @@ npm run dist:linux  # Linux (.AppImage + .deb)
 Or push a version tag to trigger the CI/CD pipeline:
 
 ```bash
-git tag v0.2.0
-git push origin v0.2.0
+npm run release 0.5.0   # bumps version, generates changelog, tags, and pushes
 ```
 
 ## Credits
@@ -199,5 +213,7 @@ Space shooter assets: [Space Shooter Redux](https://opengameart.org/content/spac
 Galaga-style game mechanics: [WesleyEdwards/galaga](https://github.com/WesleyEdwards/galaga) by Wesley Edwards
 
 Asteroids-style game mechanics: [phaser3-typescript](https://github.com/digitsensitive/phaser3-typescript) by digitsensitive
+
+Defender-style game mechanics and sound effects: [OpenDefender](https://github.com/mkinney/Opendefender) by mkinney
 
 Retro game sound effects: ["Retro game sound effects"](https://opengameart.org/content/retro-game-sound-effects) by Vircon32 (Carra), published at OpenGameArt under license [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/)
