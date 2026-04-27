@@ -1,6 +1,11 @@
 # Changelog
 
 All notable changes to Agent Arcade.
+## [0.5.0] - 2026-04-27
+
+### 🚀 Features & Improvements
+
+- Feat: Planet Guard game, crash fixes, scene cleanup, and UI improvements
 ## [0.4.0] - 2026-04-24
 
 ### 🚀 Features & Improvements
@@ -11,6 +16,10 @@ All notable changes to Agent Arcade.
 ### 🐛 Bug Fixes
 
 - Fix: update credits and remove a planning doc
+
+### ⚙️ CI/CD & Build
+
+- Release v0.4.0
 ## [0.3.3] - 2026-04-22
 
 ### ⚙️ CI/CD & Build
