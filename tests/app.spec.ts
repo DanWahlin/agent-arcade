@@ -64,6 +64,6 @@ test.describe('HUD & UI', () => {
     expect(options.join(',')).toContain('Cosmic Rocks');
     expect(options.join(',')).toContain('Galaxy Blaster');
     expect(options.join(',')).toContain('Ninja Runner');
-    expect(options.join(',')).toContain('Planet Guard');
+    expect(options.join(',')).toContain('Planet Guardian');
   });
 });

@@ -29,8 +29,8 @@ A retro arcade game collection that runs as a transparent overlay on your deskto
 </p>
 
 <p align="center">
-  <img src="docs/images/agent-arcade-defender.gif" alt="Planet Guard" width="600" /><br/>
-  <em>🛡️ Planet Guard</em>
+  <img src="docs/images/agent-arcade-guardian.gif" alt="Planet Guardian" width="600" /><br/>
+  <em>🛡️ Planet Guardian</em>
 </p>
 
 ## 🎮 Games
@@ -41,7 +41,7 @@ A retro arcade game collection that runs as a transparent overlay on your deskto
 | ☄️ **Cosmic Rocks** | Asteroids-style vector shooter with thrust physics and splitting asteroids |
 | 🚀 **Galaxy Blaster** | Galaga-style space shooter with formation enemies, attack patterns, and dual-shot power-up |
 | 🥷 **Ninja Runner** | Classic platformer with double jumps, power-ups, warp pipes, and enemies |
-| 🛡️ **Planet Guard** | Defender-style side-scrolling shooter — rescue humanoids, battle 6 enemy types, and protect the planet |
+| 🛡️ **Planet Guardian** | Defender-style side-scrolling shooter — rescue humanoids, battle 6 enemy types, and protect the planet |
 
 ## How This Was Made
 
@@ -168,7 +168,7 @@ Go to the [releases page](https://github.com/DanWahlin/agent-arcade/releases), e
 | <kbd>F</kbd> / <kbd>Z</kbd> | Fire (when powered up) |
 | <kbd>↓</kbd> | Enter warp/golden pipes |
 
-### 🛡️ Planet Guard
+### 🛡️ Planet Guardian
 
 | Key | Action |
 |-----|--------|

@@ -2,18 +2,18 @@
 
 ## Project Overview
 
-Agent Arcade is a retro arcade game that runs as a transparent desktop overlay, built with **Tauri v2** (Rust backend) + **Phaser 4** (game engine) + **TypeScript**. It includes five mini-games: Alien Onslaught, Cosmic Rocks, Galaxy Blaster, Ninja Runner, and Planet Guard.
+Agent Arcade is a retro arcade game that runs as a transparent desktop overlay, built with **Tauri v2** (Rust backend) + **Phaser 4** (game engine) + **TypeScript**. It includes five mini-games: Alien Onslaught, Cosmic Rocks, Galaxy Blaster, Ninja Runner, and Planet Guardian.
 
 ## Repository Structure
 
 ```
 src/game/          — Frontend game code (TypeScript, Phaser scenes)
-src/game/scenes/   — Game scenes: BaseScene.ts, NinjaRunner.ts, GalaxyBlaster.ts, CosmicRocks.ts, AlienOnslaught.ts, PlanetGuard.ts
+src/game/scenes/   — Game scenes: BaseScene.ts, NinjaRunner.ts, GalaxyBlaster.ts, CosmicRocks.ts, AlienOnslaught.ts, PlanetGuardian.ts
 src/game/game.ts   — Game bootstrap, scene registry, and game switcher
 src-tauri/         — Tauri v2 Rust backend (window management, tray icon, overlay)
 docs/              — GitHub Pages website (static HTML/CSS/JS)
 assets/            — Sprite sheets, sounds, and game assets
-assets/defender/   — Planet Guard sprites (PNG) and sounds (WAV)
+assets/defender/   — Planet Guardian sprites (PNG) and sounds (WAV)
 scripts/           — Build and release scripts (release.js)
 tests/             — Playwright end-to-end tests (7 spec files, 80 tests)
 .plans/            — Game design plans and future feature ideas
@@ -64,9 +64,9 @@ The `docs/` directory contains the project landing page deployed to [danwahlin.g
 - `BaseScene.create()` must call `this.initBase()` first and `this.startWithReadyScreen()` last.
 - Do NOT call `addCapture('SPACE')` before the ready screen — it blocks the document keydown listener that dismisses it.
 
-## Planet Guard (Defender-style game)
+## Planet Guardian (Defender-style game)
 
-Planet Guard (`src/game/scenes/PlanetGuard.ts`) is a side-scrolling shooter inspired by the 1981 Williams Defender arcade game. Key implementation details:
+Planet Guardian (`src/game/scenes/PlanetGuardian.ts`) is a side-scrolling shooter inspired by the 1981 Williams Defender arcade game. Key implementation details:
 
 - **Manual physics** — positions tracked as world coordinates, no Phaser bodies.
 - **Sprites** — PNG files in `assets/defender/`, loaded in `preload()`. Uses linear texture filtering (overrides global `pixelArt: true`).

@@ -257,7 +257,7 @@ interface Mine {
 /* ------------------------------------------------------------------ */
 /*  Scene                                                              */
 /* ------------------------------------------------------------------ */
-export class PlanetGuardScene extends BaseScene {
+export class PlanetGuardianScene extends BaseScene {
   /* Player state */
   private playerX = 0;
   private playerY = 0;
@@ -310,7 +310,7 @@ export class PlanetGuardScene extends BaseScene {
   private thrustSoundPlaying = false;
 
   constructor() { super('defender'); }
-  get displayName() { return 'Planet Guard'; }
+  get displayName() { return 'Planet Guardian'; }
 
   protected getDescription() {
     return 'Defend humanoids from alien landers. Rescue the falling and destroy all enemies!';
@@ -360,7 +360,7 @@ export class PlanetGuardScene extends BaseScene {
   create() {
     this.initBase();
 
-    // Switch Planet Guard textures to linear filtering for smoother scaling
+    // Switch Planet Guardian textures to linear filtering for smoother scaling
     const defKeys = ['def-ship-r','def-ship-l','def-lander','def-mutant',
       'def-humanoid','def-bomber','def-pod','def-swarmer','def-baiter'];
     for (const k of defKeys) {

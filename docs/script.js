@@ -140,7 +140,7 @@
     { src: 'images/agent-arcade-ninja.gif',  label: '🥷 Ninja Runner',   duration: 14670 },
     { src: 'images/agent-arcade-galaxy.gif', label: '🚀 Galaxy Blaster', duration: 10070 },
     { src: 'images/agent-arcade-rocks.gif',  label: '☄️ Cosmic Rocks',   duration: 9800 },
-    { src: 'images/agent-arcade-defender.gif', label: '🛡️ Planet Guard', duration: 10580 },
+    { src: 'images/agent-arcade-guardian.gif', label: '🛡️ Planet Guardian', duration: 10580 },
   ];
 
   function shuffle(arr) {
