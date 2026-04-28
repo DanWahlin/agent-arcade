@@ -1,0 +1,42 @@
+name: 💡 Feature Request
+description: Suggest a new feature or improvement
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Feature description
+      description: Describe the feature you'd like to see
+      placeholder: "I'd love to see..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Why is this useful?
+      description: Explain why this feature would be valuable
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Have you considered any alternative solutions or workarounds?
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of the project does this relate to?
+      options:
+        - Existing game improvement
+        - New game idea
+        - Desktop overlay / Tauri shell
+        - HUD / UI
+        - Website
+        - Build / CI / Tooling
+        - Other
+    validations:
+      required: true

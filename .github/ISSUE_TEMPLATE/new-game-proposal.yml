@@ -1,0 +1,62 @@
+name: 🎮 New Game Proposal
+description: Propose a new mini-game for Agent Arcade
+labels: ["new game", "enhancement"]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Game name
+      description: "What should the game be called?"
+      placeholder: "e.g., Pixel Pong"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: genre
+    attributes:
+      label: Genre / inspiration
+      options:
+        - Classic arcade (Pac-Man, Breakout, etc.)
+        - Space shooter (Galaga, Gradius, etc.)
+        - Platformer (Mario, Mega Man, etc.)
+        - Puzzle (Tetris, Snake, etc.)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Game description
+      description: Describe the gameplay mechanics, objectives, and how it fits the retro arcade theme
+    validations:
+      required: true
+
+  - type: textarea
+    id: controls
+    attributes:
+      label: Controls
+      description: What keyboard controls would this game use?
+      placeholder: |
+        - Arrow keys: Move
+        - Space: Fire / Jump
+    validations:
+      required: true
+
+  - type: dropdown
+    id: graphics
+    attributes:
+      label: Graphics approach
+      description: How should the game visuals be created?
+      options:
+        - Procedural (Phaser Graphics API — like Cosmic Rocks)
+        - Sprite sheets (external assets — like Ninja Runner)
+        - Mix of both
+    validations:
+      required: true
+
+  - type: textarea
+    id: assets
+    attributes:
+      label: Asset requirements
+      description: Does this game need new sprite sheets, sounds, or other assets? If so, describe them or link to sources (must be open-source licensed).

@@ -159,6 +159,24 @@ git tag v0.2.0
 git push origin v0.2.0
 ```
 
+## Contributing
+
+Want to add a new game or improve an existing one? Contributions are welcome!
+
+```
+copilot "Add a new game called Pixel Pong — a retro Breakout-style game with paddle, ball, and destructible bricks"
+```
+
+1. Fork the repo and create a feature branch
+2. Install dependencies: `npm install`
+3. Make your changes (see [AGENTS.md](AGENTS.md) for the full contributor guide)
+4. Build and test locally:
+   ```bash
+   npm run build:frontend
+   npx playwright test
+   ```
+5. Open a pull request — CI will run type-checking and Playwright tests automatically
+
 ## Credits
 
 Initially inspired by [Aman](https://x.com/Amank1412) and his [Desktop Mario project](https://github.com/bxf1001g/desktop_mario/releases) as well as [Anthony Shaw](https://github.com/tonybaloney) and his [VS Code Pets](https://marketplace.visualstudio.com/items?itemName=tonybaloney.vscode-pets) project.
