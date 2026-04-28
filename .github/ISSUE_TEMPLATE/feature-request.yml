@@ -1,0 +1,42 @@
+name: 💡 Feature Request
+description: Suggest a new feature or improvement for Agent Arcade
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea to make Agent Arcade better? We'd love to hear it!
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - New game
+        - Existing game improvement
+        - UI / HUD
+        - Desktop overlay behavior
+        - Build / tooling
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the feature
+      description: What do you want to add or change?
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Why is this useful?
+      description: Explain the problem this solves or the benefit it provides.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Have you thought of other ways to achieve this?

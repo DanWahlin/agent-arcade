@@ -1,0 +1,58 @@
+name: 🎮 New Game Proposal
+description: Propose a new mini-game for Agent Arcade
+labels: ["enhancement", "new-game"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Want to add a new retro game to Agent Arcade? Tell us about it!
+
+  - type: input
+    id: name
+    attributes:
+      label: Game name
+      placeholder: "e.g., Pixel Pong"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Game description
+      description: One or two sentences describing the game and its inspiration (e.g., "A Pong clone with power-ups").
+    validations:
+      required: true
+
+  - type: dropdown
+    id: genre
+    attributes:
+      label: Genre
+      options:
+        - Shooter (space, top-down, side-scroll)
+        - Platformer / Runner
+        - Puzzle
+        - Arcade classic (Breakout, Pong, etc.)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: controls
+    attributes:
+      label: Controls
+      description: What keyboard controls will the game use?
+      placeholder: |
+        Arrow keys — move
+        Space — shoot
+
+  - type: textarea
+    id: mechanics
+    attributes:
+      label: Core mechanics
+      description: Describe the main gameplay loop — what does the player do, how do they score, how does difficulty increase?
+
+  - type: textarea
+    id: assets
+    attributes:
+      label: Art & sound requirements
+      description: What sprites, animations, and sound effects will the game need? Are there open-source assets available?

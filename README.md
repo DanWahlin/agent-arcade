@@ -217,3 +217,21 @@ Asteroids-style game mechanics: [phaser3-typescript](https://github.com/digitsen
 Defender-style game mechanics and sound effects: [OpenDefender](https://github.com/mkinney/Opendefender) by mkinney
 
 Retro game sound effects: ["Retro game sound effects"](https://opengameart.org/content/retro-game-sound-effects) by Vircon32 (Carra), published at OpenGameArt under license [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+
+## Contributing
+
+Contributions are welcome! If you have [GitHub Copilot CLI](https://github.com/features/copilot/cli/) installed, you can use it to contribute:
+
+```
+copilot "Add a new game called Pixel Pong with paddle controls and scoring"
+```
+
+To contribute manually:
+
+1. Fork the repo and create a feature branch
+2. Install dependencies: `npm install`
+3. Make your changes and build: `npm run build:frontend`
+4. Run the test suite: `npm test`
+5. Open a pull request against `main`
+
+See [AGENTS.md](AGENTS.md) for the full contributor guide — including repo structure, key patterns, and how to add a new game.
