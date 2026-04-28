@@ -29,6 +29,11 @@ A retro arcade game collection that runs as a transparent overlay on your deskto
 </p>
 
 <p align="center">
+  <img src="docs/images/agent-arcade-code-breaker.gif" alt="Code Breaker" width="600" /><br/>
+  <em>🔐 Code Breaker</em>
+</p>
+
+<p align="center">
   <img src="docs/images/agent-arcade-guardian.gif" alt="Planet Guardian" width="600" /><br/>
   <em>🛡️ Planet Guardian</em>
 </p>
@@ -38,6 +43,7 @@ A retro arcade game collection that runs as a transparent overlay on your deskto
 | Game | Description |
 |------|-------------|
 | 👾 **Alien Onslaught** | Space Invaders-style arcade action with marching aliens, shields, and mystery ships |
+| 🔐 **Code Breaker** | Wordle-style word puzzle — guess the 5-letter word in 6 tries |
 | ☄️ **Cosmic Rocks** | Asteroids-style vector shooter with thrust physics and splitting asteroids |
 | 🚀 **Galaxy Blaster** | Galaga-style space shooter with formation enemies, attack patterns, and dual-shot power-up |
 | 🥷 **Ninja Runner** | Classic platformer with double jumps, power-ups, warp pipes, and enemies |
@@ -137,6 +143,32 @@ Go to the [releases page](https://github.com/DanWahlin/agent-arcade/releases), e
 ## Controls
 
 ### 👾 Alien Onslaught
+
+| Key | Action |
+|-----|--------|
+| <kbd>←</kbd> <kbd>→</kbd> | Move |
+| <kbd>Space</kbd> | Fire |
+
+### 🔐 Code Breaker
+
+| Key | Action |
+|-----|--------|
+| <kbd>A</kbd>–<kbd>Z</kbd> | Type letter |
+| <kbd>Enter</kbd> | Submit guess |
+| <kbd>Backspace</kbd> | Delete last letter |
+| Mouse | Click on-screen keyboard |
+
+### 🥷 Ninja Runner
+
+| Key | Action |
+|-----|--------|
+| <kbd>←</kbd> <kbd>→</kbd> | Move |
+| <kbd>Space</kbd> / <kbd>↑</kbd> | Jump (press twice for double jump) |
+| <kbd>Shift</kbd> | Run |
+| <kbd>F</kbd> / <kbd>Z</kbd> | Fire (when powered up) |
+| <kbd>↓</kbd> | Enter warp/golden pipes |
+
+### 🚀 Galaxy Blaster
 
 | Key | Action |
 |-----|--------|
