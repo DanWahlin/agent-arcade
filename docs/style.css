@@ -661,6 +661,8 @@ img { max-width: 100%; height: auto; }
 .cosmic .game-card-glow { background: radial-gradient(ellipse at 50% 20%, rgba(255,45,170,0.08), transparent 70%); }
 
 .alien .game-card-glow { background: radial-gradient(ellipse at 40% 20%, rgba(76,217,100,0.08), transparent 70%); }
+
+.defender .game-card-glow { background: radial-gradient(ellipse at 50% 20%, rgba(41,121,255,0.08), transparent 70%); }
 .cosmic:hover { box-shadow: 0 0 40px rgba(255,45,170,0.12), 0 20px 50px rgba(0,0,0,0.4); }
 
 .game-card-content {

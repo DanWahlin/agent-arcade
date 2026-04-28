@@ -69,7 +69,6 @@ export class CosmicRocksScene extends BaseScene {
   private asteroids: Asteroid[] = [];
   private bullets: Bullet[] = [];
   private stars: Star[] = [];
-  private activeEmitters: any[] = [];
 
   /* UFO */
   private ufo: { gfx: any; x: number; y: number; vx: number; shootTimer: number; active: boolean } | null = null;
@@ -91,6 +90,18 @@ export class CosmicRocksScene extends BaseScene {
 
   constructor() { super('cosmic-rocks'); }
   get displayName() { return 'Cosmic Rocks'; }
+
+  protected getDescription() {
+    return 'Survive the asteroid field. Shoot rocks to break them apart!';
+  }
+
+  protected getControls() {
+    return [
+      { key: '← →', action: 'Rotate' },
+      { key: '↑', action: 'Thrust' },
+      { key: 'SPACE', action: 'Fire' },
+    ];
+  }
 
   /* ================================================================
      LIFECYCLE
@@ -147,7 +158,7 @@ export class CosmicRocksScene extends BaseScene {
     this.syncLivesToHUD();
     this.syncScoreToHUD();
     this.loadHighScore();
-    this.startWave();
+    this.startWithReadyScreen(() => this.startWave());
   }
 
   update(_t: number, dtMs: number) {
@@ -586,22 +597,7 @@ export class CosmicRocksScene extends BaseScene {
      ================================================================ */
 
   private spawnExplosion(x: number, y: number) {
-    const emitter = this.add.particles(x, y, 'spark', {
-      speed: { min: 60, max: 200 },
-      scale: { start: 0.8, end: 0 },
-      alpha: { start: 1, end: 0 },
-      lifespan: 500,
-      quantity: 12,
-      duration: 100,
-      blendMode: 'ADD',
-    });
-    emitter.setDepth(20);
-    this.activeEmitters.push(emitter);
-    this.time.delayedCall(700, () => {
-      if (emitter && emitter.active) emitter.destroy();
-      const idx = this.activeEmitters.indexOf(emitter);
-      if (idx >= 0) this.activeEmitters.splice(idx, 1);
-    });
+    this.spawnParticleExplosion(x, y, 0xffffff, 8);
   }
 
   /* ================================================================
@@ -774,8 +770,6 @@ export class CosmicRocksScene extends BaseScene {
 
   shutdown() {
     super.shutdown();
-    this.activeEmitters.forEach(e => { if (e && e.active) e.destroy(); });
-    this.activeEmitters = [];
     if (this.ufo) { this.ufo.gfx.destroy(); this.ufo = null; }
     this.ufoBullets.forEach(b => b.gfx.destroy());
     this.ufoBullets = [];

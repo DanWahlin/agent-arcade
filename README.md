@@ -33,6 +33,11 @@ A retro arcade game collection that runs as a transparent overlay on your deskto
   <em>🔐 Code Breaker</em>
 </p>
 
+<p align="center">
+  <img src="docs/images/agent-arcade-guardian.gif" alt="Planet Guardian" width="600" /><br/>
+  <em>🛡️ Planet Guardian</em>
+</p>
+
 ## 🎮 Games
 
 | Game | Description |
@@ -40,12 +45,15 @@ A retro arcade game collection that runs as a transparent overlay on your deskto
 | 👾 **Alien Onslaught** | Space Invaders-style arcade action with marching aliens, shields, and mystery ships |
 | 🔐 **Code Breaker** | Wordle-style word puzzle — guess the 5-letter word in 6 tries |
 | ☄️ **Cosmic Rocks** | Asteroids-style vector shooter with thrust physics and splitting asteroids |
-| 🚀 **Galaxy Blaster** | Galaga-style space shooter with formation enemies and attack patterns |
+| 🚀 **Galaxy Blaster** | Galaga-style space shooter with formation enemies, attack patterns, and dual-shot power-up |
 | 🥷 **Ninja Runner** | Classic platformer with double jumps, power-ups, warp pipes, and enemies |
+| 🛡️ **Planet Guardian** | Defender-style side-scrolling shooter — rescue humanoids, battle 6 enemy types, and protect the planet |
 
 ## How This Was Made
 
 Idea ➡ Reality over a weekend! I used [GitHub Copilot CLI](https://github.com/features/copilot/cli/) (there's a [free course on it here](https://github.com/github/copilot-cli-for-beginners)), and it helped me quickly scaffold the initial Tauri + Phaser + TypeScript project structure. From there I worked with copilot to plan the game mechanics and overall structure. I told it the overall goals and it iteratively built out the game mechanics, integrated the sprite assets, and added the overlay functionality. Still an experimental project, but making good progress.
+
+Blog post about the creation process used with Copilot CLI: [https://blog.codewithdan.com/building-agent-arcade-with-github-copilot-cli/](https://blog.codewithdan.com/building-agent-arcade-with-github-copilot-cli/)
 
 ## Installing Agent Arcade
 
@@ -93,15 +101,40 @@ Go to the [releases page](https://github.com/DanWahlin/agent-arcade/releases), e
 
 ## Running Locally
 
-> **Prerequisites:** You'll need [Node.js](https://nodejs.org) and the [Tauri v2 prerequisites](https://v2.tauri.app/start/prerequisites/) (Rust toolchain + platform-specific dependencies) installed on your machine.
+> **Prerequisites:** [Node.js](https://nodejs.org), the [Rust toolchain](https://rustup.rs/), and the [Tauri v2 prerequisites](https://v2.tauri.app/start/prerequisites/) for your platform.
 
-1. Clone the repo:
+1. Install Rust:
+
+   **macOS/Linux**:
+   
+   ```bash
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   source "$HOME/.cargo/env"
+   ```
+
+   **Windows**:
+
+   ```bash
+   winget install Rustlang.Rustup
+   ```
+   Restart your terminal after the installation completes.
+
+2. Install the Tauri CLI:
+   ```bash
+   # Remove any existing version (v1 or otherwise)
+   cargo uninstall tauri-cli
+
+    # Install Tauri CLI v2
+   cargo install tauri-cli --version "^2"
+   ```
+
+3. Clone the repo:
    ```bash
    git clone https://github.com/DanWahlin/agent-arcade.git
    cd agent-arcade
    ```
 
-2. Install dependencies and start the app:
+4. Install dependencies and start the app:
    ```bash
    npm install
    npm start
@@ -167,6 +200,15 @@ Go to the [releases page](https://github.com/DanWahlin/agent-arcade/releases), e
 | <kbd>F</kbd> / <kbd>Z</kbd> | Fire (when powered up) |
 | <kbd>↓</kbd> | Enter warp/golden pipes |
 
+### 🛡️ Planet Guardian
+
+| Key | Action |
+|-----|--------|
+| <kbd>←</kbd> <kbd>→</kbd> | Thrust / Reverse |
+| <kbd>↑</kbd> <kbd>↓</kbd> | Move Up / Down |
+| <kbd>Space</kbd> | Fire Laser (hold) |
+| <kbd>Z</kbd> | Smart Bomb |
+
 ### General
 
 | Key | Action |
@@ -187,13 +229,12 @@ npm run dist:linux  # Linux (.AppImage + .deb)
 Or push a version tag to trigger the CI/CD pipeline:
 
 ```bash
-git tag v0.2.0
-git push origin v0.2.0
+npm run release 0.5.0   # bumps version, generates changelog, tags, and pushes
 ```
 
 ## Credits
 
-Initially inspired by [Aman](https://x.com/Amank1412) and his [Desktop Mario project](https://github.com/bxf1001g/desktop_mario/releases) as well as [Anthony Shaw](https://github.com/tonybaloney) and his [VS Code Pets](https://marketplace.visualstudio.com/items?itemName=tonybaloney.vscode-pets) project.
+Initially inspired by [Aman's post on X](https://x.com/Amank1412/status/2044489263799275722) about the [Desktop Mario project](https://github.com/bxf1001g/desktop_mario/releases) as well as [Anthony Shaw](https://github.com/tonybaloney) and his [VS Code Pets](https://marketplace.visualstudio.com/items?itemName=tonybaloney.vscode-pets) project.
 
 Thanks to [John Papa](https://github.com/johnpapa) for his Alien Onslaught game PR.
 
@@ -204,5 +245,7 @@ Space shooter assets: [Space Shooter Redux](https://opengameart.org/content/spac
 Galaga-style game mechanics: [WesleyEdwards/galaga](https://github.com/WesleyEdwards/galaga) by Wesley Edwards
 
 Asteroids-style game mechanics: [phaser3-typescript](https://github.com/digitsensitive/phaser3-typescript) by digitsensitive
+
+Defender-style game mechanics and sound effects: [OpenDefender](https://github.com/mkinney/Opendefender) by mkinney
 
 Retro game sound effects: ["Retro game sound effects"](https://opengameart.org/content/retro-game-sound-effects) by Vircon32 (Carra), published at OpenGameArt under license [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/)

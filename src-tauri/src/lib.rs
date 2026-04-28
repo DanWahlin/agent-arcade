@@ -10,6 +10,7 @@ use std::sync::Mutex;
 static VISIBLE: AtomicBool = AtomicBool::new(false);
 static PAUSED: AtomicBool = AtomicBool::new(false);
 static UPDATE_CHECK_DONE: AtomicBool = AtomicBool::new(false);
+static UPDATE_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
 
 /// The current toggle shortcut string (e.g. "Ctrl+Alt+M").
 /// Updated by the `set_toggle_shortcut` command from JS.
@@ -26,10 +27,26 @@ static UNPAUSE_SHORTCUT: Mutex<String> = Mutex::new(String::new());
 // ── Tauri commands (called from JS via invoke()) ──────────────────────
 
 /// Enable/disable click-through so clicks pass to apps below the overlay.
+/// When disabling click-through (window becomes interactive), proactively
+/// request OS keyboard focus. Focus during active gameplay is maintained
+/// reactively by the blur handler in hud.js via the request_focus command.
 #[tauri::command]
 fn set_click_through(app: AppHandle, enabled: bool) {
     if let Some(win) = app.get_webview_window("main") {
         let _ = win.set_ignore_cursor_events(enabled);
+        if !enabled {
+            let _ = win.set_focus();
+        }
+    }
+}
+
+/// Immediately request OS keyboard focus without changing click-through state.
+/// Called by the blur handler in hud.js to reclaim focus the instant
+/// another window steals it during active gameplay.
+#[tauri::command]
+fn request_focus(app: AppHandle) {
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.set_focus();
     }
 }
 
@@ -66,7 +83,7 @@ fn set_paused(app: AppHandle, paused: bool) {
                 let hud_width = (1200.0 * scale) as u32;
                 let hud_height = (152.0 * scale) as u32;
                 let screen_w = monitor.size().width;
-                let x = ((screen_w - hud_width) / 2) as i32;
+                let x = ((screen_w as i32 - hud_width as i32) / 2).max(0);
                 let y = monitor.position().y;
                 let _ = win.set_size(tauri::PhysicalSize::new(hud_width, hud_height));
                 let _ = win.set_position(tauri::PhysicalPosition::new(x, y));
@@ -81,7 +98,7 @@ fn set_paused(app: AppHandle, paused: bool) {
                 let scale = monitor.scale_factor();
                 let bottom_trim = (5.0 * scale) as u32;
                 let _ = win.set_position(tauri::PhysicalPosition::new(pos.x, pos.y));
-                let _ = win.set_size(tauri::PhysicalSize::new(size.width, size.height - bottom_trim));
+                let _ = win.set_size(tauri::PhysicalSize::new(size.width, size.height.saturating_sub(bottom_trim)));
             }
             // Remove paused class and restore overlays via named JS function
             let _ = win.eval("window.__agentArcadeOnResume && window.__agentArcadeOnResume()");
@@ -100,6 +117,50 @@ fn quit_app(app: AppHandle) {
 #[tauri::command]
 fn hide_app(app: AppHandle) {
     hide_window(&app);
+}
+
+/// Return the app version from Cargo.toml (set at compile time).
+#[tauri::command]
+fn get_app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+/// Download and install an available update, then restart the app.
+#[tauri::command]
+async fn install_update(app: AppHandle) -> Result<(), String> {
+    if UPDATE_IN_PROGRESS.swap(true, Ordering::SeqCst) {
+        return Err("Update already in progress".to_string());
+    }
+    use tauri_plugin_updater::UpdaterExt;
+    let updater = app.updater_builder().build().map_err(|e| {
+        UPDATE_IN_PROGRESS.store(false, Ordering::SeqCst);
+        e.to_string()
+    })?;
+    match updater.check().await {
+        Ok(Some(update)) => {
+            // Notify JS that download is starting
+            if let Some(win) = app.get_webview_window("main") {
+                let _ = win.eval("if(window.__agentArcadeUpdateStatus)window.__agentArcadeUpdateStatus('downloading')");
+            }
+            if let Err(e) = update.download_and_install(|_, _| {}, || {}).await {
+                UPDATE_IN_PROGRESS.store(false, Ordering::SeqCst);
+                return Err(e.to_string());
+            }
+            // Notify JS that install is complete, then restart
+            if let Some(win) = app.get_webview_window("main") {
+                let _ = win.eval("if(window.__agentArcadeUpdateStatus)window.__agentArcadeUpdateStatus('restarting')");
+            }
+            app.restart();
+        }
+        Ok(None) => {
+            UPDATE_IN_PROGRESS.store(false, Ordering::SeqCst);
+            Err("No update available".to_string())
+        }
+        Err(e) => {
+            UPDATE_IN_PROGRESS.store(false, Ordering::SeqCst);
+            Err(format!("Update check failed: {}", e))
+        }
+    }
 }
 
 /// Shared helper: swap a global shortcut registration, updating the stored Mutex.
@@ -245,6 +306,8 @@ fn show_window(app: &AppHandle) {
         let _ = win.show();
         let _ = win.set_focus();
         VISIBLE.store(true, Ordering::SeqCst);
+        // Re-register Escape so it can pause the running game
+        register_pause_shortcut(app);
     }
 }
 
@@ -252,6 +315,8 @@ fn hide_window(app: &AppHandle) {
     if let Some(win) = app.get_webview_window("main") {
         let _ = win.hide();
         VISIBLE.store(false, Ordering::SeqCst);
+        // Unregister Escape so it passes through to other apps while hidden
+        unregister_pause_shortcut(app);
     }
 }
 
@@ -283,7 +348,7 @@ fn resume_game(app: &AppHandle) {
             let scale = monitor.scale_factor();
             let bottom_trim = (5.0 * scale) as u32;
             let _ = win.set_position(tauri::PhysicalPosition::new(pos.x, pos.y));
-            let _ = win.set_size(tauri::PhysicalSize::new(size.width, size.height - bottom_trim));
+            let _ = win.set_size(tauri::PhysicalSize::new(size.width, size.height.saturating_sub(bottom_trim)));
         }
         // Resume game — overlay restoration is handled inside __agentArcadeResumeFromRust
         let _ = win.eval("window.__agentArcadeResumeFromRust && window.__agentArcadeResumeFromRust()");
@@ -304,7 +369,7 @@ fn pause_game(app: &AppHandle) {
             let hud_width = (1200.0 * scale) as u32;
             let hud_height = (152.0 * scale) as u32;
             let screen_w = monitor.size().width;
-            let x = ((screen_w - hud_width) / 2) as i32;
+            let x = ((screen_w as i32 - hud_width as i32) / 2).max(0);
             let y = monitor.position().y;
             let _ = win.set_size(tauri::PhysicalSize::new(hud_width, hud_height));
             let _ = win.set_position(tauri::PhysicalPosition::new(x, y));
@@ -421,7 +486,7 @@ pub fn run() {
                 })
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![set_click_through, set_paused, quit_app, hide_app, get_cursor_in_window, set_toggle_shortcut, get_toggle_shortcut, set_pause_shortcut, get_pause_shortcut, set_unpause_shortcut, get_unpause_shortcut])
+        .invoke_handler(tauri::generate_handler![set_click_through, request_focus, set_paused, quit_app, hide_app, get_cursor_in_window, set_toggle_shortcut, get_toggle_shortcut, set_pause_shortcut, get_pause_shortcut, set_unpause_shortcut, get_unpause_shortcut, get_app_version, install_update])
         .setup(|app| {
             // Register default toggle shortcut and Escape.
             // If the toggle shortcut is already taken by another app,
@@ -525,7 +590,7 @@ pub fn run() {
                         let scale = monitor.scale_factor();
                         let bottom_trim = (5.0 * scale) as u32;
                         let _ = w.set_position(tauri::PhysicalPosition::new(pos.x, pos.y));
-                        let _ = w.set_size(tauri::PhysicalSize::new(size.width, size.height - bottom_trim));
+                        let _ = w.set_size(tauri::PhysicalSize::new(size.width, size.height.saturating_sub(bottom_trim)));
                     }
                 };
 
@@ -555,7 +620,7 @@ pub fn run() {
                         let scale = monitor.scale_factor();
                         let bottom_trim = (5.0 * scale) as u32;
                         let _ = win_clone.set_position(tauri::PhysicalPosition::new(pos.x, pos.y));
-                        let _ = win_clone.set_size(tauri::PhysicalSize::new(size.width, size.height - bottom_trim));
+                        let _ = win_clone.set_size(tauri::PhysicalSize::new(size.width, size.height.saturating_sub(bottom_trim)));
                     }
                 });
 

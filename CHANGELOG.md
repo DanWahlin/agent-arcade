@@ -1,6 +1,77 @@
 # Changelog
 
 All notable changes to Agent Arcade.
+## [0.5.1] - 2026-04-27
+
+### 🔧 Refactoring
+
+- Rename Planet Guard to Planet Guardian
+## [0.5.0] - 2026-04-27
+
+### 🚀 Features & Improvements
+
+- Feat: Planet Guard game, crash fixes, scene cleanup, and UI improvements
+
+### ⚙️ CI/CD & Build
+
+- Release v0.5.0
+## [0.4.0] - 2026-04-24
+
+### 🚀 Features & Improvements
+
+- Add dual-shot power-up to Galaxy Blaster
+- Feat: add ready screen, fix game switching, improve Galaxy Blaster enemies
+
+### 🐛 Bug Fixes
+
+- Fix: update credits and remove a planning doc
+
+### ⚙️ CI/CD & Build
+
+- Release v0.4.0
+## [0.3.3] - 2026-04-22
+
+### ⚙️ CI/CD & Build
+
+- Release v0.3.3
+## [0.3.2] - 2026-04-22
+
+### 🚀 Features & Improvements
+
+- Feat: add blog post link about creation process and remove outdated blog file
+
+### 🐛 Bug Fixes
+
+- Fix: make update banner clickable during gameplay
+
+### ⚙️ CI/CD & Build
+
+- Release v0.3.2
+- Expand Running Locally prerequisites with explicit install steps ([#5](https://github.com/DanWahlin/agent-arcade/issues/5))
+
+### 📦 Updates
+
+- Feat: auto-download and install updates via Tauri updater
+
+### 💼 Other
+
+- Feat: display app version in settings dialog
+## [0.3.1] - 2026-04-22
+
+### 🚀 Features & Improvements
+
+- Docs: add acknowledgment for John Papa's Alien Onslaught game PR
+- Feat: add Valkyrie Drift sound asset
+- Add background image cover to header of website
+
+### 🐛 Bug Fixes
+
+- Fix: narrow artifact upload globs to exclude deb/app internals
+- Fix: unregister ESC shortcut when window is hidden
+
+### ⚙️ CI/CD & Build
+
+- Release v0.3.1
 ## [0.3.0] - 2026-04-22
 
 ### 🚀 Features & Improvements
@@ -27,6 +98,7 @@ All notable changes to Agent Arcade.
 
 - Update build.yml
 - Update build.yml
+- Release v0.3.0
 
 ### 💼 Other
 

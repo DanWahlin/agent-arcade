@@ -51,18 +51,19 @@ function generatePointsOnBezierCurve(
 /* ------------------------------------------------------------------ */
 /*  Enemy types                                                        */
 /* ------------------------------------------------------------------ */
-type EnemyKind = 'bug' | 'moth' | 'drone' | 'scout' | 'heavy' | 'boss';
+type EnemyKind = 'bug' | 'moth' | 'drone' | 'scout' | 'heavy' | 'boss' | 'commander';
 
 const ENEMY_INFO: Record<EnemyKind, {
   tex: string; frame: string; hp: number;
   formPts: number; divePts: number;
 }> = {
-  bug:   { tex: 'space', frame: 'enemyRed1.png',   hp: 1, formPts: 50,  divePts: 100 },
-  drone: { tex: 'space', frame: 'enemyBlack4.png',  hp: 1, formPts: 60,  divePts: 120 },
-  moth:  { tex: 'space', frame: 'enemyBlue3.png',  hp: 2, formPts: 80,  divePts: 160 },
-  scout: { tex: 'space', frame: 'enemyRed5.png',   hp: 2, formPts: 90,  divePts: 180 },
-  heavy: { tex: 'space', frame: 'enemyBlue5.png',  hp: 3, formPts: 120, divePts: 300 },
-  boss:  { tex: 'space', frame: 'enemyGreen2.png', hp: 4, formPts: 150, divePts: 400 },
+  bug:       { tex: 'space', frame: 'enemyRed1.png',   hp: 1, formPts: 50,  divePts: 100 },
+  drone:     { tex: 'space', frame: 'enemyBlack4.png',  hp: 1, formPts: 60,  divePts: 120 },
+  moth:      { tex: 'space', frame: 'enemyBlue3.png',  hp: 2, formPts: 80,  divePts: 160 },
+  scout:     { tex: 'space', frame: 'enemyRed5.png',   hp: 2, formPts: 90,  divePts: 180 },
+  heavy:     { tex: 'space', frame: 'enemyBlue5.png',  hp: 3, formPts: 120, divePts: 300 },
+  boss:      { tex: 'space', frame: 'enemyGreen2.png', hp: 4, formPts: 150, divePts: 400 },
+  commander: { tex: 'space', frame: 'enemyGreen2.png', hp: 2, formPts: 250, divePts: 500 },
 };
 
 /* ------------------------------------------------------------------ */
@@ -95,16 +96,17 @@ interface Bullet { sprite: any; vx: number; vy: number }
 /* ------------------------------------------------------------------ */
 /*  Wave definitions                                                   */
 /* ------------------------------------------------------------------ */
-interface WaveDef { bugs: number; drones: number; moths: number; scouts: number; heavies: number; bosses: number }
+interface WaveDef { bugs: number; drones: number; moths: number; scouts: number; heavies: number; bosses: number; commanders: number }
 function waveDef(n: number): WaveDef {
   const cycle = ((n - 1) % 5) + 1;
   const tier = Math.floor((n - 1) / 5);
   const extra = tier;
-  if (cycle === 1) return { bugs: 8 + extra, drones: 0, moths: 0, scouts: 0, heavies: 0, bosses: 0 };
-  if (cycle === 2) return { bugs: 4 + extra, drones: 4, moths: 0, scouts: 0, heavies: 0, bosses: 0 };
-  if (cycle === 3) return { bugs: 4, drones: 2, moths: 4 + extra, scouts: 0, heavies: 0, bosses: 0 };
-  if (cycle === 4) return { bugs: 3, drones: 2, moths: 2, scouts: 2 + extra, heavies: 2, bosses: 0 };
-  return { bugs: 3, drones: 2, moths: 2, scouts: 2, heavies: 1 + extra, bosses: 2 };
+  const cmds = n >= 2 ? Math.min(1 + Math.floor(n / 4), 2) : 0;
+  if (cycle === 1) return { bugs: 8 + extra, drones: 0, moths: 0, scouts: 0, heavies: 0, bosses: 0, commanders: cmds };
+  if (cycle === 2) return { bugs: 4 + extra, drones: 4, moths: 0, scouts: 0, heavies: 0, bosses: 0, commanders: cmds };
+  if (cycle === 3) return { bugs: 4, drones: 2, moths: 4 + extra, scouts: 0, heavies: 0, bosses: 0, commanders: cmds };
+  if (cycle === 4) return { bugs: 3, drones: 2, moths: 2, scouts: 2 + extra, heavies: 2, bosses: 0, commanders: cmds };
+  return { bugs: 3, drones: 2, moths: 2, scouts: 2, heavies: 1 + extra, bosses: 2, commanders: cmds };
 }
 
 /* ------------------------------------------------------------------ */
@@ -124,8 +126,8 @@ let SHIP_SPEED = 0.25 * 1000 * SCALE;
 let BULLET_SPEED = 0.45 * 1000 * SCALE;
 const MAX_BULLETS = 3;
 let ENEMY_BULLET_SPEED = 0.3 * 1000 * SCALE;
-const BASE_MAX_DIVERS = 2;
-const MAX_ENEMY_BULLETS = 6;  // cap on-screen enemy bullets (original Galaga: 3-4)
+const BASE_MAX_DIVERS = 4;
+const MAX_ENEMY_BULLETS = 3;  // authentic Galaga: max 3 enemy bullets on screen
 
 /* Formation: 5 rows × 10 cols, centered, in design coords scaled to screen */
 const FORM_COLS = 10;
@@ -382,6 +384,21 @@ function getAttackPath(currPos: { x: number; y: number }): { x: number; y: numbe
     rightAttackPattern(path);
   }
   path.push({ x: currPos.x, y: currPos.y }); // return to formation
+
+  // Scale the dive deeper so enemies reach the player's zone.
+  // Find how deep the pattern goes vs how deep it SHOULD go (near the ship).
+  const targetY = H - OPPONENT_SIZE * 4; // just above the player ship
+  let maxY = -Infinity;
+  for (const p of path) { if (p.y > maxY) maxY = p.y; }
+  if (maxY > currPos.y && maxY < targetY) {
+    const yScale = (targetY - currPos.y) / (maxY - currPos.y);
+    for (const p of path) {
+      if (p !== path[path.length - 1]) { // don't scale the return-to-formation point
+        p.y = currPos.y + (p.y - currPos.y) * yScale;
+      }
+    }
+  }
+
   return generatePointsOnBezierCurve(path, 75);
 }
 
@@ -403,8 +420,13 @@ export class GalaxyBlasterScene extends BaseScene {
   private shieldSprite?: any;
   private shieldPickups: any[] = [];
 
-  /* particle cleanup */
-  private activeEmitters: any[] = [];
+  /* dual-shot power-up */
+  private dualShot = false;
+  private dualShotTimer = 0;
+  private dualShotPickups: { sprite: any; vy: number }[] = [];
+  private dualShotGlow?: any;
+  private normalShipWidth = 0;
+  private normalShipHeight = 0;
 
   /* enemies */
   private enemies: Enemy[] = [];
@@ -443,6 +465,17 @@ export class GalaxyBlasterScene extends BaseScene {
 
   constructor() { super('galaxy-blaster'); }
   get displayName() { return 'Galaxy Blaster'; }
+
+  protected getDescription() {
+    return 'Battle alien formations in deep space. Clear each wave to advance!';
+  }
+
+  protected getControls() {
+    return [
+      { key: '← →', action: 'Move Left / Right' },
+      { key: 'SPACE', action: 'Fire' },
+    ];
+  }
 
   /* ================================================================
      LIFECYCLE
@@ -509,6 +542,12 @@ export class GalaxyBlasterScene extends BaseScene {
 
     this.ship = this.add.sprite(this.shipX, this.shipY, 'space', 'playerShip1_blue.png').setDepth(10);
     this.ship.setDisplaySize(OPPONENT_SIZE * 1.2, OPPONENT_SIZE * 0.9);
+    this.normalShipWidth = OPPONENT_SIZE * 1.2;
+    this.normalShipHeight = OPPONENT_SIZE * 0.9;
+    this.dualShot = false;
+    this.dualShotTimer = 0;
+    this.dualShotPickups = [];
+    this.dualShotGlow = undefined;
 
     this.cursors = this.input.keyboard.createCursorKeys();
     this.spaceKey = this.input.keyboard.addKey('SPACE');
@@ -518,7 +557,7 @@ export class GalaxyBlasterScene extends BaseScene {
     this.syncLevelToHUD(this.wave);
     this.syncScoreToHUD();
     this.loadHighScore();
-    this.startWave();
+    this.startWithReadyScreen(() => this.startWave());
   }
 
   update(_t: number, dtMs: number) {
@@ -532,6 +571,8 @@ export class GalaxyBlasterScene extends BaseScene {
     this.updateEnemyBullets(dt);
     this.checkCollisions();
     this.updateShieldPickups(dt);
+    this.updateDualShotPickups(dt);
+    this.updateDualShot(dt);
     this.updateMeteors(dt);
     this.updateWave(dt);
   }
@@ -639,6 +680,9 @@ export class GalaxyBlasterScene extends BaseScene {
       const bugPath = waveStyle >= 4 ? bottomLoopControlPoints : beeEntryControlPoints;
       addTrail('bug', def.bugs, [3, 4], bugPath, waveStyle % 2 === 1);
     }
+    if (def.commanders > 0) {
+      addTrail('commander', def.commanders, [1, 2], sideEntryControlPoints, waveStyle % 2 === 0);
+    }
 
     this.spawnTimer = 0;
     this.attackTimer = 0;
@@ -697,6 +741,7 @@ export class GalaxyBlasterScene extends BaseScene {
 
     const sprite = this.add.sprite(startPos.x, startPos.y, info.tex, info.frame).setDepth(5);
     sprite.setDisplaySize(OPPONENT_SIZE, OPPONENT_SIZE * 0.85);
+    if (kind === 'commander') sprite.setTint(0xffd700);
 
     const e: Enemy = {
       sprite,
@@ -815,11 +860,11 @@ export class GalaxyBlasterScene extends BaseScene {
       }
     }
 
-    // Attack coordination: scale max divers with wave (2 base, +1 per 3 waves, cap at 5)
-    const maxDivers = Math.min(BASE_MAX_DIVERS + Math.floor((this.wave - 1) / 3), 5);
+    // Attack coordination: scale max divers with wave (4 base, +1 per 2 waves, cap at 8)
+    const maxDivers = Math.min(BASE_MAX_DIVERS + Math.floor((this.wave - 1) / 2), 8);
     this.attackTimer += dt;
-    if (this.attackTimer >= 1000) {
-      this.attackTimer -= 1000;
+    if (this.attackTimer >= 600) {
+      this.attackTimer -= 600;
       const attackers = this.enemies.filter(e => e.state === 'attack').length;
       if (attackers < maxDivers) {
         this.triggerDive();
@@ -927,13 +972,15 @@ export class GalaxyBlasterScene extends BaseScene {
   }
 
   private fireEnemyBullet(x: number, y: number) {
-    // Cap on-screen enemy bullets (authentic Galaga limits to 3-4)
+    // Cap on-screen enemy bullets (authentic Galaga: max 3)
     if (this.enemyBullets.length >= MAX_ENEMY_BULLETS) return;
+    // Don't fire if enemy is below or at the player's level
+    if (y >= this.shipY) return;
 
-    // Galaga-authentic discrete 3-direction system:
-    // Slight horizontal bias toward player, but always nearly vertical
+    // Galaga-authentic: bullets go nearly straight down with discrete
+    // 3-direction aiming (straight, slight-left, slight-right).
     const dx = this.shipX - x;
-    const horizontalBias = 0.15; // ratio of horizontal to vertical speed (~8.5° angle)
+    const horizontalBias = 0.18;
     let vx = 0;
     if (dx < -OPPONENT_SIZE) vx = -ENEMY_BULLET_SPEED * horizontalBias;
     else if (dx > OPPONENT_SIZE) vx = ENEMY_BULLET_SPEED * horizontalBias;
@@ -980,9 +1027,20 @@ export class GalaxyBlasterScene extends BaseScene {
     // fire (edge-detect)
     const spaceDown = this.spaceKey.isDown;
     if (spaceDown && !this.spaceWasDown && this.bullets.length < MAX_BULLETS) {
-      const s = this.add.sprite(this.shipX, this.shipY - 12, 'space', 'laserBlue01.png').setDepth(5);
-      s.setDisplaySize(OPPONENT_SIZE * 0.15, OPPONENT_SIZE * 0.55);
-      this.bullets.push({ sprite: s, vx: 0, vy: -BULLET_SPEED });
+      if (this.dualShot) {
+        // Dual shot — fire two parallel bullets
+        const offset = this.normalShipWidth * 0.3;
+        const s1 = this.add.sprite(this.shipX - offset, this.shipY - 12, 'space', 'laserBlue01.png').setDepth(5);
+        s1.setDisplaySize(OPPONENT_SIZE * 0.15, OPPONENT_SIZE * 0.55);
+        const s2 = this.add.sprite(this.shipX + offset, this.shipY - 12, 'space', 'laserBlue01.png').setDepth(5);
+        s2.setDisplaySize(OPPONENT_SIZE * 0.15, OPPONENT_SIZE * 0.55);
+        this.bullets.push({ sprite: s1, vx: 0, vy: -BULLET_SPEED });
+        this.bullets.push({ sprite: s2, vx: 0, vy: -BULLET_SPEED });
+      } else {
+        const s = this.add.sprite(this.shipX, this.shipY - 12, 'space', 'laserBlue01.png').setDepth(5);
+        s.setDisplaySize(OPPONENT_SIZE * 0.15, OPPONENT_SIZE * 0.55);
+        this.bullets.push({ sprite: s, vx: 0, vy: -BULLET_SPEED });
+      }
       this.sound.play('sfx_laser', { volume: 0.3 });
     }
     this.spaceWasDown = spaceDown;
@@ -1054,11 +1112,15 @@ export class GalaxyBlasterScene extends BaseScene {
             const ey = e.sprite.y;
             e.sprite.destroy();
             this.enemies.splice(ei, 1);
-            // Shield pickup chance
-            if (Math.random() < 0.08) {
+            // Shield pickup chance (not from commanders)
+            if (e.kind !== 'commander' && Math.random() < 0.08) {
               const pu = this.add.sprite(ex, ey, 'space', 'powerupBlue_shield.png').setDepth(5);
               pu.setDisplaySize(OPPONENT_SIZE * 0.6, OPPONENT_SIZE * 0.6);
               this.shieldPickups.push({ sprite: pu, vy: 180 * SCALE });
+            }
+            // Commanders always drop dual-shot pickup
+            if (e.kind === 'commander') {
+              this.spawnDualShotPickup(ex, ey);
             }
           } else {
             e.sprite.setTint(0xffffff);
@@ -1148,6 +1210,9 @@ export class GalaxyBlasterScene extends BaseScene {
       return;
     }
 
+    // Cancel dual-shot on hit
+    if (this.dualShot) this.deactivateDualShot();
+
     this.lives--;
     this.syncLivesToHUD();
     this.spawnExplosion(this.shipX, this.shipY, 'player');
@@ -1190,6 +1255,81 @@ export class GalaxyBlasterScene extends BaseScene {
     this.shieldSprite = this.add.sprite(this.shipX, this.shipY, 'space', 'shield1.png').setDepth(11);
     this.shieldSprite.setDisplaySize(OPPONENT_SIZE * 1.6, OPPONENT_SIZE * 1.4);
     this.shieldSprite.setAlpha(0.6);
+  }
+
+  /* ================================================================
+     DUAL-SHOT POWER-UP
+     ================================================================ */
+
+  private spawnDualShotPickup(x: number, y: number) {
+    const pu = this.add.sprite(x, y, 'space', 'powerupYellow_bolt.png').setDepth(5);
+    pu.setDisplaySize(OPPONENT_SIZE * 0.6, OPPONENT_SIZE * 0.6);
+    pu.setTint(0xffd700);
+    // Pulsing glow
+    this.tweens.add({
+      targets: pu, alpha: { from: 1, to: 0.5 },
+      duration: 400, yoyo: true, repeat: -1,
+    });
+    this.dualShotPickups.push({ sprite: pu, vy: 160 * SCALE });
+  }
+
+  private updateDualShotPickups(dt: number) {
+    for (let i = this.dualShotPickups.length - 1; i >= 0; i--) {
+      const pu = this.dualShotPickups[i];
+      pu.sprite.y += pu.vy * (dt / 1000);
+      if (pu.sprite.y > H) { pu.sprite.destroy(); this.dualShotPickups.splice(i, 1); continue; }
+      const dx = Math.abs(pu.sprite.x - this.shipX);
+      const dy = Math.abs(pu.sprite.y - this.shipY);
+      if (dx < OPPONENT_SIZE * 0.8 && dy < OPPONENT_SIZE * 0.8) {
+        pu.sprite.destroy();
+        this.dualShotPickups.splice(i, 1);
+        this.activateDualShot();
+      }
+    }
+  }
+
+  private activateDualShot() {
+    this.dualShot = true;
+    this.dualShotTimer = 15000; // 15 seconds
+    this.sound.play('sfx_shieldUp', { volume: 0.4 });
+
+    // Widen ship
+    this.ship.setDisplaySize(this.normalShipWidth * 1.5, this.normalShipHeight);
+
+    // Add glow effect
+    if (this.dualShotGlow) this.dualShotGlow.destroy();
+    this.dualShotGlow = this.add.sprite(this.shipX, this.shipY, 'space', 'playerShip1_blue.png').setDepth(9);
+    this.dualShotGlow.setDisplaySize(this.normalShipWidth * 1.8, this.normalShipHeight * 1.3);
+    this.dualShotGlow.setTint(0xffd700);
+    this.dualShotGlow.setAlpha(0.25);
+  }
+
+  private updateDualShot(dt: number) {
+    if (!this.dualShot) return;
+    this.dualShotTimer -= dt;
+
+    // Update glow position
+    if (this.dualShotGlow) {
+      this.dualShotGlow.setPosition(this.shipX, this.shipY);
+      this.dualShotGlow.setAlpha(0.15 + Math.sin(this.time.now / 200) * 0.1);
+    }
+
+    // Flash warning when about to expire
+    if (this.dualShotTimer < 3000 && this.dualShotTimer > 0) {
+      this.ship.setAlpha(Math.sin(this.dualShotTimer * 0.01) > 0 ? 1 : 0.6);
+    }
+
+    if (this.dualShotTimer <= 0) {
+      this.deactivateDualShot();
+    }
+  }
+
+  private deactivateDualShot() {
+    this.dualShot = false;
+    this.dualShotTimer = 0;
+    this.ship.setDisplaySize(this.normalShipWidth, this.normalShipHeight);
+    this.ship.setAlpha(1);
+    if (this.dualShotGlow) { this.dualShotGlow.destroy(); this.dualShotGlow = undefined; }
   }
 
   /* ================================================================
@@ -1264,39 +1404,56 @@ export class GalaxyBlasterScene extends BaseScene {
      ================================================================ */
 
   private spawnExplosion(x: number, y: number, kind: EnemyKind | 'player') {
-    const colorMap: Record<string, number[]> = {
-      bug:    [0xffff00, 0xff4444, 0xff8800],
-      drone:  [0x888888, 0x444444, 0xffff00],
-      moth:   [0x4444ff, 0x00aaff, 0xffffff],
-      scout:  [0xff0000, 0xff8800, 0xffff00],
-      heavy:  [0x0066ff, 0x00ccff, 0xffffff],
-      boss:   [0x00ff00, 0xaa00ff, 0xff00ff],
-      player: [0xffffff, 0xffff00, 0xff8800],
+    const tintMap: Record<string, number> = {
+      bug:    0xffff00,
+      drone:  0x888888,
+      moth:   0x4444ff,
+      scout:  0xff0000,
+      heavy:  0x0066ff,
+      boss:   0x00ff00,
+      player: 0xffffff,
     };
-    const colors = colorMap[kind] || colorMap.player;
-
-    const emitter = this.add.particles(x, y, 'spark', {
-      speed: { min: 50, max: 200 },
-      scale: { start: 0.8, end: 0 },
-      lifespan: { min: 300, max: 600 },
-      alpha: { start: 1, end: 0 },
-      color: colors,
-      emitting: false,
-    });
-    emitter.setDepth(50);
-    emitter.explode(kind === 'player' ? 40 : 25);
-    this.activeEmitters.push(emitter);
-    this.time.delayedCall(800, () => {
-      if (emitter && emitter.active) emitter.destroy();
-      this.activeEmitters = this.activeEmitters.filter(e => e !== emitter);
-    });
+    const tint = tintMap[kind] || tintMap.player;
+    const count = kind === 'player' ? 40 : 25;
+    this.spawnParticleExplosion(x, y, tint, count);
   }
 
   shutdown() {
     super.shutdown();
-    this.activeEmitters.forEach(e => { if (e && e.active) e.destroy(); });
-    this.activeEmitters = [];
-    const banner = document.getElementById('wave-banner');
-    if (banner) banner.remove();
+
+    // Destroy player ship
+    this.destroyObj(this.ship);
+
+    // Destroy bullet sprites
+    for (const b of this.bullets) this.destroyObj(b.sprite);
+    this.bullets = [];
+
+    // Destroy enemy sprites
+    for (const e of this.enemies) this.destroyObj(e.sprite);
+    this.enemies = [];
+
+    // Destroy enemy bullet sprites
+    for (const b of this.enemyBullets) this.destroyObj(b.sprite);
+    this.enemyBullets = [];
+
+    // Destroy shield and pickups
+    this.destroyObj(this.shieldSprite);
+    this.shieldSprite = undefined;
+    for (const p of this.shieldPickups) this.destroyObj(p);
+    this.shieldPickups = [];
+
+    // Destroy dual-shot pickups and glow
+    for (const p of this.dualShotPickups) this.destroyObj(p.sprite);
+    this.dualShotPickups = [];
+    this.destroyObj(this.dualShotGlow);
+    this.dualShotGlow = undefined;
+
+    // Destroy meteors
+    for (const m of this.meteors) this.destroyObj(m.sprite);
+    this.meteors = [];
+
+    // Destroy wave text
+    this.destroyObj(this.waveTextSprite);
+    this.waveTextSprite = null;
   }
 }

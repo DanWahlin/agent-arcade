@@ -140,6 +140,7 @@
     { src: 'images/agent-arcade-ninja.gif',  label: '🥷 Ninja Runner',   duration: 14670 },
     { src: 'images/agent-arcade-galaxy.gif', label: '🚀 Galaxy Blaster', duration: 10070 },
     { src: 'images/agent-arcade-rocks.gif',  label: '☄️ Cosmic Rocks',   duration: 9800 },
+    { src: 'images/agent-arcade-guardian.gif', label: '🛡️ Planet Guardian', duration: 10580 },
   ];
 
   function shuffle(arr) {
@@ -174,27 +175,34 @@
     toolbar.parentNode.insertBefore(progressBar, toolbar.nextSibling);
 
     const FADE_MS = 350;
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 1000;
     let timer = null;
 
-    function showGif(idx) {
+    function showGif(idx, retryCount) {
+      retryCount = retryCount || 0;
       currentIdx = idx;
       const data = GIF_DATA[order[idx]];
       const dur = data.duration;
 
-      // Fade out
-      display.classList.remove('visible');
-      label.style.opacity = '0';
+      // Fade out (skip on retry to avoid flicker)
+      if (retryCount === 0) {
+        display.classList.remove('visible');
+        label.style.opacity = '0';
 
-      // Reset progress
-      progressBar.style.transition = 'none';
-      progressBar.style.width = '0%';
+        // Reset progress
+        progressBar.style.transition = 'none';
+        progressBar.style.width = '0%';
+      }
 
       setTimeout(() => {
-        // Force GIF restart by appending a cache-bust then removing it
+        // Force GIF restart by appending a cache-bust
         display.src = data.src + '?t=' + Date.now();
         label.textContent = data.label;
 
         const onLoad = () => {
+          display.removeEventListener('load', onLoad);
+          display.removeEventListener('error', onError);
           display.classList.add('visible');
           label.style.opacity = '1';
 
@@ -203,13 +211,25 @@
             progressBar.style.transition = `width ${dur}ms linear`;
             progressBar.style.width = '100%';
           });
-
-          display.removeEventListener('load', onLoad);
         };
+
+        var onError = () => {
+          display.removeEventListener('load', onLoad);
+          display.removeEventListener('error', onError);
+          if (retryCount < MAX_RETRIES) {
+            setTimeout(() => showGif(idx, retryCount + 1), RETRY_DELAY);
+          } else {
+            // Skip to next GIF after exhausting retries
+            next();
+          }
+        };
+
         display.addEventListener('load', onLoad);
+        display.addEventListener('error', onError);
 
         if (display.complete && display.naturalWidth > 0) {
           display.removeEventListener('load', onLoad);
+          display.removeEventListener('error', onError);
           onLoad();
         }
 
@@ -221,7 +241,7 @@
         // Schedule next after full GIF plays
         clearTimeout(timer);
         timer = setTimeout(next, dur + FADE_MS);
-      }, FADE_MS);
+      }, retryCount === 0 ? FADE_MS : 0);
     }
 
     function next() {
@@ -243,7 +263,18 @@
 
     display.addEventListener('click', () => {
       const data = GIF_DATA[order[currentIdx]];
-      lbImg.src = data.src + '?t=' + Date.now();
+      var lbRetries = 0;
+      function tryLoadLightbox() {
+        lbImg.src = data.src + '?t=' + Date.now();
+      }
+      lbImg.onerror = function () {
+        if (lbRetries < MAX_RETRIES) {
+          lbRetries++;
+          setTimeout(tryLoadLightbox, RETRY_DELAY);
+        }
+      };
+      lbImg.onload = function () { lbImg.onerror = null; };
+      tryLoadLightbox();
       lbLabel.textContent = data.label;
       lightbox.classList.add('open');
       clearTimeout(timer); // pause carousel

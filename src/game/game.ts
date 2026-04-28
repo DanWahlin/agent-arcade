@@ -7,6 +7,7 @@ import { GalaxyBlasterScene } from './scenes/GalaxyBlaster.js';
 import { CosmicRocksScene } from './scenes/CosmicRocks.js';
 import { AlienOnslaughtScene } from './scenes/AlienOnslaught.js';
 import { CodeBreakerScene } from './scenes/CodeBreaker.js';
+import { PlanetGuardianScene } from './scenes/PlanetGuardian.js';
 
 declare const Phaser: any;
 
@@ -17,6 +18,7 @@ const GAMES = [
   { key: 'code-breaker', scene: CodeBreakerScene, label: '🔐 Code Breaker' },
   { key: 'galaxy-blaster', scene: GalaxyBlasterScene, label: '🚀 Galaxy Blaster' },
   { key: 'ninja-runner', scene: NinjaRunnerScene, label: '🥷 Ninja Runner' },
+  { key: 'defender', scene: PlanetGuardianScene, label: '🛡️ Planet Guardian' },
 ];
 
 let currentGameKey: string;
@@ -79,14 +81,19 @@ function setupGameSwitcher() {
     const entry = GAMES.find(g => g.key === key);
     if (!entry || key === currentGameKey) return;
 
-    // If paused, unpause first
-    const hud = document.getElementById('hud');
-    if (hud && hud.classList.contains('paused')) {
-      hud.classList.remove('paused');
-      document.body.classList.remove('paused');
-      const ab = (window as any).agentArcade;
-      if (ab && ab.setClickThrough) ab.setClickThrough(false);
-      if (ab && ab.setPaused) ab.setPaused(false);
+    const wasPaused = document.getElementById('hud')?.classList.contains('paused') ?? false;
+
+    // Set skip flag BEFORE anything else so the Rust-triggered onResume
+    // won't fire scene resume callbacks on the new scene.
+    if (wasPaused) (window as any).__agentArcadeSkipResume = true;
+
+    // Stop all audio globally (covers paused sounds too)
+    if (game.sound) game.sound.stopAll();
+
+    // Remove DOM overlays from the previous scene (game-over, wave banner, ready screen)
+    for (const id of ['gameover-overlay', 'wave-banner', 'ready-overlay']) {
+      const el = document.getElementById(id);
+      if (el) el.remove();
     }
 
     // Stop current scene, start new one
@@ -95,9 +102,18 @@ function setupGameSwitcher() {
     currentGameKey = key;
     try { localStorage.setItem('agentArcade_lastGame', key); } catch { /* ignore */ }
 
-    // Re-enable click-through and focus the game canvas
+    // Tell Rust we're unpaused so the window expands back to full-screen.
     const ab = (window as any).agentArcade;
-    if (ab && ab.setClickThrough) ab.setClickThrough(true);
+    if (wasPaused && ab && ab.setPaused) ab.setPaused(false);
+
+    // The cursor was over the HUD to trigger this switch, so click-through should
+    // stay OFF. Calling setClickThrough(false) also triggers set_focus() in Rust,
+    // restoring OS keyboard focus after the native <select> interaction. The
+    // cursor-tracking system will re-enable click-through naturally when the
+    // cursor leaves the HUD area — calling setClickThrough(true) here would stall
+    // the tracker (polling is stopped while isOverHud=true, and enabling
+    // click-through kills mousemove events, leaving no way to detect HUD exit).
+    if (ab && ab.setClickThrough) ab.setClickThrough(false);
     const sel = document.getElementById('game-select') as HTMLSelectElement | null;
     if (sel) sel.blur();
     game.canvas.focus();
