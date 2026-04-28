@@ -1,0 +1,75 @@
+name: 🐛 Bug Report
+description: Report a bug or unexpected behavior in Agent Arcade
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please fill out the details below so we can reproduce and fix it.
+
+  - type: dropdown
+    id: game
+    attributes:
+      label: Which game?
+      description: Which mini-game were you playing when the bug occurred?
+      options:
+        - Cosmic Rocks
+        - Alien Onslaught
+        - Galaxy Blaster
+        - Ninja Runner
+        - Planet Guardian
+        - App-level (not game-specific)
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the bug clearly.
+      placeholder: "When I do X, Y happens instead of Z."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: How can we reproduce the bug?
+      placeholder: |
+        1. Launch Agent Arcade
+        2. Switch to Galaxy Blaster
+        3. Collect dual-shot power-up
+        4. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened?
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Windows
+        - Linux
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Agent Arcade version
+      description: "Check the tray icon menu or the release you downloaded (e.g., v0.5.1)"
+      placeholder: "v0.5.1"
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or screen recordings
+      description: If applicable, add screenshots or a short recording to help explain the bug.
