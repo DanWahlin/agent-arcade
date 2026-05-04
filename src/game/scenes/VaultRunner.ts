@@ -18,6 +18,8 @@ import {
 } from './vault-runner/types.js';
 import {
   TEX,
+  C64,
+  FRAMES,
   generateTextures,
   tileTexture,
   isPassable,
@@ -174,6 +176,12 @@ export class VaultRunnerScene extends BaseScene {
   player!: any;
   private playerState!: PlayerState;
   private guards: GuardEntity[] = [];
+  /** Background grid graphic — drawn once per loadLevel. */
+  private bgGrid: any = null;
+  /** Animation frame tick counter — drives 2-frame run cycle timing. */
+  private animTick = 0;
+  /** Tracked tweens so we can stop them on level reload / shutdown. */
+  private trackedTweens: any[] = [];
 
   // --- Subsystems ---
   private holeManager!: HoleManager;
@@ -297,12 +305,17 @@ export class VaultRunnerScene extends BaseScene {
     this.tileSprites = [];
     for (const g of this.guards) if (g.sprite) g.sprite.destroy();
     this.guards = [];
+    for (const tw of this.trackedTweens) { try { tw.stop(); } catch { /* ignore */ } }
+    this.trackedTweens = [];
+    if (this.bgGrid) { this.bgGrid.destroy(); this.bgGrid = null; }
     this.holeManager.reset();
     this.exitRevealed = false;
     this.levelComplete = false;
 
     this.levelData = parsed;
     this.goldRemaining = parsed.goldCount;
+
+    this.drawBackground();
 
     // Render initial tiles. Hide EXIT_LADDER sprites until revealed.
     for (let r = 0; r < GRID_ROWS; r++) {
@@ -315,11 +328,12 @@ export class VaultRunnerScene extends BaseScene {
         sp.setDisplaySize(this.tileSize, this.tileSize);
         sp.setDepth(1);
         if (kind === TileKind.EXIT_LADDER) sp.setVisible(false);
+        if (kind === TileKind.GOLD) this.attachGoldSparkle(sp);
         this.tileSprites[idx] = sp;
       }
     }
 
-    // Player
+    // Player — animated sprite using the generated character sheet
     this.playerState = {
       col: parsed.playerSpawn.col,
       row: parsed.playerSpawn.row,
@@ -329,18 +343,19 @@ export class VaultRunnerScene extends BaseScene {
       alive: true,
     };
     if (this.player) this.player.destroy();
-    this.player = this.add.image(
+    this.player = this.add.sprite(
       this.tileWorldX(this.playerState.col),
       this.tileWorldY(this.playerState.row),
-      TEX.PLAYER,
+      TEX.PLAYER_SHEET,
+      FRAMES.IDLE,
     );
     this.player.setDisplaySize(this.tileSize, this.tileSize);
     this.player.setDepth(10);
 
-    // Guards
+    // Guards — animated sprites
     for (let i = 0; i < parsed.guardSpawns.length; i++) {
       const sp = parsed.guardSpawns[i];
-      const sprite = this.add.image(this.tileWorldX(sp.col), this.tileWorldY(sp.row), TEX.GUARD);
+      const sprite = this.add.sprite(this.tileWorldX(sp.col), this.tileWorldY(sp.row), TEX.GUARD_SHEET, FRAMES.IDLE);
       sprite.setDisplaySize(this.tileSize, this.tileSize);
       sprite.setDepth(9);
       this.guards.push({
@@ -352,6 +367,43 @@ export class VaultRunnerScene extends BaseScene {
     }
 
     this.levelStartTime = this.time.now;
+  }
+
+  /** Draw the background grid + vignette behind the playfield. */
+  private drawBackground() {
+    const g = this.add.graphics();
+    g.setDepth(-50);
+    const gridW = this.tileSize * GRID_COLS;
+    const gridH = this.tileSize * GRID_ROWS;
+    // soft vignette panel
+    g.fillStyle(C64.BG_VIGNETTE, 1);
+    g.fillRect(this.originX - 8, this.originY - 8, gridW + 16, gridH + 16);
+    g.fillStyle(C64.BG, 1);
+    g.fillRect(this.originX, this.originY, gridW, gridH);
+    // grid lines
+    g.lineStyle(1, C64.BG_GRID, 0.7);
+    for (let c = 0; c <= GRID_COLS; c++) {
+      const x = this.originX + c * this.tileSize;
+      g.beginPath(); g.moveTo(x, this.originY); g.lineTo(x, this.originY + gridH); g.strokePath();
+    }
+    for (let r = 0; r <= GRID_ROWS; r++) {
+      const y = this.originY + r * this.tileSize;
+      g.beginPath(); g.moveTo(this.originX, y); g.lineTo(this.originX + gridW, y); g.strokePath();
+    }
+    this.bgGrid = g;
+  }
+
+  /** Add a subtle pulse tween to a gold tile sprite. */
+  private attachGoldSparkle(sp: any) {
+    const tw = this.tweens.add({
+      targets: sp,
+      alpha: { from: 1, to: 0.6 },
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.InOut',
+    });
+    this.trackedTweens.push(tw);
   }
 
   // ── Tile helpers ──────────────────────────────────────────────────────────
@@ -464,10 +516,21 @@ export class VaultRunnerScene extends BaseScene {
       this.snapToCenter(ps, dt);
     }
 
-    // Sync sprite
+    // Sync sprite + animation frame
     this.player.x = this.tileWorldX(ps.col) + ps.ox;
     this.player.y = this.tileWorldY(ps.row) + ps.oy;
     this.player.setFlipX(ps.facing === -1);
+
+    const moving = !!(left || right || up || down);
+    this.player.setFrame(this.pickCharFrame({
+      onLadder, onRope, isFalling, moving, vertical: !!(up || down),
+    }));
+    // Subtle blink during invincibility
+    if (ps.invincible > 0) {
+      this.player.setAlpha(Math.floor(this.time.now / 80) % 2 === 0 ? 0.4 : 1);
+    } else if (this.player.alpha !== 1) {
+      this.player.setAlpha(1);
+    }
 
     // Tile-cell entry effects (gold, exit)
     if (Math.abs(ps.ox) < 1 && Math.abs(ps.oy) < 1) {
@@ -539,19 +602,70 @@ export class VaultRunnerScene extends BaseScene {
     const tr = ps.row + 1;
     if (this.holeManager.dig(tc, tr)) {
       this.sfx('vr_dig', 0.4);
+      this.spawnBrickChunks(this.tileWorldX(tc), this.tileWorldY(tr));
+      // Briefly show dig pose
+      this.player.setFrame(direction < 0 ? FRAMES.DIG_LEFT : FRAMES.DIG_RIGHT);
     }
+  }
+
+  private spawnBrickChunks(x: number, y: number) {
+    try {
+      const emitter = this.add.particles(x, y, TEX.PARTICLE, {
+        speed: { min: 60, max: 200 },
+        angle: { min: 200, max: 340 },
+        gravityY: 600,
+        scale: { start: 1, end: 0.2 },
+        lifespan: 600,
+        quantity: 12,
+        tint: C64.PARTICLE_BRICK,
+        emitting: false,
+      });
+      emitter.setDepth(20);
+      emitter.explode(12);
+      this.activeEmitters.push(emitter);
+      this.time.delayedCall(700, () => {
+        const idx = this.activeEmitters.indexOf(emitter);
+        if (idx >= 0) this.activeEmitters.splice(idx, 1);
+        emitter.destroy();
+      });
+    } catch { /* particles unavailable */ }
   }
 
   // ── Gold / exit ───────────────────────────────────────────────────────────
 
   private collectGold(col: number, row: number) {
+    const wx = this.tileWorldX(col);
+    const wy = this.tileWorldY(row);
     this.setTileKind(col, row, TileKind.EMPTY);
     this.goldRemaining -= 1;
-    this.addScore(GOLD_SCORE, this.tileWorldX(col), this.tileWorldY(row));
+    this.addScore(GOLD_SCORE, wx, wy);
     this.sfx('vr_gold', 0.3);
+    this.spawnGoldSparkle(wx, wy);
     if (this.goldRemaining <= 0 && !this.exitRevealed) {
       this.revealExit();
     }
+  }
+
+  private spawnGoldSparkle(x: number, y: number) {
+    try {
+      const emitter = this.add.particles(x, y, TEX.PARTICLE, {
+        speed: { min: 40, max: 140 },
+        angle: { min: 0, max: 360 },
+        scale: { start: 1.4, end: 0 },
+        lifespan: 500,
+        quantity: 14,
+        tint: C64.PARTICLE_GOLD,
+        emitting: false,
+      });
+      emitter.setDepth(20);
+      emitter.explode(14);
+      this.activeEmitters.push(emitter);
+      this.time.delayedCall(600, () => {
+        const idx = this.activeEmitters.indexOf(emitter);
+        if (idx >= 0) this.activeEmitters.splice(idx, 1);
+        emitter.destroy();
+      });
+    } catch { /* ignore */ }
   }
 
   private revealExit() {
@@ -559,18 +673,35 @@ export class VaultRunnerScene extends BaseScene {
     for (const col of this.levelData.exitColumns) {
       const idx = 0 * GRID_COLS + col;
       const sprite = this.tileSprites[idx];
-      if (sprite) {
-        sprite.setVisible(true);
-        // Pulse animation
-        this.tweens.add({
-          targets: sprite,
-          alpha: { from: 0.4, to: 1 },
-          duration: 600,
-          yoyo: true,
-          repeat: -1,
-        });
-      }
+      if (!sprite) continue;
+      sprite.setVisible(true);
+      // Pulse the exit ladder; also add a soft glow halo behind it
+      const halo = this.add.image(sprite.x, sprite.y, TEX.EXIT);
+      halo.setDisplaySize(this.tileSize * 1.6, this.tileSize * 1.4);
+      halo.setTint(C64.EXIT_GLOW);
+      halo.setAlpha(0.25);
+      halo.setDepth(0);
+      const tw1 = this.tweens.add({
+        targets: sprite,
+        alpha: { from: 0.5, to: 1 },
+        duration: 500,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.InOut',
+      });
+      const tw2 = this.tweens.add({
+        targets: halo,
+        alpha: { from: 0.15, to: 0.45 },
+        scale: { from: 1, to: 1.15 },
+        duration: 700,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.InOut',
+      });
+      this.trackedTweens.push(tw1, tw2);
     }
+    // Burst of sparkle particles centered on the level
+    this.spawnGoldSparkle(W / 2, this.originY + this.tileSize * 1.5);
   }
 
   private advanceLevel() {
@@ -626,6 +757,7 @@ export class VaultRunnerScene extends BaseScene {
         }
         g.sprite.x = this.tileWorldX(g.col) + g.ox;
         g.sprite.y = this.tileWorldY(g.row) + g.oy;
+        g.sprite.setFrame(FRAMES.FALL);
         continue;
       }
 
@@ -646,10 +778,41 @@ export class VaultRunnerScene extends BaseScene {
 
       g.sprite.x = this.tileWorldX(g.col) + g.ox;
       g.sprite.y = this.tileWorldY(g.row) + g.oy;
+
+      // Pick guard frame based on current movement context
+      const here = this.tileAt(g.col, g.row);
+      const onLadder = isClimbable(here);
+      const onRope = here === TileKind.ROPE;
+      const moving = dir !== 'stay';
+      g.sprite.setFrame(this.pickCharFrame({
+        onLadder, onRope, isFalling: false, moving,
+        vertical: dir === 'up' || dir === 'down',
+      }));
+      if (dir === 'left') g.sprite.setFlipX(true);
+      else if (dir === 'right') g.sprite.setFlipX(false);
     }
 
     // Player-guard collision
     this.checkGuardCollision();
+  }
+
+  /** Decide which sprite-sheet frame to display for current actor state. */
+  private pickCharFrame(s: {
+    onLadder: boolean; onRope: boolean; isFalling: boolean; moving: boolean; vertical: boolean;
+  }): number {
+    if (s.isFalling) return FRAMES.FALL;
+    if (s.onRope) {
+      if (!s.moving) return FRAMES.ROPE_A;
+      return Math.floor(this.time.now / 150) % 2 === 0 ? FRAMES.ROPE_A : FRAMES.ROPE_B;
+    }
+    if (s.onLadder && s.vertical) {
+      return Math.floor(this.time.now / 140) % 2 === 0 ? FRAMES.CLIMB_A : FRAMES.CLIMB_B;
+    }
+    if (s.onLadder) return FRAMES.CLIMB_A;
+    if (s.moving) {
+      return Math.floor(this.time.now / 110) % 2 === 0 ? FRAMES.RUN_A : FRAMES.RUN_B;
+    }
+    return FRAMES.IDLE;
   }
 
   private guardStep(g: GuardEntity, dir: Direction, dt: number) {
@@ -716,6 +879,7 @@ export class VaultRunnerScene extends BaseScene {
   private killGuard(g: GuardEntity) {
     this.addScore(GUARD_KILL_SCORE, g.sprite.x, g.sprite.y);
     this.sfx('vr_kill', 0.3);
+    this.spawnDeathBurst(g.sprite.x, g.sprite.y, C64.GUARD);
     // Respawn at original spawn tile
     const spawn = this.levelData.guardSpawns[g.spawnIdx];
     g.col = spawn.col; g.row = spawn.row; g.ox = 0; g.oy = 0;
@@ -723,6 +887,29 @@ export class VaultRunnerScene extends BaseScene {
     g.aiCooldown = 0; g.trappedTimer = 0;
     g.sprite.x = this.tileWorldX(g.col);
     g.sprite.y = this.tileWorldY(g.row);
+    g.sprite.setFrame(FRAMES.IDLE);
+  }
+
+  private spawnDeathBurst(x: number, y: number, tint: number) {
+    try {
+      const emitter = this.add.particles(x, y, TEX.PARTICLE, {
+        speed: { min: 80, max: 220 },
+        angle: { min: 0, max: 360 },
+        scale: { start: 1.4, end: 0 },
+        lifespan: 700,
+        quantity: 18,
+        tint,
+        emitting: false,
+      });
+      emitter.setDepth(20);
+      emitter.explode(18);
+      this.activeEmitters.push(emitter);
+      this.time.delayedCall(800, () => {
+        const idx = this.activeEmitters.indexOf(emitter);
+        if (idx >= 0) this.activeEmitters.splice(idx, 1);
+        emitter.destroy();
+      });
+    } catch { /* ignore */ }
   }
 
   // ── Death ─────────────────────────────────────────────────────────────────
@@ -733,6 +920,7 @@ export class VaultRunnerScene extends BaseScene {
     this.lives -= 1;
     this.syncLivesToHUD();
     this.sfx('vr_die', 0.4);
+    this.spawnDeathBurst(this.player.x, this.player.y, C64.PARTICLE_DEATH);
 
     if (this.lives <= 0) {
       this.time.delayedCall(800, () => {
@@ -808,6 +996,9 @@ export class VaultRunnerScene extends BaseScene {
       delete (window as any).__vaultRunnerLoadFixture;
       delete (window as any).__vaultRunnerGetState;
     } catch { /* ignore */ }
+    for (const tw of this.trackedTweens) { try { tw.stop(); } catch { /* ignore */ } }
+    this.trackedTweens = [];
+    if (this.bgGrid) { this.bgGrid.destroy(); this.bgGrid = null; }
     for (const s of this.tileSprites) if (s) s.destroy();
     this.tileSprites = [];
     for (const g of this.guards) if (g.sprite) g.sprite.destroy();
