@@ -51,7 +51,7 @@ async function getVRState(page: Page): Promise<VaultRunnerState | null> {
 }
 
 /** Load a fixture level for deterministic testing. */
-async function loadFixture(page: Page, name: 'simple' | 'ladder' | 'rope' | 'dig') {
+async function loadFixture(page: Page, name: 'simple' | 'ladder' | 'rope' | 'dig' | 'bridge') {
   await page.evaluate((n) => {
     const fn = (window as any).__vaultRunnerLoadFixture;
     if (!fn) throw new Error('__vaultRunnerLoadFixture not found');
@@ -198,6 +198,49 @@ test.describe('Vault Runner — Gameplay', () => {
     const after = await getVRState(page);
     expect(after!.guardCount).toBe(before!.guardCount);
     expect(after!.holeCount).toBe(0); // hole has fully regenerated
+  });
+
+  test('player can run across a guard trapped in a hole', async ({ page }) => {
+    // Force a guard into a TRAPPED state by writing scene state directly,
+    // then verify the player can walk across the row above without falling
+    // in or losing a life.
+    await loadFixture(page, 'bridge');
+
+    // Set up: guard at col 7 row 14 in a HOLE, state=TRAPPED. Use scene
+    // internals to construct the scenario deterministically (much simpler
+    // than waiting for chase-and-trap timing).
+    await page.evaluate(() => {
+      const game = (window as any).__phaserGame;
+      const scene: any = game.scene.getScenes(true).find((s: any) => s.scene?.key === 'vault-runner');
+      // Move guard into hole: dig the brick at (7, 14), then teleport guard there
+      const ok = scene.holeManager.dig(7, 14);
+      if (!ok) throw new Error('failed to dig fixture hole');
+      const g = scene.guards[0];
+      g.col = 7; g.row = 14; g.ox = 0; g.oy = 0;
+      g.state = 1; // GuardState.TRAPPED
+      g.trappedTimer = 999_999; // never auto-recover during the test window
+      g.sprite.x = scene.tileWorldX(7);
+      g.sprite.y = scene.tileWorldY(14);
+      // Reset player invincibility so we test the actual collision/support
+      // logic, not the start-of-level grace period.
+      scene.playerState.invincible = 0;
+    });
+
+    const before = await getVRState(page);
+    expect(before!.guardsTrapped).toBe(1);
+    expect(before!.lives).toBe(3);
+
+    // Player at col 3 row 13. Walk right past col 7 (over the trapped guard).
+    await holdKey(page, 'ArrowRight', 1500);
+    const after = await getVRState(page);
+
+    // Player must still be on row 13 (didn't fall into the hole at row 14)
+    expect(after!.playerRow).toBe(13);
+    // Player walked past col 7
+    expect(after!.playerCol).toBeGreaterThan(7);
+    // No life lost — guard in hole acts as a platform, not a hazard
+    expect(after!.lives).toBe(3);
+    expect(after!.playerAlive).toBe(true);
   });
 });
 

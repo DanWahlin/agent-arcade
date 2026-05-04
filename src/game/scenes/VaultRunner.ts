@@ -122,6 +122,28 @@ const TEST_FIXTURES: Record<string, string[]> = {
     '############################',
     '############################',
   ],
+  bridge: [
+    // Two-row floor at rows 13/14 with bricks. Player at col 4 row 13, guard
+    // pre-positioned at col 7 row 13. Player digs col 6 row 14 (X), the guard
+    // chases player → falls in the hole → becomes a temporary platform.
+    // Player then steps onto the trapped guard and continues rightward.
+    'E...........................',
+    '............................',
+    '............................',
+    '............................',
+    '............................',
+    '............................',
+    '............................',
+    '............................',
+    '............................',
+    '............................',
+    '............................',
+    '............................',
+    '............................',
+    '...P...G..................$.',
+    '############################',
+    '############################',
+  ],
 };
 
 interface LoadedLevel extends ParsedLevel {
@@ -360,13 +382,25 @@ export class VaultRunnerScene extends BaseScene {
     return this.holeManager.isHole(col, row);
   }
 
+  /** Whether a guard is currently trapped in the hole at (col, row). */
+  private isTrappedGuardAt(col: number, row: number): boolean {
+    for (const g of this.guards) {
+      if (g.state === GuardState.TRAPPED && g.col === col && g.row === row) return true;
+    }
+    return false;
+  }
+
   /** Whether (col, row) is a tile an actor can stand on top of (or hang from). */
   private hasSupport(col: number, row: number): boolean {
     const here = this.tileAt(col, row);
     if (here === TileKind.LADDER || here === TileKind.ROPE) return true;
     if (this.isHoleAt(col, row)) return false; // standing in a hole = no support
     const below = this.tileAt(col, row + 1);
-    if (this.isHoleAt(col, row + 1)) return false;
+    if (this.isHoleAt(col, row + 1)) {
+      // Hole below — but a trapped guard fills the hole and acts as a temporary
+      // platform (classic Lode Runner: you can run across guards stuck in holes).
+      return this.isTrappedGuardAt(col, row + 1);
+    }
     return below === TileKind.BRICK || below === TileKind.CONCRETE || below === TileKind.LADDER;
   }
 
