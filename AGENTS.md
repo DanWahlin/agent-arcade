@@ -2,13 +2,14 @@
 
 ## Project Overview
 
-Agent Arcade is a retro arcade game that runs as a transparent desktop overlay, built with **Tauri v2** (Rust backend) + **Phaser 4** (game engine) + **TypeScript**. It includes five mini-games: Alien Onslaught, Cosmic Rocks, Galaxy Blaster, Ninja Runner, and Planet Guardian.
+Agent Arcade is a retro arcade game that runs as a transparent desktop overlay, built with **Tauri v2** (Rust backend) + **Phaser 4** (game engine) + **TypeScript**. It includes six mini-games: Alien Onslaught, Cosmic Rocks, Galaxy Blaster, Ninja Runner, Planet Guardian, and Vault Runner.
 
 ## Repository Structure
 
 ```
 src/game/          — Frontend game code (TypeScript, Phaser scenes)
-src/game/scenes/   — Game scenes: BaseScene.ts, NinjaRunner.ts, GalaxyBlaster.ts, CosmicRocks.ts, AlienOnslaught.ts, PlanetGuardian.ts
+src/game/scenes/   — Game scenes: BaseScene.ts, NinjaRunner.ts, GalaxyBlaster.ts, CosmicRocks.ts, AlienOnslaught.ts, PlanetGuardian.ts, VaultRunner.ts
+src/game/scenes/vault-runner/  — Vault Runner subsystems (levels, tiles, holeManager, guardAI, types)
 src/game/game.ts   — Game bootstrap, scene registry, and game switcher
 src-tauri/         — Tauri v2 Rust backend (window management, tray icon, overlay)
 docs/              — GitHub Pages website (static HTML/CSS/JS)
@@ -77,6 +78,24 @@ Planet Guardian (`src/game/scenes/PlanetGuardian.ts`) is a side-scrolling shoote
 - **Humanoid rescue** — 10 humanoids walk on terrain. Landers grab them; player can catch falling humanoids. All humanoids dead triggers planet destruction.
 - **Friendly fire** — Player bullets kill humanoids (matches OpenDefender behavior).
 - **Cleanup** — `shutdown()` calls `this.time.removeAllEvents()` and `destroyObj()` on all sprites/emitters to prevent memory leaks on game switch.
+
+## Vault Runner (Lode Runner-style game)
+
+Vault Runner (`src/game/scenes/VaultRunner.ts`) is a tile-grid puzzle-platformer inspired by the 1983 Brøderbund Lode Runner. The runner navigates a 28×16 grid, collects all gold, digs holes to trap guards, and escapes via a revealed ladder. Five hand-crafted levels.
+
+- **Tile grid** — 28 cols × 16 rows. Tile size auto-fits viewport: `tileSize = floor(min(W/28, (H-HUD_PAD)/16))`.
+- **Tile kinds** — EMPTY, BRICK (diggable), CONCRETE (indestructible), LADDER, ROPE, GOLD, EXIT_LADDER (hidden until all gold collected), HOLE (transient).
+- **Manual physics** — no Phaser bodies. Player and guards tracked as grid coords + sub-tile offset; sprites synced each frame.
+- **Programmatic graphics** — all textures generated at runtime via `Graphics.generateTexture()` in `tiles.ts`. No PNG assets required for the game itself; SFX reused from Cosmic Rocks (`assets/cosmic-rocks/sounds/`).
+- **Subsystems** — split out under `src/game/scenes/vault-runner/`:
+  - `levels.ts` — 5 hand-crafted level strings + `parseLevel()` + `validateLevel()` (catches missing player spawn, no gold, no exit, broken bottom row, unknown chars).
+  - `tiles.ts` — texture generation + tile predicate helpers.
+  - `holeManager.ts` — dig/regen state machine: BRICK→DIGGING→OPEN→WARNING→REGEN→BRICK (~4.5s cycle). On regen, fires `onActorCrushed` if anyone occupies the tile.
+  - `guardAI.ts` — BFS pathfinder over the 28×16 grid (recomputed every 200ms).
+  - `types.ts` — shared interfaces and constants.
+- **Hole edge cases** — player can only dig while standing on solid ground (not falling/climbing/roping); guard standing in hole at regen dies and respawns at original spawn tile (+250 score); player crushed by regen loses a life.
+- **Scoring** — gold +100, level clear +1000, guard kill +250, per-level time bonus (5000 → 0 over 60s, paused during ready/pause).
+- **Test hooks** — `window.__vaultRunnerLoadFixture(name)` loads a tiny fixture level for deterministic AI tests; `window.__vaultRunnerGetState()` returns level/gold/hole/guard state.
 
 ## CI/CD
 

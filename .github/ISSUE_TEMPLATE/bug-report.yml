@@ -18,6 +18,7 @@ body:
         - Galaxy Blaster
         - Ninja Runner
         - Planet Guardian
+        - Vault Runner
         - App-level (not game-specific)
     validations:
       required: true

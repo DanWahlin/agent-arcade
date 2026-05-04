@@ -7,6 +7,7 @@ import { GalaxyBlasterScene } from './scenes/GalaxyBlaster.js';
 import { CosmicRocksScene } from './scenes/CosmicRocks.js';
 import { AlienOnslaughtScene } from './scenes/AlienOnslaught.js';
 import { PlanetGuardianScene } from './scenes/PlanetGuardian.js';
+import { VaultRunnerScene } from './scenes/VaultRunner.js';
 
 declare const Phaser: any;
 
@@ -17,6 +18,7 @@ const GAMES = [
   { key: 'galaxy-blaster', scene: GalaxyBlasterScene, label: '🚀 Galaxy Blaster' },
   { key: 'ninja-runner', scene: NinjaRunnerScene, label: '🥷 Ninja Runner' },
   { key: 'defender', scene: PlanetGuardianScene, label: '🛡️ Planet Guardian' },
+  { key: 'vault-runner', scene: VaultRunnerScene, label: '🏃 Vault Runner' },
 ];
 
 let currentGameKey: string;

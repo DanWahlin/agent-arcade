@@ -42,6 +42,7 @@ A retro arcade game collection that runs as a transparent overlay on your deskto
 | 🚀 **Galaxy Blaster** | Galaga-style space shooter with formation enemies, attack patterns, and dual-shot power-up |
 | 🥷 **Ninja Runner** | Classic platformer with double jumps, power-ups, warp pipes, and enemies |
 | 🛡️ **Planet Guardian** | Defender-style side-scrolling shooter — rescue humanoids, battle 6 enemy types, and protect the planet |
+| 🏃 **Vault Runner** | Lode Runner-style grid puzzle-platformer — dig holes to trap guards, collect all the gold, escape via the revealed ladder across 5 levels |
 
 ## How This Was Made
 
@@ -176,6 +177,15 @@ Go to the [releases page](https://github.com/DanWahlin/agent-arcade/releases), e
 | <kbd>↑</kbd> <kbd>↓</kbd> | Move Up / Down |
 | <kbd>Space</kbd> | Fire Laser (hold) |
 | <kbd>Z</kbd> | Smart Bomb |
+
+### 🏃 Vault Runner
+
+| Key | Action |
+|-----|--------|
+| <kbd>←</kbd> <kbd>→</kbd> | Move / Hand-over-hand on rope |
+| <kbd>↑</kbd> <kbd>↓</kbd> | Climb ladder / Drop from rope |
+| <kbd>Z</kbd> | Dig hole down-left |
+| <kbd>X</kbd> | Dig hole down-right |
 
 ### General
 
