@@ -233,7 +233,7 @@ export class VaultRunnerScene extends BaseScene {
     this.syncLevelToHUD(this.level);
 
     this.computeLayout();
-    generateTextures(this, this.tileSize);
+    generateTextures(this);
 
     // Subsystems
     this.holeManager = new HoleManager({
@@ -552,9 +552,13 @@ export class VaultRunnerScene extends BaseScene {
     const dy = targetRow - ps.row;
     const step = (speed * this.tileSize * dt) / 1000;
 
+    // Refuse to move into a solid tile — prevents clipping when the caller
+    // optimistically aims at a brick/concrete (e.g. pressing UP at top of a
+    // ladder where the tile above happens to be a platform).
+    if ((dx !== 0 || dy !== 0) && !this.canEnter(targetCol, targetRow)) return;
+
     if (dx !== 0) {
       ps.ox += dx * step;
-      // crossed center -> commit to new tile
       if (dx > 0 && ps.ox >= this.tileSize / 2) {
         ps.col = targetCol; ps.ox -= this.tileSize;
       } else if (dx < 0 && ps.ox <= -this.tileSize / 2) {

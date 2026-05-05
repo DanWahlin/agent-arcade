@@ -8,12 +8,16 @@
 //   H  LADDER
 //   -  ROPE
 //   $  GOLD
-//   E  EXIT_LADDER spot in top row (revealed when all gold collected)
+//   E  EXIT_LADDER (top row only — revealed when all gold collected)
 //   P  Player spawn (rendered as EMPTY)
 //   G  Guard spawn (rendered as EMPTY)
 //
-// Bottom row (15) should be solid for the ground floor.
-// Top row (0) is reserved for exit ladder reveals.
+// Topology rules (classic Lode Runner):
+//   - Bottom row (15) is fully solid for the floor.
+//   - Ladders extend through platforms so the runner can climb past them.
+//   - Where a ladder ends and a platform begins, the ladder TOP must be at the
+//     same row as the platform TOP — i.e. you stand at row N, your feet
+//     supported by either ladder rungs or the platform tile at row N+1.
 
 import {
   TileKind,
@@ -27,104 +31,117 @@ import { charToTile } from './tiles.js';
 /* eslint-disable max-len */
 
 export const LEVELS: string[][] = [
-  // Level 1 — Tutorial: simple ladders, one guard, gold easily reachable.
+  // ──────────────────────────────────────────────────────────────────────
+  // LEVEL 1 — Tutorial: a single ladder + flat platforms.
+  // Player starts on ground floor. Ladder at col 13 connects ground (row 14)
+  // to upper platform at row 9 to row 14. Gold is on multiple levels.
+  // ──────────────────────────────────────────────────────────────────────
   [
-    'E..........................E',
-    '............................',
-    '............................',
-    '......H..........H..........',
-    '..$...H..........H...$......',
-    '@@@@@@@@@@.......@@@@@@@@@@@',
-    '..........H.................',
-    '..........H..........$......',
-    '..........H........@@@@@@@@@',
-    '..........H...........H.....',
-    '....$.....H...........H.....',
-    '@@@@@@@@@@@@@@@@@@.....H....',
-    '..........G............H....',
-    '..............H........H....',
-    '...P..........H.....$..H....',
-    '############################',
+    'E..........................E',  // 0  exit (top row)
+    '............................',  // 1
+    '............................',  // 2
+    '............................',  // 3
+    '............................',  // 4
+    '............................',  // 5
+    '...$.........H..........$...',  // 6  gold + ladder
+    '###########H#H##############',  // 7  brick platform with ladder hole at 13
+    '...........H.H..............',  // 8
+    '...........H.H..............',  // 9
+    '...$.......H.H........$.....',  // 10 gold
+    '###########H#H##############',  // 11 platform
+    '...........H.H..............',  // 12
+    '..........GH.H..G...........',  // 13 guard spawns
+    '...P.......H.H........$.....',  // 14 player + gold (ground)
+    '############################',  // 15 solid floor
   ],
 
-  // Level 2 — Introduces ropes.
+  // ──────────────────────────────────────────────────────────────────────
+  // LEVEL 2 — Add a rope. Ladders flank the rope; player traverses laterally.
+  // ──────────────────────────────────────────────────────────────────────
   [
-    'E.........................E.',
-    '............................',
-    '......H...............H.....',
-    '......H...------------H.....',
-    '......H...............H.....',
-    '..$...H...............H..$..',
-    '@@@@@@@@@@@.......@@@@@@@@@@',
-    '...........H.....H..........',
-    '......-----H-----H----------',
-    '...........H.....H..........',
-    '...........@@@@@@@..........',
-    '...G.....................G..',
-    '..####....H...........H..#..',
-    '..........H...$.......H.....',
-    '..P..$....H...........H..$..',
-    '############################',
+    'E..........................E',  // 0
+    '............................',  // 1
+    '............................',  // 2
+    '............................',  // 3
+    '......H..............H......',  // 4
+    '......H..------------H......',  // 5  rope between two ladders
+    '..$...H..............H..$...',  // 6  gold flanking
+    '##H###H##############H###H##',  // 7  platform with 4 ladder holes
+    '..H...H..............H...H..',  // 8
+    '..H...H..............H...H..',  // 9
+    '..H.$.H..............H.$.H..',  // 10
+    '##H###H#######G######H###H##',  // 11 platform with guard area above
+    '..H...H..............H...H..',  // 12
+    '..H...H..G...........H...H..',  // 13 guard spawn
+    '..P...H..........$...H......',  // 14 player + gold
+    '############################',  // 15
   ],
 
-  // Level 3 — Forced digging — gold buried in brick.
+  // ──────────────────────────────────────────────────────────────────────
+  // LEVEL 3 — Forced digging. Gold is buried; player must dig through brick.
+  // ──────────────────────────────────────────────────────────────────────
   [
-    'E............E.............E',
-    '............................',
-    '..H.....................H...',
-    '..H.....................H...',
-    '..H............G........H...',
-    '..H..@@@@@@@@@@@@@@@@@@.H...',
-    '..H..$................$.H...',
-    '..H..####@@@@@@@@@@####.H...',
-    '..H........H........H...H...',
-    '..H...$....H.--$----H...H...',
-    '..H..@@@@@@@@@@@@@@@@@@@@@..',
-    '..H.........................',
-    '..H.....G......H............',
-    '..H...........@@@..........$',
-    '..P...$.......H........$....',
-    '############################',
+    'E............E.............E',  // 0
+    '............................',  // 1
+    '............................',  // 2
+    '..H...................H.....',  // 3
+    '..H...................H.....',  // 3a (was 4)
+    '##H###################H#####',  // 5  platform
+    '..H...................H.....',  // 6
+    '..H...$........$......H.....',  // 7  buried gold (dig from above)
+    '##H###################H#####',  // 8  platform — gold is below this row
+    '..H...................H.....',  // 9
+    '..H..G...............G H....',  // 10 guards above
+    '##H###################H#####',  // 11 platform
+    '..H........$..........H.....',  // 12
+    '..H...................H.....',  // 13
+    '..P...$...........$...H..$..',  // 14 player + gold
+    '############################',  // 15
   ],
 
-  // Level 4 — Multi-guard chase, vertical maze.
+  // ──────────────────────────────────────────────────────────────────────
+  // LEVEL 4 — Multi-guard chase. Two ladders + rope create a chase loop.
+  // ──────────────────────────────────────────────────────────────────────
   [
-    'E.....E....................E',
-    '............................',
-    '..H........H..........H.....',
-    '..H........H...G......H..$..',
-    '..H..$.....H..####@@..H..#..',
-    '..H..#@@@@@@@@@@@@@@@.H.....',
-    '..H..............$....H.....',
-    '..H..####@@@@@@@@@##@@H.....',
-    '..H........H..........H..$..',
-    '..H........H..........H..#..',
-    '..H..G.....H...$......H.....',
-    '..H..@@@@@@@@@@@@@@@@@H.....',
-    '..H...................H.....',
-    '..H----------------H..H.....',
-    '..P..G..$..........H..H..$..',
-    '############################',
+    'E.....E....................E',  // 0
+    '............................',  // 1
+    '............................',  // 2
+    '..H........H..............H.',  // 3
+    '..H........H------..------H.',  // 4  two ropes
+    '..H........H..............H.',  // 5
+    '##H########H##############H#',  // 6
+    '..H........H..............H.',  // 7
+    '..H..$.....H........G.....H.',  // 8  gold + guard
+    '##H########H##############H#',  // 9
+    '..H........H..............H.',  // 10
+    '..H........H........$.....H.',  // 11
+    '##H########H##############H#',  // 12
+    '..H...G....H..............H.',  // 13 guard
+    '..P..$.....H...$......G$..H.',  // 14 player + gold
+    '############################',  // 15
   ],
 
-  // Level 5 — Final challenge: ropes + dig puzzles + 3 guards.
+  // ──────────────────────────────────────────────────────────────────────
+  // LEVEL 5 — Final challenge: tall layout with multiple ladders, ropes,
+  // 3 guards, gold spread across all levels.
+  // ──────────────────────────────────────────────────────────────────────
   [
-    'E.E.E....................EEE',
-    '............................',
-    '..H...---------------H......',
-    '..H..............H...H..$...',
-    '..H..H...........H...H..#...',
-    '..H..H..G..H.....H...H......',
-    '..H..H..#@@H@@@@@@...H......',
-    '..H..H.....H.........H..$..G',
-    '..H..@@@@@@@@@@@@@@@@@@@@@@@',
-    '..H..............H..........',
-    '..H..--------H---H----------',
-    '..H..........H..............',
-    '..H..$..G....H........$.....',
-    '..H..####@@@@@@@@@@#########',
-    '..P..................$..G...',
-    '############################',
+    'E.E.E....................EEE',  // 0
+    '............................',  // 1
+    '..H...........H............H',  // 2
+    '..H----------H...---------H.',  // 3  rope segments
+    '..H...........H............H',  // 4
+    '##H###########H############H',  // 5
+    '..H...........H............H',  // 6
+    '..H..G........H........G...H',  // 7
+    '##H###########H############H',  // 8
+    '..H...........H............H',  // 9
+    '..H...$.......H.....$......H',  // 10
+    '##H###########H############H',  // 11
+    '..H...........H............H',  // 12
+    '..H...........H............H',  // 13
+    '..P..G$..$..$.H..$..$..$...H',  // 14
+    '############################',  // 15
   ],
 ];
 
@@ -133,10 +150,7 @@ export interface LevelValidation {
   errors: string[];
 }
 
-/**
- * Parse a level array of strings into grid + spawn data.
- * Pads short rows with EMPTY and clips long rows to GRID_COLS.
- */
+/** Parse a level array of strings into grid + spawn data. */
 export function parseLevel(rows: string[]): ParsedLevel {
   const grid: TileKind[][] = [];
   let playerSpawn: GridPos | null = null;
@@ -151,7 +165,6 @@ export function parseLevel(rows: string[]): ParsedLevel {
       const ch = src[col] ?? '.';
       const kind = charToTile(ch);
       if (kind === null) {
-        // unknown char — treat as empty, validator will flag
         out.push(TileKind.EMPTY);
         continue;
       }
@@ -180,19 +193,10 @@ export function parseLevel(rows: string[]): ParsedLevel {
   };
 }
 
-/**
- * Validate a parsed level. Catches obvious authoring mistakes:
- *   - exactly one player spawn
- *   - at least one gold
- *   - guard spawns reasonable
- *   - exit columns exist (at least one E in row 0)
- *   - bottom row is fully solid (player can't fall off the world)
- *   - no unknown characters in source rows
- */
+/** Validate a parsed level — flags obvious authoring mistakes. */
 export function validateLevel(rows: string[], parsed: ParsedLevel): LevelValidation {
   const errors: string[] = [];
 
-  // Char check
   for (let r = 0; r < rows.length; r++) {
     const line = rows[r];
     for (let c = 0; c < line.length; c++) {
@@ -205,30 +209,23 @@ export function validateLevel(rows: string[], parsed: ParsedLevel): LevelValidat
     }
   }
 
-  // Row count
   if (rows.length !== GRID_ROWS) {
     errors.push(`row count ${rows.length} != ${GRID_ROWS}`);
   }
 
-  // Player spawn count
   let playerCount = 0;
   for (const line of rows) for (const ch of line) if (ch === 'P') playerCount++;
   if (playerCount !== 1) errors.push(`player spawn count: ${playerCount} (expected 1)`);
 
-  // Gold check
   if (parsed.goldCount === 0) errors.push('no gold in level');
-
-  // Exit check
   if (parsed.exitColumns.length === 0) errors.push('no exit ladder (E) in level');
 
-  // Exit columns must be in top row only
   for (const col of parsed.exitColumns) {
     if (parsed.grid[0][col] !== TileKind.EXIT_LADDER) {
       errors.push(`exit at col ${col} should be in row 0`);
     }
   }
 
-  // Bottom row must be solid (no infinite falling off level)
   for (let col = 0; col < GRID_COLS; col++) {
     const t = parsed.grid[GRID_ROWS - 1][col];
     if (t !== TileKind.BRICK && t !== TileKind.CONCRETE) {
@@ -239,7 +236,6 @@ export function validateLevel(rows: string[], parsed: ParsedLevel): LevelValidat
   return { ok: errors.length === 0, errors };
 }
 
-/** Validate all built-in levels. Used in tests and at scene init. */
 export function validateAllLevels(): LevelValidation {
   const errors: string[] = [];
   for (let i = 0; i < LEVELS.length; i++) {
