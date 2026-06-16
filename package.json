@@ -4,6 +4,7 @@
   "description": "Agent Arcade — stress-relief retro platformer overlay to use while your AI agent is working",
   "scripts": {
     "build:frontend": "rm -rf dist/game dist/assets && tsc -p tsconfig.renderer.json && cp src/game/index.html dist/game/ && cp src/game/hud.js dist/game/ && cp node_modules/phaser/dist/phaser.min.js dist/game/ && cp -R assets dist/assets",
+    "build:canvas": "npm run build:frontend && rm -rf .github/extensions/arcade-canvas/game && cp -R dist/game .github/extensions/arcade-canvas/game && find .github/extensions/arcade-canvas/game -name '*.map' -delete",
     "build": "npm run build:frontend && cd src-tauri && cargo build",
     "tauri": "tauri",
     "start": "npm run build:frontend && cd src-tauri && cargo tauri dev",

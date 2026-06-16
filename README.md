@@ -43,6 +43,16 @@ A retro arcade game collection that runs as a transparent overlay on your deskto
 | 🥷 **Ninja Runner** | Classic platformer with double jumps, power-ups, warp pipes, and enemies |
 | 🛡️ **Planet Guardian** | Defender-style side-scrolling shooter — rescue humanoids, battle 6 enemy types, and protect the planet |
 
+## Copilot CLI Canvas
+
+This repo includes a Copilot CLI project canvas extension at `.github/extensions/arcade-canvas`. When the repo is opened in Copilot CLI, agents can open the `arcade-canvas` canvas as a side-panel arcade while they work.
+
+The canvas serves the built Phaser frontend from `.github/extensions/arcade-canvas/game`, reuses the repo's existing `assets/` directory, and exposes agent-callable actions to list games, select a game, or restart the current game. Rebuild the committed canvas bundle after frontend changes with:
+
+```bash
+npm run build:canvas
+```
+
 ## How This Was Made
 
 Idea ➡ Working Prototype over a weekend! I used [GitHub Copilot CLI](https://github.com/features/copilot/cli/) (there's a [free course on it here](https://github.com/github/copilot-cli-for-beginners)), and it helped me quickly scaffold the initial Tauri + Phaser + TypeScript project structure. From there I worked with copilot to plan the game mechanics and overall structure. I told it the overall goals and it iteratively built out the game mechanics, integrated the sprite assets, and added the overlay functionality. Still an experimental project, but making good progress.
