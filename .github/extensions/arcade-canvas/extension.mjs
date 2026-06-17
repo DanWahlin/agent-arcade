@@ -7,9 +7,8 @@ import { fileURLToPath } from "node:url";
 import { CanvasError, createCanvas, joinSession } from "@github/copilot-sdk/extension";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(__dirname, "../../..");
 const gameRoot = path.join(__dirname, "game");
-const assetsRoot = path.join(repoRoot, "assets");
+const assetsRoot = path.join(__dirname, "assets");
 const indexPath = path.join(gameRoot, "index.html");
 const gameJsPath = path.join(gameRoot, "game.js");
 
@@ -127,7 +126,16 @@ async function renderIndex(entry) {
 
   const style = document.createElement("style");
   style.textContent = \`
-    html, body { background: var(--background-color-default, #050814) !important; }
+    html, body, body.paused, #game {
+      background-color: #02040d !important;
+      background-image:
+        radial-gradient(circle at 50% 35%, rgba(18, 34, 88, 0.55), rgba(2, 4, 13, 0.35) 38%, rgba(2, 4, 13, 0.92) 100%),
+        url('/assets/galaxy-blaster/space_bg.png') !important;
+      background-position: center, center !important;
+      background-repeat: no-repeat, repeat !important;
+      background-size: cover, 256px 256px !important;
+    }
+    canvas { background: transparent !important; }
     #hud { top: 12px !important; max-width: calc(100vw - 32px); gap: 12px !important; transform: translateX(-50%) scale(0.92); transform-origin: top center; }
     #minimize-btn, #close-btn, #drag-handle { display: none !important; }
     #update-banner { display: none !important; }

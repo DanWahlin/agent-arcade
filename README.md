@@ -47,7 +47,7 @@ A retro arcade game collection that runs as a transparent overlay on your deskto
 
 This repo includes a Copilot CLI project canvas extension at `.github/extensions/arcade-canvas`. When the repo is opened in Copilot CLI, agents can open the `arcade-canvas` canvas as a side-panel arcade while they work.
 
-The canvas serves the built Phaser frontend from `.github/extensions/arcade-canvas/game`, reuses the repo's existing `assets/` directory, and exposes agent-callable actions to list games, select a game, or restart the current game. Rebuild the committed canvas bundle after frontend changes with:
+The canvas serves the built Phaser frontend from `.github/extensions/arcade-canvas/game`, bundles its game assets in `.github/extensions/arcade-canvas/assets`, and exposes agent-callable actions to list games, select a game, or restart the current game. Rebuild the committed canvas bundle after frontend or asset changes with:
 
 ```bash
 npm run build:canvas
