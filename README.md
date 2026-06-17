@@ -55,7 +55,9 @@ npm run build:canvas
 
 ## How This Was Made
 
-Idea ➡ Working Prototype over a weekend! I used [GitHub Copilot CLI](https://github.com/features/copilot/cli/) (there's a [free course on it here](https://github.com/github/copilot-cli-for-beginners)), and it helped me quickly scaffold the initial Tauri + Phaser + TypeScript project structure. From there I worked with copilot to plan the game mechanics and overall structure. I told it the overall goals and it iteratively built out the game mechanics, integrated the sprite assets, and added the overlay functionality. Still an experimental project, but making good progress.
+Idea ➡ Working prototype over a weekend! I put in a lot of work after the initial prototype of course, but was able to accomplish a lot by starting with a planning document that outlined the overall idea. 
+
+I used [GitHub Copilot CLI](https://github.com/features/copilot/cli/) (there's a [free course on it here](https://github.com/github/copilot-cli-for-beginners)), and it helped me quickly scaffold the initial Tauri + Phaser + TypeScript project structure. From there I worked with copilot to plan the game mechanics and overall structure. I told it the overall goals and it iteratively built out the game mechanics, integrated the sprite assets, and added the overlay functionality. Still an experimental project, but making good progress.
 
 Blog post about the creation process used with Copilot CLI: [https://blog.codewithdan.com/building-agent-arcade-with-github-copilot-cli/](https://blog.codewithdan.com/building-agent-arcade-with-github-copilot-cli/)
 
