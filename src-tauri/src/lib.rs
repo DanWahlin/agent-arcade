@@ -1,7 +1,7 @@
 use tauri::{
-    AppHandle, Manager,
     menu::{MenuBuilder, MenuItemBuilder},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    AppHandle, Manager,
 };
 
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -189,6 +189,10 @@ fn swap_shortcut(
         if let Some(old_sc) = parse_shortcut(&old_combo) {
             let _ = app.global_shortcut().unregister(old_sc);
         }
+    } else if let Some(old_sc) = parse_shortcut(&old_combo) {
+        // A superseded deferred unregister may have been canceled, so ensure
+        // the inactive shortcut is released before storing its replacement.
+        let _ = app.global_shortcut().unregister(old_sc);
     }
 
     *storage.lock().unwrap() = combo.to_string();
@@ -224,8 +228,7 @@ fn set_pause_shortcut(app: AppHandle, combo: String) -> Result<String, String> {
     PAUSE_SC.generation.fetch_add(1, Ordering::SeqCst);
     let _registration = PAUSE_SC.lock.lock().unwrap();
     // Only OS-registered while the game is visible and unpaused.
-    let should_register =
-        VISIBLE.load(Ordering::SeqCst) && !PAUSED.load(Ordering::SeqCst);
+    let should_register = VISIBLE.load(Ordering::SeqCst) && !PAUSED.load(Ordering::SeqCst);
     swap_shortcut(&app, &PAUSE_SHORTCUT, &combo, should_register)
 }
 
@@ -280,19 +283,54 @@ fn parse_shortcut(s: &str) -> Option<tauri_plugin_global_shortcut::Shortcut> {
     }
 
     let code = match key_str.to_uppercase().as_str() {
-        "A" => Code::KeyA, "B" => Code::KeyB, "C" => Code::KeyC, "D" => Code::KeyD,
-        "E" => Code::KeyE, "F" => Code::KeyF, "G" => Code::KeyG, "H" => Code::KeyH,
-        "I" => Code::KeyI, "J" => Code::KeyJ, "K" => Code::KeyK, "L" => Code::KeyL,
-        "M" => Code::KeyM, "N" => Code::KeyN, "O" => Code::KeyO, "P" => Code::KeyP,
-        "Q" => Code::KeyQ, "R" => Code::KeyR, "S" => Code::KeyS, "T" => Code::KeyT,
-        "U" => Code::KeyU, "V" => Code::KeyV, "W" => Code::KeyW, "X" => Code::KeyX,
-        "Y" => Code::KeyY, "Z" => Code::KeyZ,
-        "0" => Code::Digit0, "1" => Code::Digit1, "2" => Code::Digit2, "3" => Code::Digit3,
-        "4" => Code::Digit4, "5" => Code::Digit5, "6" => Code::Digit6, "7" => Code::Digit7,
-        "8" => Code::Digit8, "9" => Code::Digit9,
-        "F1" => Code::F1, "F2" => Code::F2, "F3" => Code::F3, "F4" => Code::F4,
-        "F5" => Code::F5, "F6" => Code::F6, "F7" => Code::F7, "F8" => Code::F8,
-        "F9" => Code::F9, "F10" => Code::F10, "F11" => Code::F11, "F12" => Code::F12,
+        "A" => Code::KeyA,
+        "B" => Code::KeyB,
+        "C" => Code::KeyC,
+        "D" => Code::KeyD,
+        "E" => Code::KeyE,
+        "F" => Code::KeyF,
+        "G" => Code::KeyG,
+        "H" => Code::KeyH,
+        "I" => Code::KeyI,
+        "J" => Code::KeyJ,
+        "K" => Code::KeyK,
+        "L" => Code::KeyL,
+        "M" => Code::KeyM,
+        "N" => Code::KeyN,
+        "O" => Code::KeyO,
+        "P" => Code::KeyP,
+        "Q" => Code::KeyQ,
+        "R" => Code::KeyR,
+        "S" => Code::KeyS,
+        "T" => Code::KeyT,
+        "U" => Code::KeyU,
+        "V" => Code::KeyV,
+        "W" => Code::KeyW,
+        "X" => Code::KeyX,
+        "Y" => Code::KeyY,
+        "Z" => Code::KeyZ,
+        "0" => Code::Digit0,
+        "1" => Code::Digit1,
+        "2" => Code::Digit2,
+        "3" => Code::Digit3,
+        "4" => Code::Digit4,
+        "5" => Code::Digit5,
+        "6" => Code::Digit6,
+        "7" => Code::Digit7,
+        "8" => Code::Digit8,
+        "9" => Code::Digit9,
+        "F1" => Code::F1,
+        "F2" => Code::F2,
+        "F3" => Code::F3,
+        "F4" => Code::F4,
+        "F5" => Code::F5,
+        "F6" => Code::F6,
+        "F7" => Code::F7,
+        "F8" => Code::F8,
+        "F9" => Code::F9,
+        "F10" => Code::F10,
+        "F11" => Code::F11,
+        "F12" => Code::F12,
         "ESCAPE" | "ESC" => Code::Escape,
         "SPACE" => Code::Space,
         "TAB" => Code::Tab,
@@ -379,6 +417,11 @@ fn expand_fullscreen(win: &tauri::WebviewWindow) {
 }
 
 fn show_window(app: &AppHandle) {
+    if PAUSED.load(Ordering::SeqCst) {
+        resume_game(app);
+        return;
+    }
+
     if let Some(win) = app.get_webview_window("main") {
         let _ = win.set_ignore_cursor_events(false);
         let _ = win.show();
@@ -421,6 +464,7 @@ fn toggle_window(app: &AppHandle) {
 fn resume_game_impl(app: &AppHandle, from_hotkey: bool) {
     if let Some(win) = app.get_webview_window("main") {
         PAUSED.store(false, Ordering::SeqCst);
+        VISIBLE.store(true, Ordering::SeqCst);
         // Swap shortcuts back: pause key live again, unpause key released
         register_pause_shortcut(app);
         unregister_unpause_shortcut(app);
