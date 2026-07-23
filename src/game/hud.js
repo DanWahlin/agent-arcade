@@ -59,6 +59,16 @@ if ('mediaSession' in navigator) {
     if (wb) wb.style.display = '';
     var c = document.querySelector('canvas');
     if (c) c.focus();
+    // Reset the cursor tracker to polling mode. If the cursor was over the
+    // HUD when the resume happened (always true for the Resume button),
+    // isOverHud is stuck true with polling stopped — and enabling
+    // click-through below would also kill mousemove events, leaving no way
+    // to ever detect HUD hover again (HUD becomes permanently unclickable).
+    // isOverHud / onDocMouseMove / schedulePoll are hoisted from the
+    // tracker section below and fully assigned before any resume can fire.
+    isOverHud = false;
+    document.removeEventListener('mousemove', onDocMouseMove);
+    schedulePoll();
     // Determine whether any interactive overlay needs click-through OFF.
     var hasOverlay = !!go ||
       !!(settingsOv && settingsOv.classList.contains('show')) ||
