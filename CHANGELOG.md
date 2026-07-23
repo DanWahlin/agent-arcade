@@ -1,6 +1,16 @@
 # Changelog
 
 All notable changes to Agent Arcade.
+## [0.5.2] - 2026-07-22
+
+### 🐛 Bug Fixes
+
+- Fix global shortcut handling and multi-monitor window placement
+- Fix HUD cursor tracker stall after resume
+
+### 🧪 Testing
+
+- Test end-user flows: mute, pause/resume, settings, and game switching
 ## [0.5.1] - 2026-04-27
 
 ### 🔧 Refactoring
