@@ -9,6 +9,7 @@ if (!version) {
 }
 
 const tag = `v${version}`;
+const copilotSession = process.env.COPILOT_SESSION_ID;
 const run = (cmd) => {
   console.log(`\n> ${cmd}`);
   execSync(cmd, { stdio: 'inherit' });
@@ -33,7 +34,8 @@ run('git-cliff --tag ' + tag + ' -o CHANGELOG.md');
 // 3. Commit, tag, push
 console.log('\n📦 Committing and tagging...');
 run('git add -A');
-run(`git commit -m "Release ${tag}\n\nCo-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"`);
+const sessionTrailer = copilotSession ? `\nCopilot-Session: ${copilotSession}` : '';
+run(`git commit -m "Release ${tag}\n\nCo-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>${sessionTrailer}"`);
 run(`git tag ${tag}`);
 run('git push');
 run(`git push origin ${tag}`);

@@ -31,6 +31,9 @@ if ('mediaSession' in navigator) {
     setPaused: function(paused) {
       ti.invoke('set_paused', { paused: !!paused });
     },
+    resetCursorTracker: function() {
+      resetCursorTracker();
+    },
     onResumeRequest: function(cb) {
       resumeCallbacks = [cb];
     },
@@ -59,22 +62,8 @@ if ('mediaSession' in navigator) {
     if (wb) wb.style.display = '';
     var c = document.querySelector('canvas');
     if (c) c.focus();
-    // Reset the cursor tracker to polling mode. If the cursor was over the
-    // HUD when the resume happened (always true for the Resume button),
-    // isOverHud is stuck true with polling stopped — and enabling
-    // click-through below would also kill mousemove events, leaving no way
-    // to ever detect HUD hover again (HUD becomes permanently unclickable).
-    // isOverHud / onDocMouseMove / schedulePoll are hoisted from the
-    // tracker section below and fully assigned before any resume can fire.
-    isOverHud = false;
-    document.removeEventListener('mousemove', onDocMouseMove);
-    schedulePoll();
-    // Determine whether any interactive overlay needs click-through OFF.
-    var hasOverlay = !!go ||
-      !!(settingsOv && settingsOv.classList.contains('show')) ||
-      !!(helpOv && helpOv.classList.contains('show')) ||
-      !!(updateBanner && updateBanner.classList.contains('show'));
-    ti.invoke('set_click_through', { enabled: !hasOverlay });
+    resetCursorTracker();
+    ti.invoke('set_click_through', { enabled: !hasInteractiveSurface() });
   }
 
   // Shared logic for both resume paths: notify game, clear paused CSS, then restore
@@ -127,12 +116,29 @@ if ('mediaSession' in navigator) {
   var settingsOv = document.getElementById('settings-overlay');
   var updateBanner = document.getElementById('update-banner');
 
+  function hasFullScreenInteractiveOverlay() {
+    var gameOver = document.getElementById('gameover-overlay');
+    return !!(gameOver && gameOver.style.display !== 'none') ||
+      !!(helpOv && helpOv.classList.contains('show')) ||
+      !!(settingsOv && settingsOv.classList.contains('show'));
+  }
+
+  function hasInteractiveSurface() {
+    return hasFullScreenInteractiveOverlay() ||
+      !!(updateBanner && updateBanner.classList.contains('show'));
+  }
+
+  function resetCursorTracker() {
+    isOverHud = false;
+    document.removeEventListener('mousemove', onDocMouseMove);
+    schedulePoll();
+  }
+
   function isOverHudArea(x, y) {
+    if (hasFullScreenInteractiveOverlay()) return true;
     if (!hudEl) return false;
     var rect = hudEl.getBoundingClientRect();
     var over = x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
-    if (helpOv && helpOv.classList.contains('show')) over = true;
-    if (settingsOv && settingsOv.classList.contains('show')) over = true;
     if (updateBanner && updateBanner.classList.contains('show')) {
       var br = updateBanner.getBoundingClientRect();
       if (x >= br.left && x <= br.right && y >= br.top && y <= br.bottom) over = true;
@@ -152,8 +158,8 @@ if ('mediaSession' in navigator) {
     if (!isOverHud) return;
     isOverHud = false;
     // When paused, Rust manages click-through (always OFF so HUD bar is clickable).
-    // Only enable click-through in running state to avoid race conditions.
-    if (!document.body.classList.contains('paused')) {
+    // Interactive overlays also require click-through to remain OFF.
+    if (!document.body.classList.contains('paused') && !hasFullScreenInteractiveOverlay()) {
       ti.invoke('set_click_through', { enabled: true });
     }
     document.removeEventListener('mousemove', onDocMouseMove);

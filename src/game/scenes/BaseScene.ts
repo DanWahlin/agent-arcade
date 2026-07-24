@@ -412,6 +412,8 @@ export abstract class BaseScene extends Phaser.Scene {
       this.gameOverShown = false;
       document.removeEventListener('keydown', onKey);
       overlay.remove();
+      const bridge = (window as any).agentArcade;
+      if (bridge?.resetCursorTracker) bridge.resetCursorTracker();
       // Re-enable click-through
       if (ti) ti.invoke('set_click_through', { enabled: true });
       restartFn();

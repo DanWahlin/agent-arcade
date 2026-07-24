@@ -8,8 +8,8 @@
  * so all ti.invoke() calls in hud.js are captured. Tests then assert that
  * set_click_through is called with the right `enabled` value at the right time.
  *
- * The mock returns null for get_cursor_in_window (cursor not over HUD), which keeps
- * the HUD hover system from interfering with set_click_through assertions.
+ * The mock cursor can be moved over or away from the HUD so tests can exercise
+ * both polling mode and event mode deterministically.
  */
 
 import { test, expect, type Page } from '@playwright/test';
@@ -22,10 +22,13 @@ async function setupTauriMock(page: Page) {
   await page.addInitScript(() => {
     const calls: { cmd: string; args: any }[] = [];
     (window as any).__tauriMockCalls = calls;
+    (window as any).__mockCursor = null;
     (window as any).__TAURI_INTERNALS__ = {
       invoke: (cmd: string, args?: any) => {
         calls.push({ cmd, args: args ?? {} });
-        // get_cursor_in_window → null (cursor not over HUD, keeps HUD hover idle)
+        if (cmd === 'get_cursor_in_window') {
+          return Promise.resolve((window as any).__mockCursor);
+        }
         return Promise.resolve(null);
       },
     };
@@ -51,6 +54,30 @@ async function lastClickThrough(page: Page): Promise<boolean | null> {
   const calls = await getInvokeCalls(page);
   const ctCalls = calls.filter(c => c.cmd === 'set_click_through');
   return ctCalls.length > 0 ? ctCalls[ctCalls.length - 1].args.enabled : null;
+}
+
+async function setMockCursorOverHud(page: Page, over: boolean) {
+  await page.evaluate((isOver) => {
+    if (!isOver) {
+      (window as any).__mockCursor = null;
+      return;
+    }
+    const rect = document.getElementById('hud')!.getBoundingClientRect();
+    (window as any).__mockCursor = [
+      (rect.left + rect.right) / 2,
+      (rect.top + rect.bottom) / 2,
+    ];
+  }, over);
+}
+
+async function waitForClickThrough(page: Page, enabled: boolean) {
+  await page.waitForFunction(
+    (expected) => ((window as any).__tauriMockCalls ?? [])
+      .some((call: any) =>
+        call.cmd === 'set_click_through' && call.args.enabled === expected),
+    enabled,
+    { timeout: 3000, polling: 100 },
+  );
 }
 
 /** Trigger game over by setting 1 life then killing the player. */
@@ -87,6 +114,34 @@ test.describe('Focus / click-through — Game Over dialog', () => {
     await restartBtn.click();
     await page.waitForTimeout(500);
     await expect(page.locator('#gameover-overlay')).not.toBeVisible();
+  });
+
+  test('moving from the HUD to RESTART keeps click-through disabled', async ({ page }) => {
+    await setMockCursorOverHud(page, true);
+    await waitForClickThrough(page, false);
+
+    await triggerGameOver(page);
+    const viewport = page.viewportSize();
+    expect(viewport).not.toBeNull();
+    await page.mouse.move(10, viewport!.height - 10);
+    await page.waitForTimeout(100);
+
+    expect(await lastClickThrough(page)).toBe(false);
+  });
+
+  test('dismissing game over restarts HUD cursor polling', async ({ page }) => {
+    await setMockCursorOverHud(page, true);
+    await waitForClickThrough(page, false);
+    await triggerGameOver(page);
+    await page.waitForTimeout(600);
+
+    await setMockCursorOverHud(page, false);
+    await page.locator('#gameover-overlay button').click();
+    await expect(page.locator('#gameover-overlay')).not.toBeVisible();
+
+    await clearInvokeCalls(page);
+    await setMockCursorOverHud(page, true);
+    await waitForClickThrough(page, false);
   });
 
   test('dismissing game over with Space re-enables click-through', async ({ page }) => {

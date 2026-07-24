@@ -1,21 +1,59 @@
 # Changelog
 
 All notable changes to Agent Arcade.
-## [0.5.2] - 2026-07-22
+## [0.5.3] - 2026-07-24
+
+### 🐛 Bug Fixes
+
+- Fix stale shortcut registration on inactive swaps and paused-hidden restore
+## [0.5.2] - 2026-07-23
+
+### 🚀 Features & Improvements
+
+- Feat: enhance GIF loading with retry mechanism and error handling
+- Add contributor tooling: CI, issue templates, skills, and docs
+- Add Copilot CLI arcade canvas
 
 ### 🐛 Bug Fixes
 
 - Fix global shortcut handling and multi-monitor window placement
 - Fix HUD cursor tracker stall after resume
 
+### 📚 Documentation
+
+- Remove unused GIF preload tags from docs index
+- Update README.md
+- Update README with project development details
+
 ### 🧪 Testing
 
+- Only run CI when code/test/asset files change
 - Test end-user flows: mute, pause/resume, settings, and game switching
+
+### ⚙️ CI/CD & Build
+
+- Release v0.5.2
+
+### 📦 Updates
+
+- Update arcade canvas credits
+- Update arcade canvas catalog id
+
+### 💼 Other
+
+- Optimize header image
+- Remove ability to enter blank issue
+- Save uncommitted changes
+- Refine arcade canvas extension behavior
 ## [0.5.1] - 2026-04-27
 
 ### 🔧 Refactoring
 
 - Rename Planet Guard to Planet Guardian
+
+### ⚙️ CI/CD & Build
+
+- Release v0.5.1
 ## [0.5.0] - 2026-04-27
 
 ### 🚀 Features & Improvements
