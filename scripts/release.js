@@ -34,8 +34,8 @@ run('git-cliff --tag ' + tag + ' -o CHANGELOG.md');
 // 3. Commit, tag, push
 console.log('\n📦 Committing and tagging...');
 run('git add -A');
-const sessionTrailer = copilotSession ? `\nCopilot-Session: ${copilotSession}` : '';
-run(`git commit -m "Release ${tag}\n\nCo-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>${sessionTrailer}"`);
+const sessionTrailer = copilotSession ? `\n\nCopilot-Session: ${copilotSession}` : '';
+run(`git commit -m "Release ${tag}${sessionTrailer}"`);
 run(`git tag ${tag}`);
 run('git push');
 run(`git push origin ${tag}`);
