@@ -1,11 +1,20 @@
 # Changelog
 
 All notable changes to Agent Arcade.
+## [0.6.0] - 2026-08-13
+
+### 🚀 Features & Improvements
+
+- Add Surface Defense game with docs site and arcade canvas updates
 ## [0.5.3] - 2026-07-24
 
 ### 🐛 Bug Fixes
 
 - Fix stale shortcut registration on inactive swaps and paused-hidden restore
+
+### ⚙️ CI/CD & Build
+
+- Release v0.5.3
 ## [0.5.2] - 2026-07-23
 
 ### 🚀 Features & Improvements
