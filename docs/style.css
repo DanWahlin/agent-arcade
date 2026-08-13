@@ -633,6 +633,7 @@ img { max-width: 100%; height: auto; }
   border-radius: var(--radius-lg);
   overflow: hidden;
   border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.1);
   transition: transform 0.4s ease, box-shadow 0.4s ease;
 }
 
@@ -649,20 +650,19 @@ img { max-width: 100%; height: auto; }
 
 .game-card:hover .game-card-glow { opacity: 1; }
 
-.ninja { background: linear-gradient(160deg, #1a0f2e, #0d1a2e); }
 .ninja .game-card-glow { background: radial-gradient(ellipse at 30% 20%, rgba(255,198,41,0.08), transparent 70%); }
 .ninja:hover { box-shadow: 0 0 40px rgba(255,198,41,0.12), 0 20px 50px rgba(0,0,0,0.4); }
 
-.galaxy { background: linear-gradient(160deg, #0d1a2e, #1a0f2e); }
 .galaxy .game-card-glow { background: radial-gradient(ellipse at 70% 20%, rgba(0,229,255,0.08), transparent 70%); }
 .galaxy:hover { box-shadow: 0 0 40px rgba(0,229,255,0.12), 0 20px 50px rgba(0,0,0,0.4); }
 
-.cosmic { background: linear-gradient(160deg, #1a1020, #0d1a20); }
 .cosmic .game-card-glow { background: radial-gradient(ellipse at 50% 20%, rgba(255,45,170,0.08), transparent 70%); }
 
 .alien .game-card-glow { background: radial-gradient(ellipse at 40% 20%, rgba(76,217,100,0.08), transparent 70%); }
 
 .defender .game-card-glow { background: radial-gradient(ellipse at 50% 20%, rgba(41,121,255,0.08), transparent 70%); }
+.defense .game-card-glow { background: radial-gradient(ellipse at 50% 20%, rgba(125,249,255,0.1), transparent 70%); }
+.defense:hover { box-shadow: 0 0 40px rgba(125,249,255,0.14), 0 20px 50px rgba(0,0,0,0.4); }
 .cosmic:hover { box-shadow: 0 0 40px rgba(255,45,170,0.12), 0 20px 50px rgba(0,0,0,0.4); }
 
 .game-card-content {

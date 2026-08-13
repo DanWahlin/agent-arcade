@@ -397,9 +397,14 @@ export class BaseScene extends Phaser.Scene {
             this.gameOverShown = false;
             document.removeEventListener('keydown', onKey);
             overlay.remove();
-            // Re-enable click-through
-            if (ti)
+            const bridge = window.agentArcade;
+            if (bridge?.resetCursorTracker)
+                bridge.resetCursorTracker();
+            // Re-enable click-through — except in pointer-driven games, which need
+            // it to stay off so aiming clicks reach the canvas.
+            if (ti && !window.__agentArcadePointerGameActive) {
                 ti.invoke('set_click_through', { enabled: true });
+            }
             restartFn();
         };
         const onKey = (ev) => {

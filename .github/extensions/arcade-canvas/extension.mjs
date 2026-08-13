@@ -20,11 +20,12 @@ const games = [
     { key: "galaxy-blaster", label: "Galaxy Blaster", icon: "🚀" },
     { key: "ninja-runner", label: "Ninja Runner", icon: "🥷" },
     { key: "defender", label: "Planet Guardian", icon: "🛡️" },
+    { key: "surface-defense", label: "Surface Defense", icon: "🎯" },
 ];
 
 const gameKeys = new Set(games.map((game) => game.key));
 const defaultGame = "ninja-runner";
-const canvasBackgroundGames = ["cosmic-rocks", "alien-onslaught", "galaxy-blaster", "defender"];
+const canvasBackgroundGames = ["cosmic-rocks", "alien-onslaught", "galaxy-blaster", "defender", "surface-defense"];
 const servers = new Map();
 
 function normalizeGameKey(value) {
@@ -459,7 +460,7 @@ await joinSession({
         createCanvas({
             id: "arcade-canvas",
             displayName: "Agent Arcade",
-            description: "A retro arcade canvas with five mini-games for waiting while agents work.",
+            description: "A retro arcade canvas with six mini-games for waiting while agents work.",
             inputSchema: {
                 type: "object",
                 properties: {

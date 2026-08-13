@@ -124,7 +124,8 @@ if ('mediaSession' in navigator) {
   }
 
   function hasInteractiveSurface() {
-    return hasFullScreenInteractiveOverlay() ||
+    return !!window.__agentArcadePointerGameActive ||
+      hasFullScreenInteractiveOverlay() ||
       !!(updateBanner && updateBanner.classList.contains('show'));
   }
 
@@ -135,6 +136,7 @@ if ('mediaSession' in navigator) {
   }
 
   function isOverHudArea(x, y) {
+    if (window.__agentArcadePointerGameActive) return true;
     if (hasFullScreenInteractiveOverlay()) return true;
     if (!hudEl) return false;
     var rect = hudEl.getBoundingClientRect();
@@ -169,6 +171,19 @@ if ('mediaSession' in navigator) {
   function onDocMouseMove(e) {
     if (!isOverHudArea(e.clientX, e.clientY)) onCursorLeftHud();
   }
+
+  window.__agentArcadeSetPointerGameActive = function(active) {
+    window.__agentArcadePointerGameActive = !!active;
+    if (active) {
+      onCursorOverHud();
+      return;
+    }
+
+    // Game switches originate from the HUD, so keep interaction enabled until
+    // the pointer leaves the HUD and the normal tracker restores click-through.
+    isOverHud = false;
+    onCursorOverHud();
+  };
 
   function pollCursorPosition() {
     var so = settingsOv && settingsOv.classList.contains('show');

@@ -2,20 +2,21 @@
 
 ## Project Overview
 
-Agent Arcade is a retro arcade game that runs as a transparent desktop overlay, built with **Tauri v2** (Rust backend) + **Phaser 4** (game engine) + **TypeScript**. It includes five mini-games: Alien Onslaught, Cosmic Rocks, Galaxy Blaster, Ninja Runner, and Planet Guardian.
+Agent Arcade is a retro arcade game that runs as a transparent desktop overlay, built with **Tauri v2** (Rust backend) + **Phaser 4** (game engine) + **TypeScript**. It includes six mini-games: Alien Onslaught, Cosmic Rocks, Galaxy Blaster, Ninja Runner, Planet Guardian, and Surface Defense.
 
 ## Repository Structure
 
 ```
 src/game/          — Frontend game code (TypeScript, Phaser scenes)
-src/game/scenes/   — Game scenes: BaseScene.ts, NinjaRunner.ts, GalaxyBlaster.ts, CosmicRocks.ts, AlienOnslaught.ts, PlanetGuardian.ts
+src/game/scenes/   — Game scenes: BaseScene.ts, NinjaRunner.ts, GalaxyBlaster.ts, CosmicRocks.ts, AlienOnslaught.ts, PlanetGuardian.ts, SurfaceDefense.ts
 src/game/game.ts   — Game bootstrap, scene registry, and game switcher
 src-tauri/         — Tauri v2 Rust backend (window management, tray icon, overlay)
 docs/              — GitHub Pages website (static HTML/CSS/JS)
 assets/            — Sprite sheets, sounds, and game assets
 assets/defender/   — Planet Guardian sprites (PNG) and sounds (WAV)
+assets/surface-defense/ — Surface Defense synthesized sound effects (WAV); graphics are procedural
 scripts/           — Build and release scripts (release.js)
-tests/             — Playwright end-to-end tests (7 spec files, 80 tests)
+tests/             — Playwright end-to-end tests, including per-game and viewport coverage
 .plans/            — Game design plans and future feature ideas
 .github/workflows/ — CI: build.yml (Build & Release on tags), deploy-pages.yml (Pages deploy on docs/ changes)
 ```
@@ -42,7 +43,7 @@ npm start                       # Build frontend + launch Tauri dev mode
 
 ```bash
 npm run build:frontend          # Required before tests
-npx playwright test             # Run all tests (80 tests across 7 files)
+npx playwright test             # Run all Playwright tests
 npx playwright test --headed    # Run with visible browser
 ```
 
@@ -77,6 +78,16 @@ Planet Guardian (`src/game/scenes/PlanetGuardian.ts`) is a side-scrolling shoote
 - **Humanoid rescue** — 10 humanoids walk on terrain. Landers grab them; player can catch falling humanoids. All humanoids dead triggers planet destruction.
 - **Friendly fire** — Player bullets kill humanoids (matches OpenDefender behavior).
 - **Cleanup** — `shutdown()` calls `this.time.removeAllEvents()` and `destroyObj()` on all sprites/emitters to prevent memory leaks on game switch.
+
+## Surface Defense (missile-defense game)
+
+Surface Defense (`src/game/scenes/SurfaceDefense.ts`) is a procedurally rendered missile-defense game inspired by classic trackball arcade mechanics.
+
+- **Manual simulation** — missiles, interceptors, explosions, bombers, satellites, collisions, and trails are updated without Phaser physics bodies.
+- **Defenses** — six persistent cities and three batteries with 10 interceptors each; batteries replenish each wave.
+- **Input** — mouse or arrow keys move the targeting cursor. Click/Space fires the nearest battery; A/S/D selects a specific battery.
+- **Escalation** — later waves add faster missiles, splitting warheads, smart warheads that steer around blasts, bombers, and hostile satellites.
+- **Assets** — all graphics are drawn with Phaser Graphics. Original synthesized WAV effects live in `assets/surface-defense/sounds/` and can be regenerated with `node scripts/generate-surface-defense-audio.mjs`.
 
 ## CI/CD
 

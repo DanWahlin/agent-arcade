@@ -6,14 +6,19 @@ import { GalaxyBlasterScene } from './scenes/GalaxyBlaster.js';
 import { CosmicRocksScene } from './scenes/CosmicRocks.js';
 import { AlienOnslaughtScene } from './scenes/AlienOnslaught.js';
 import { PlanetGuardianScene } from './scenes/PlanetGuardian.js';
+import { SurfaceDefenseScene } from './scenes/SurfaceDefense.js';
 // Registry of available games
+// pointerGame: the game aims with the mouse, so click-through must stay off
+// while it is active (see __agentArcadeSetPointerGameActive in hud.js).
 const GAMES = [
     { key: 'cosmic-rocks', scene: CosmicRocksScene, label: '☄️ Cosmic Rocks' },
     { key: 'alien-onslaught', scene: AlienOnslaughtScene, label: '👾 Alien Onslaught' },
     { key: 'galaxy-blaster', scene: GalaxyBlasterScene, label: '🚀 Galaxy Blaster' },
     { key: 'ninja-runner', scene: NinjaRunnerScene, label: '🥷 Ninja Runner' },
     { key: 'defender', scene: PlanetGuardianScene, label: '🛡️ Planet Guardian' },
+    { key: 'surface-defense', scene: SurfaceDefenseScene, label: '🎯 Surface Defense', pointerGame: true },
 ];
+const isPointerGame = (key) => !!GAMES.find(g => g.key === key)?.pointerGame;
 let currentGameKey;
 try {
     // Migrate localStorage from old "galaxy-shooter" name
@@ -64,6 +69,9 @@ function initGame() {
         });
     }
     setupGameSwitcher();
+    if (isPointerGame(currentGameKey)) {
+        window.__agentArcadeSetPointerGameActive?.(true);
+    }
 }
 function setupGameSwitcher() {
     // Expose game switcher for the HUD dropdown
@@ -106,9 +114,12 @@ function setupGameSwitcher() {
         // click-through kills mousemove events, leaving no way to detect HUD exit).
         if (ab && ab.setClickThrough)
             ab.setClickThrough(false);
+        window.__agentArcadeSetPointerGameActive?.(isPointerGame(key));
         const sel = document.getElementById('game-select');
-        if (sel)
+        if (sel) {
+            sel.value = key;
             sel.blur();
+        }
         game.canvas.focus();
     };
 }

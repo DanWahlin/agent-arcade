@@ -7,17 +7,23 @@ import { GalaxyBlasterScene } from './scenes/GalaxyBlaster.js';
 import { CosmicRocksScene } from './scenes/CosmicRocks.js';
 import { AlienOnslaughtScene } from './scenes/AlienOnslaught.js';
 import { PlanetGuardianScene } from './scenes/PlanetGuardian.js';
+import { SurfaceDefenseScene } from './scenes/SurfaceDefense.js';
 
 declare const Phaser: any;
 
 // Registry of available games
-const GAMES = [
+// pointerGame: the game aims with the mouse, so click-through must stay off
+// while it is active (see __agentArcadeSetPointerGameActive in hud.js).
+const GAMES: { key: string; scene: any; label: string; pointerGame?: boolean }[] = [
   { key: 'cosmic-rocks', scene: CosmicRocksScene, label: '☄️ Cosmic Rocks' },
   { key: 'alien-onslaught', scene: AlienOnslaughtScene, label: '👾 Alien Onslaught' },
   { key: 'galaxy-blaster', scene: GalaxyBlasterScene, label: '🚀 Galaxy Blaster' },
   { key: 'ninja-runner', scene: NinjaRunnerScene, label: '🥷 Ninja Runner' },
   { key: 'defender', scene: PlanetGuardianScene, label: '🛡️ Planet Guardian' },
+  { key: 'surface-defense', scene: SurfaceDefenseScene, label: '🎯 Surface Defense', pointerGame: true },
 ];
+
+const isPointerGame = (key: string) => !!GAMES.find(g => g.key === key)?.pointerGame;
 
 let currentGameKey: string;
 try {
@@ -71,6 +77,9 @@ function initGame() {
   }
 
   setupGameSwitcher();
+  if (isPointerGame(currentGameKey)) {
+    (window as any).__agentArcadeSetPointerGameActive?.(true);
+  }
 }
 
 function setupGameSwitcher() {
@@ -112,8 +121,12 @@ function setupGameSwitcher() {
     // the tracker (polling is stopped while isOverHud=true, and enabling
     // click-through kills mousemove events, leaving no way to detect HUD exit).
     if (ab && ab.setClickThrough) ab.setClickThrough(false);
+    (window as any).__agentArcadeSetPointerGameActive?.(isPointerGame(key));
     const sel = document.getElementById('game-select') as HTMLSelectElement | null;
-    if (sel) sel.blur();
+    if (sel) {
+      sel.value = key;
+      sel.blur();
+    }
     game.canvas.focus();
   };
 }

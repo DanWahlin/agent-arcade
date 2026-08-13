@@ -31,6 +31,9 @@ if ('mediaSession' in navigator) {
     setPaused: function(paused) {
       ti.invoke('set_paused', { paused: !!paused });
     },
+    resetCursorTracker: function() {
+      resetCursorTracker();
+    },
     onResumeRequest: function(cb) {
       resumeCallbacks = [cb];
     },
@@ -59,12 +62,8 @@ if ('mediaSession' in navigator) {
     if (wb) wb.style.display = '';
     var c = document.querySelector('canvas');
     if (c) c.focus();
-    // Determine whether any interactive overlay needs click-through OFF.
-    var hasOverlay = !!go ||
-      !!(settingsOv && settingsOv.classList.contains('show')) ||
-      !!(helpOv && helpOv.classList.contains('show')) ||
-      !!(updateBanner && updateBanner.classList.contains('show'));
-    ti.invoke('set_click_through', { enabled: !hasOverlay });
+    resetCursorTracker();
+    ti.invoke('set_click_through', { enabled: !hasInteractiveSurface() });
   }
 
   // Shared logic for both resume paths: notify game, clear paused CSS, then restore
@@ -117,12 +116,31 @@ if ('mediaSession' in navigator) {
   var settingsOv = document.getElementById('settings-overlay');
   var updateBanner = document.getElementById('update-banner');
 
+  function hasFullScreenInteractiveOverlay() {
+    var gameOver = document.getElementById('gameover-overlay');
+    return !!(gameOver && gameOver.style.display !== 'none') ||
+      !!(helpOv && helpOv.classList.contains('show')) ||
+      !!(settingsOv && settingsOv.classList.contains('show'));
+  }
+
+  function hasInteractiveSurface() {
+    return !!window.__agentArcadePointerGameActive ||
+      hasFullScreenInteractiveOverlay() ||
+      !!(updateBanner && updateBanner.classList.contains('show'));
+  }
+
+  function resetCursorTracker() {
+    isOverHud = false;
+    document.removeEventListener('mousemove', onDocMouseMove);
+    schedulePoll();
+  }
+
   function isOverHudArea(x, y) {
+    if (window.__agentArcadePointerGameActive) return true;
+    if (hasFullScreenInteractiveOverlay()) return true;
     if (!hudEl) return false;
     var rect = hudEl.getBoundingClientRect();
     var over = x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
-    if (helpOv && helpOv.classList.contains('show')) over = true;
-    if (settingsOv && settingsOv.classList.contains('show')) over = true;
     if (updateBanner && updateBanner.classList.contains('show')) {
       var br = updateBanner.getBoundingClientRect();
       if (x >= br.left && x <= br.right && y >= br.top && y <= br.bottom) over = true;
@@ -142,8 +160,8 @@ if ('mediaSession' in navigator) {
     if (!isOverHud) return;
     isOverHud = false;
     // When paused, Rust manages click-through (always OFF so HUD bar is clickable).
-    // Only enable click-through in running state to avoid race conditions.
-    if (!document.body.classList.contains('paused')) {
+    // Interactive overlays also require click-through to remain OFF.
+    if (!document.body.classList.contains('paused') && !hasFullScreenInteractiveOverlay()) {
       ti.invoke('set_click_through', { enabled: true });
     }
     document.removeEventListener('mousemove', onDocMouseMove);
@@ -153,6 +171,19 @@ if ('mediaSession' in navigator) {
   function onDocMouseMove(e) {
     if (!isOverHudArea(e.clientX, e.clientY)) onCursorLeftHud();
   }
+
+  window.__agentArcadeSetPointerGameActive = function(active) {
+    window.__agentArcadePointerGameActive = !!active;
+    if (active) {
+      onCursorOverHud();
+      return;
+    }
+
+    // Game switches originate from the HUD, so keep interaction enabled until
+    // the pointer leaves the HUD and the normal tracker restores click-through.
+    isOverHud = false;
+    onCursorOverHud();
+  };
 
   function pollCursorPosition() {
     var so = settingsOv && settingsOv.classList.contains('show');

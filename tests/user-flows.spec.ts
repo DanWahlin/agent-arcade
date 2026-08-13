@@ -192,7 +192,7 @@ test.describe('User flows — full user journey', () => {
   test('switch games, mute, pause, resume, unmute across games', async ({ page }) => {
     const select = page.locator('#game-select');
     const optionCount = await select.locator('option').count();
-    expect(optionCount).toBe(5);
+    expect(optionCount).toBe(6);
 
     await page.click('#mute-btn');
 

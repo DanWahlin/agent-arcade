@@ -57,13 +57,14 @@ test.describe('HUD & UI', () => {
     await expect(page.locator('#help-overlay')).not.toBeVisible();
   });
 
-  test('game dropdown has all five games', async ({ page }) => {
+  test('game dropdown has all six games', async ({ page }) => {
     const options = await page.locator('#game-select option').allTextContents();
-    expect(options).toHaveLength(5);
+    expect(options).toHaveLength(6);
     expect(options.join(',')).toContain('Alien Onslaught');
     expect(options.join(',')).toContain('Cosmic Rocks');
     expect(options.join(',')).toContain('Galaxy Blaster');
     expect(options.join(',')).toContain('Ninja Runner');
     expect(options.join(',')).toContain('Planet Guardian');
+    expect(options.join(',')).toContain('Surface Defense');
   });
 });
