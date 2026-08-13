@@ -33,6 +33,11 @@ A retro arcade game collection that runs as a transparent overlay on your deskto
   <em>🛡️ Planet Guardian</em>
 </p>
 
+<p align="center">
+  <img src="docs/images/agent-arcade-surface.gif" alt="Surface Defense" width="600" /><br/>
+  <em>🎯 Surface Defense</em>
+</p>
+
 ## 🎮 Games
 
 | Game | Description |
