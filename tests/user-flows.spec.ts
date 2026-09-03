@@ -42,9 +42,19 @@ async function clearInvokeCalls(page: Page) {
 /** Point the mocked cursor at the center of the HUD bar (or off it). */
 async function setMockCursorOverHud(page: Page, over: boolean) {
   await page.evaluate((isOver) => {
-    if (!isOver) { (window as any).__mockCursor = null; return; }
+    if (!isOver) {
+      (window as any).__mockCursor = null;
+      document.dispatchEvent(new MouseEvent('mousemove', {
+        clientX: 1,
+        clientY: window.innerHeight - 1,
+      }));
+      return;
+    }
     const r = document.getElementById('hud')!.getBoundingClientRect();
-    (window as any).__mockCursor = [(r.left + r.right) / 2, (r.top + r.bottom) / 2];
+    const x = (r.left + r.right) / 2;
+    const y = (r.top + r.bottom) / 2;
+    (window as any).__mockCursor = [x, y];
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: x, clientY: y }));
   }, over);
 }
 
@@ -140,7 +150,7 @@ test.describe('User flows — pause/resume via HUD', () => {
 });
 
 test.describe('User flows — HUD stays clickable after resume (tracker regression)', () => {
-  test('hover detection still works after pausing and resuming with cursor over HUD', async ({ page }) => {
+  test('hover detection still works after pausing and resuming with cursor over HUD', async ({ page }, testInfo) => {
     // 1. Cursor over HUD during play → tracker enters event mode (click-through OFF).
     await setMockCursorOverHud(page, true);
     await waitForClickThrough(page, false);
@@ -151,12 +161,14 @@ test.describe('User flows — HUD stays clickable after resume (tracker regressi
     // 3. Resume via the HUD button. Pre-fix, the tracker was stranded here:
     //    isOverHud stuck true with polling stopped and no mousemove events.
     await resumeViaHudButton(page);
-    // restoreAfterResume runs on a 300ms delay inside onResume.
-    await page.waitForTimeout(400);
 
-    // 4. With the cursor still over the HUD, the poller must re-detect it and
-    //    disable click-through again. This times out on the pre-fix code.
     await clearInvokeCalls(page);
+    if (testInfo.project.name === 'linux') {
+      // Linux resets to event tracking after the delayed resume restoration.
+      await page.waitForTimeout(400);
+      await setMockCursorOverHud(page, true);
+    }
+    // Other platforms retain the mocked cursor position and poll after reset.
     await waitForClickThrough(page, false);
   });
 });

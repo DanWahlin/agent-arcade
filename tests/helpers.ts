@@ -5,24 +5,29 @@
 
 type Page = import('@playwright/test').Page;
 
-const GAME_URL = 'http://localhost:4173/game/index.html';
+const GAME_URL = 'http://localhost:4173/game/';
 export { GAME_URL };
 
 /** Wait for the Phaser game to be fully loaded and dismiss ready screen */
 export async function waitForGame(page: Page) {
-  await page.waitForSelector('canvas', { timeout: 10_000 });
-  await page.waitForTimeout(2000);
-  await dismissReadyScreen(page);
-  // Wait for a scene with a player/ship to be fully active
   await page.waitForFunction(
     () => {
       const game = (window as any).__phaserGame;
-      if (!game) return false;
-      const scenes = game.scene.getScenes(true);
-      return scenes?.some((s: any) => (s as any).player?.visible || (s as any).ship?.visible) ?? false;
+      return !!game?.canvas && game.scene?.getScenes(false)?.length > 0;
     },
-    { timeout: 5000, polling: 100 },
-  ).catch(() => { /* not all games have player/ship */ });
+    { timeout: 10_000, polling: 100 },
+  );
+  await dismissReadyScreen(page);
+  await page.waitForFunction(
+    () => {
+      const game = (window as any).__phaserGame;
+      const scene = game?.scene?.getScenes(true)?.[0];
+      if (!scene) return false;
+      if (scene.scene?.key !== 'ninja-runner') return true;
+      return !!scene.player?.body?.blocked?.down;
+    },
+    { timeout: 10_000, polling: 100 },
+  );
 }
 
 /** Get current game state from Phaser internals */
@@ -110,13 +115,15 @@ export async function debugScreenshot(page: Page, name: string) {
 /** Dismiss the ready screen overlay if visible */
 export async function dismissReadyScreen(page: Page) {
   const overlay = page.locator('#ready-overlay');
-  if (await overlay.isVisible({ timeout: 1000 }).catch(() => false)) {
+  const appeared = await overlay.waitFor({ state: 'visible', timeout: 10_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (appeared) {
     await page.keyboard.press('Space');
     await page.waitForFunction(
       () => !document.getElementById('ready-overlay'),
       { timeout: 3000 },
     );
-    await page.waitForTimeout(1000);
   }
 }
 
@@ -131,19 +138,23 @@ export async function switchGame(page: Page, key: string) {
     (expectedKey: string) => {
       const game = (window as any).__phaserGame;
       if (!game) return false;
-      // Check both active and paused scenes (ready screen pauses the scene)
-      const active = game.scene.getScenes(true);
-      const hasActive = active?.some((s: any) => s.scene?.key === expectedKey);
-      if (hasActive) return true;
-      // Also check if scene exists but is paused (ready screen)
-      const sceneInstance = game.scene.getScene(expectedKey);
-      return !!sceneInstance;
+      return game.scene.isActive(expectedKey) || game.scene.isPaused(expectedKey);
     },
     key,
     { timeout: 8000, polling: 100 },
   );
-  await page.waitForTimeout(500);
   await dismissReadyScreen(page);
+  await page.waitForFunction(
+    (expectedKey: string) => {
+      const game = (window as any).__phaserGame;
+      if (!game?.scene?.isActive(expectedKey)) return false;
+      if (expectedKey !== 'ninja-runner') return true;
+      const scene = game.scene.getScene(expectedKey) as any;
+      return !!scene?.player?.body?.blocked?.down;
+    },
+    key,
+    { timeout: 10_000, polling: 100 },
+  );
 }
 
 /** Trigger player death by moving them off-screen. Throws if game/scene/player is missing. */

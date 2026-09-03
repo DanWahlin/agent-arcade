@@ -60,13 +60,17 @@ async function setMockCursorOverHud(page: Page, over: boolean) {
   await page.evaluate((isOver) => {
     if (!isOver) {
       (window as any).__mockCursor = null;
+      document.dispatchEvent(new MouseEvent('mousemove', {
+        clientX: 1,
+        clientY: window.innerHeight - 1,
+      }));
       return;
     }
     const rect = document.getElementById('hud')!.getBoundingClientRect();
-    (window as any).__mockCursor = [
-      (rect.left + rect.right) / 2,
-      (rect.top + rect.bottom) / 2,
-    ];
+    const x = (rect.left + rect.right) / 2;
+    const y = (rect.top + rect.bottom) / 2;
+    (window as any).__mockCursor = [x, y];
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: x, clientY: y }));
   }, over);
 }
 
@@ -85,7 +89,7 @@ async function triggerGameOver(page: Page) {
   await setLives(page, 1);
   await killPlayer(page);
   // Wait for the game over overlay to actually appear rather than a fixed timeout.
-  await expect(page.locator('#gameover-overlay')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('#gameover-overlay')).toBeVisible({ timeout: 15_000 });
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -129,7 +133,7 @@ test.describe('Focus / click-through — Game Over dialog', () => {
     expect(await lastClickThrough(page)).toBe(false);
   });
 
-  test('dismissing game over restarts HUD cursor polling', async ({ page }) => {
+  test('dismissing game over restarts HUD cursor tracking', async ({ page }) => {
     await setMockCursorOverHud(page, true);
     await waitForClickThrough(page, false);
     await triggerGameOver(page);

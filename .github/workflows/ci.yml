@@ -12,6 +12,8 @@ on:
       - 'package-lock.json'
       - 'tsconfig.renderer.json'
       - 'playwright.config.ts'
+      - 'scripts/build-frontend.mjs'
+      - '.github/workflows/ci.yml'
 
 permissions:
   contents: read
@@ -41,6 +43,14 @@ jobs:
 
       - name: Build frontend
         run: npm run build:frontend
+
+      - name: Install Tauri system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev
+
+      - name: Run Rust tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium

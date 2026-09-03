@@ -21,7 +21,7 @@ export abstract class BaseScene extends Phaser.Scene {
   protected highScore = 0;
   protected lives = 3;
   protected level = 0;
-  private scoreAnimTimer?: number;
+  private scoreAnimFrame?: number;
   private gameOverKeyListener?: (ev: KeyboardEvent) => void;
   /** Full-screen dark backdrop controlled by the transparency slider. */
   private _backdrop: any = null;
@@ -187,25 +187,29 @@ export abstract class BaseScene extends Phaser.Scene {
     // Count-up animation in HUD
     const el = document.getElementById('score-value');
     if (!el) return;
-    if (this.scoreAnimTimer) clearInterval(this.scoreAnimTimer);
+    if (this.scoreAnimFrame) cancelAnimationFrame(this.scoreAnimFrame);
 
     const start = prev;
     const end = this.score;
     const duration = 450;
     const startTime = performance.now();
 
-    this.scoreAnimTimer = window.setInterval(() => {
+    const animate = () => {
       const t = Math.min(1, (performance.now() - startTime) / duration);
       const ease = 1 - Math.pow(1 - t, 3);
       el.textContent = String(Math.round(start + (end - start) * ease));
       if (t >= 1) {
-        clearInterval(this.scoreAnimTimer);
-        this.scoreAnimTimer = undefined;
+        this.scoreAnimFrame = undefined;
         el.classList.remove('pop');
-        void el.offsetWidth;
-        el.classList.add('pop');
+        this.scoreAnimFrame = requestAnimationFrame(() => {
+          el.classList.add('pop');
+          this.scoreAnimFrame = undefined;
+        });
+      } else {
+        this.scoreAnimFrame = requestAnimationFrame(animate);
       }
-    }, 16);
+    };
+    this.scoreAnimFrame = requestAnimationFrame(animate);
 
     this.checkHighScore();
   }
@@ -767,13 +771,12 @@ export abstract class BaseScene extends Phaser.Scene {
   ): Star[] {
     const stars: Star[] = [];
     for (const l of layers) {
+      const gfx = this.add.graphics().setDepth(-9);
+      gfx.fillStyle(0xffffff, l.alpha);
       for (let i = 0; i < l.count; i++) {
-        const gfx = this.add.graphics();
         const x = Math.random() * W;
         const y = Math.random() * H;
-        gfx.fillStyle(0xffffff, l.alpha);
-        gfx.fillCircle(0, 0, l.size);
-        gfx.setPosition(x, y).setDepth(-9);
+        gfx.fillCircle(x, y, l.size);
         stars.push({ x, y, speed: l.speed, size: l.size, alpha: l.alpha, gfx });
       }
     }
@@ -782,18 +785,27 @@ export abstract class BaseScene extends Phaser.Scene {
 
   /** Update parallax starfield positions (call from update). */
   protected updateStarfield(stars: Star[], dt: number) {
+    const movingLayers = new Map<any, Star[]>();
     for (const s of stars) {
+      if (s.speed === 0) continue;
       s.y += s.speed * (dt / 1000);
       if (s.y > H) s.y -= H;
-      s.gfx.setPosition(s.x, s.y);
+      const layer = movingLayers.get(s.gfx);
+      if (layer) layer.push(s);
+      else movingLayers.set(s.gfx, [s]);
+    }
+    for (const [gfx, layer] of movingLayers) {
+      gfx.clear();
+      gfx.fillStyle(0xffffff, layer[0].alpha);
+      for (const s of layer) gfx.fillCircle(s.x, s.y, s.size);
     }
   }
 
   /** Clean up timers and listeners on scene shutdown. */
   shutdown() {
-    if (this.scoreAnimTimer) {
-      clearInterval(this.scoreAnimTimer);
-      this.scoreAnimTimer = undefined;
+    if (this.scoreAnimFrame) {
+      cancelAnimationFrame(this.scoreAnimFrame);
+      this.scoreAnimFrame = undefined;
     }
     if (this.gameOverKeyListener) {
       document.removeEventListener('keydown', this.gameOverKeyListener);

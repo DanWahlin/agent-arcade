@@ -118,6 +118,36 @@ test.describe('Surface Defense — Controls', () => {
     expect(after!.batteryAmmo.reduce((sum: number, ammo: number) => sum + ammo, 0)).toBe(29);
   });
 
+  test('mouse aiming recovers after the canvas is temporarily hidden', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const game = (window as any).__phaserGame;
+      const scene = game.scene.getScene('surface-defense') as any;
+      const canvas = game.canvas as HTMLCanvasElement;
+
+      scene.canvasBounds = undefined;
+      canvas.style.display = 'none';
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 10, clientY: 10 }));
+      const cachedWhileHidden = scene.canvasBounds;
+
+      canvas.style.display = '';
+      const x = window.innerWidth * 0.7;
+      const y = window.innerHeight * 0.3;
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: x, clientY: y }));
+
+      return {
+        cachedWhileHidden: !!cachedWhileHidden,
+        cursorX: scene.cursorX,
+        cursorY: scene.cursorY,
+        expectedX: x,
+        expectedY: y,
+      };
+    });
+
+    expect(result.cachedWhileHidden).toBe(false);
+    expect(result.cursorX).toBeCloseTo(result.expectedX, -1);
+    expect(result.cursorY).toBeCloseTo(result.expectedY, -1);
+  });
+
   test('mouse aiming remains active on later waves', async ({ page }) => {
     await page.evaluate(() => {
       const game = (window as any).__phaserGame;

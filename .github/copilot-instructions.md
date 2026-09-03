@@ -49,10 +49,10 @@ Every mini-game is a Phaser Scene that extends `BaseScene` (`src/game/scenes/Bas
 
 ## Test Conventions
 
-- **Runner:** Playwright (Chromium, headless).
+- **Runner:** Playwright (Chromium, headless), with Linux and non-Linux HUD projects.
 - **Test files:** `tests/<game-name>.spec.ts` — one spec file per game, plus `app.spec.ts` for app-level tests.
 - **Helpers:** `tests/helpers.ts` exports `waitForGame()`, `switchGame()`, and `dismissReadyScreen()`. Use these; don't reimplement ready-screen dismissal in individual tests.
-- **Build first:** Always run `npm run build:frontend` before tests. The test webServer serves from `dist/`.
+- **Build first:** Always run `npm run build:frontend` before tests. The test webServer serves `dist/` with the cross-platform `serve` package.
 - **Score assertions:** The HUD has a 450ms count-up animation. Wait **~500ms** after score-triggering actions before reading `#score-value`.
 - **Viewport:** Tests use a fixed 1920×1080 viewport. Design games to scale to this resolution.
 - **Run tests:** `npm test` (builds + runs all), or `npx playwright test tests/<file>.spec.ts` after a manual build.

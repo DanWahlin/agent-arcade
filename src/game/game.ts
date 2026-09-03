@@ -48,6 +48,8 @@ let game: any = null;
 
 function initGame() {
   refreshDimensions();
+  const selectedGame = GAMES.find(g => g.key === currentGameKey)!;
+  const sceneOrder = [selectedGame, ...GAMES.filter(g => g !== selectedGame)];
 
   game = new Phaser.Game({
     type: Phaser.AUTO,
@@ -56,7 +58,7 @@ function initGame() {
     height: H,
     transparent: true,
     backgroundColor: 'rgba(0,0,0,0)',
-    scene: GAMES.map(g => g.scene),
+    scene: sceneOrder.map(g => g.scene),
     physics: {
       default: 'arcade',
       arcade: { gravity: { y: 1800 }, debug: false },
@@ -68,18 +70,30 @@ function initGame() {
   // Expose game instance for Playwright testing (no production impact)
   (window as any).__phaserGame = game;
 
-  // Start the saved game (stop the default first scene if it's different)
-  if (currentGameKey !== GAMES[0].key) {
-    game.events.once('ready', () => {
-      game.scene.stop(GAMES[0].key);
-      game.scene.start(currentGameKey);
-    });
-  }
+  guardMissingAudio(game);
 
   setupGameSwitcher();
   if (isPointerGame(currentGameKey)) {
     (window as any).__agentArcadeSetPointerGameActive?.(true);
   }
+}
+
+/**
+ * Audio that fails to decode (missing codecs — e.g. WebKitGTK without the
+ * GStreamer plugin packages) never reaches the cache, and Phaser then throws
+ * "Audio key not found in cache" from sound.play()/add(). An exception inside
+ * the frame callback stops requestAnimationFrame for good and freezes the
+ * game, so hand back a silent sound for missing keys instead.
+ */
+function guardMissingAudio(game: any) {
+  const sm = game.sound;
+  const cache = game.cache?.audio;
+  if (!sm || !cache) return;
+  const origAdd = sm.add.bind(sm);
+  sm.add = (key: string, config?: any) =>
+    cache.exists(key) ? origAdd(key, config) : new Phaser.Sound.NoAudioSound(sm, key, config);
+  const origPlay = sm.play.bind(sm);
+  sm.play = (key: string, extra?: any) => (cache.exists(key) ? origPlay(key, extra) : false);
 }
 
 function setupGameSwitcher() {
@@ -153,8 +167,12 @@ window.addEventListener('resize', () => {
       // Update dimensions and resize the canvas, but never restart the
       // scene — the resume system handles unpause, and a simple resize
       // is enough for monitor/display changes.
+      const previousW = W;
+      const previousH = H;
       refreshDimensions();
-      game.scale.resize(W, H);
+      if (W !== previousW || H !== previousH) {
+        game.scale.resize(W, H);
+      }
     }
     // If newH <= 400 (pause shrink to HUD), skip entirely —
     // keep W/H at full-screen values so the paused game state stays valid.

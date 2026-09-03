@@ -47,7 +47,7 @@ npx playwright test             # Run all Playwright tests
 npx playwright test --headed    # Run with visible browser
 ```
 
-The Playwright `webServer` config serves `dist/` via `python3 -m http.server 4173`. The score HUD has a 450ms count-up animation — tests should wait ~500ms after score-triggering actions before asserting score values.
+The Playwright `webServer` config serves `dist/` with the cross-platform `serve` package. The full suite runs with a Linux user agent, while HUD and user-flow specs also run with a Windows user agent to cover both platform branches. The score HUD has a 450ms count-up animation — tests should wait ~500ms after score-triggering actions before asserting score values.
 
 Tests automatically dismiss the ready screen overlay via the `dismissReadyScreen()` helper in `tests/helpers.ts`. The `waitForGame()` and `switchGame()` helpers handle this automatically — individual tests do not need to dismiss it manually.
 
@@ -61,6 +61,7 @@ The `docs/` directory contains the project landing page deployed to [danwahlin.g
 - `game.ts` maintains a `GAMES` registry array; adding a game means adding a scene class and a registry entry.
 - The Phaser game instance is exposed on `window.__phaserGame` for Playwright test access.
 - Tauri window is configured as transparent, undecorated, always-on-top, and non-resizable (see `tauri.conf.json`).
+- Linux reserves a 40-pixel top inset by default; set `AGENT_ARCADE_TOP_INSET` to a value from 0–512 when the desktop panel uses a different height.
 - `BaseScene` provides optional overrides: `getControls()` (keyboard hints on ready screen) and `getDescription()` (one-line game description on ready screen).
 - `BaseScene.create()` must call `this.initBase()` first and `this.startWithReadyScreen()` last.
 - Do NOT call `addCapture('SPACE')` before the ready screen — it blocks the document keydown listener that dismisses it.

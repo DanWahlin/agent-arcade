@@ -58,6 +58,28 @@
       "nsis": {
         "installMode": "both"
       }
+    },
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": true
+      },
+      "deb": {
+        "depends": [
+          "gstreamer1.0-plugins-good",
+          "gstreamer1.0-plugins-bad",
+          "gstreamer1.0-libav",
+          "gstreamer1.0-pulseaudio"
+        ]
+      },
+      "rpm": {
+        "depends": [
+          "gstreamer1-plugins-good",
+          "gstreamer1-plugins-bad-free"
+        ],
+        "recommends": [
+          "gstreamer1-libav"
+        ]
+      }
     }
   },
   "plugins": {

@@ -665,6 +665,23 @@
       background: #1a1a2e;
       color: #ffd700;
     }
+    /* WebKitGTK paints a light native control behind the gold text, so Linux
+       draws the closed select itself. macOS/Windows keep the native look. */
+    html.linux .game-select {
+      appearance: none;
+      -webkit-appearance: none;
+      color-scheme: dark;
+      background-color: #0d1020;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path fill='%23ffd700' d='M0 0l5 6 5-6z'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      background-size: 10px 6px;
+      padding: 4px 22px 4px 8px;
+    }
+    /* Pause button: Linux only (no global Escape on Wayland) */
+    html:not(.linux) .pause-btn { display: none; }
+    html.linux #settings-overlay,
+    html.linux #help-overlay { backdrop-filter: none; }
 
     /* Update notification banner */
     #update-banner {
@@ -745,6 +762,7 @@
       <button id="help-btn" class="help-btn when-running" type="button">
         <span class="badge">?</span>
       </button>
+      <button id="pause-btn" class="mute-btn pause-btn when-running" type="button" title="Pause (Esc)">⏸</button>
       <button id="mute-btn" class="mute-btn when-running" type="button" title="Toggle sound (M)">🔊</button>
       <button id="resume-btn" class="resume-btn" type="button" title="Resume game">▶ RESUME</button>
       <button id="settings-btn" class="settings-btn" type="button" title="Settings">⚙️</button>

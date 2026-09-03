@@ -15,7 +15,16 @@ if ('mediaSession' in navigator) {
   });
 }
 
-// ── Tauri compatibility bridge ──
+// ── Platform flag ──
+// Linux/Wayland needs a few HUD differences (in-page Escape, pause button,
+// self-drawn game <select>) because global shortcuts never fire there and
+// WebKitGTK paints native form controls light.
+var detectedPlatform = /Linux/i.test(navigator.userAgent) && !/Android/i.test(navigator.userAgent)
+  ? 'linux'
+  : 'other';
+var IS_LINUX = (window.__agentArcadePlatformOverride || detectedPlatform) === 'linux';
+if (IS_LINUX) document.documentElement.classList.add('linux');
+
 // ── Tauri compatibility bridge ──
 // Creates window.agentArcade matching the Electron preload API so game
 // scenes work identically on both runtimes.
@@ -105,10 +114,8 @@ if ('mediaSession' in navigator) {
     if (ro) ro.remove();
   };
 
-  // Hybrid cursor tracking: event-based when over HUD, IPC polling otherwise.
-  // When click-through is OFF (cursor over HUD), mousemove events fire normally
-  // so we detect exit via events. When click-through is ON, events don't fire
-  // so we poll at 250ms to detect HUD entry.
+  // Linux remains interactive and uses mouse events only. Other platforms use
+  // events over the HUD and poll while click-through prevents pointer events.
   var isOverHud = false;
   var pollTimer = null;
   var hudEl = document.getElementById('hud');
@@ -132,6 +139,10 @@ if ('mediaSession' in navigator) {
   function resetCursorTracker() {
     isOverHud = false;
     document.removeEventListener('mousemove', onDocMouseMove);
+    if (IS_LINUX) {
+      document.addEventListener('mousemove', onDocMouseMove);
+      return;
+    }
     schedulePoll();
   }
 
@@ -164,12 +175,18 @@ if ('mediaSession' in navigator) {
     if (!document.body.classList.contains('paused') && !hasFullScreenInteractiveOverlay()) {
       ti.invoke('set_click_through', { enabled: true });
     }
-    document.removeEventListener('mousemove', onDocMouseMove);
-    schedulePoll();
+    if (!IS_LINUX) {
+      document.removeEventListener('mousemove', onDocMouseMove);
+      schedulePoll();
+    }
   }
 
   function onDocMouseMove(e) {
-    if (!isOverHudArea(e.clientX, e.clientY)) onCursorLeftHud();
+    if (isOverHudArea(e.clientX, e.clientY)) {
+      onCursorOverHud();
+    } else {
+      onCursorLeftHud();
+    }
   }
 
   window.__agentArcadeSetPointerGameActive = function(active) {
@@ -201,11 +218,16 @@ if ('mediaSession' in navigator) {
   }
 
   function schedulePoll() {
+    if (IS_LINUX) return;
     if (pollTimer) clearTimeout(pollTimer);
     pollTimer = setTimeout(pollCursorPosition, 250);
   }
 
-  schedulePoll();
+  if (IS_LINUX) {
+    document.addEventListener('mousemove', onDocMouseMove);
+  } else {
+    schedulePoll();
+  }
 
   // Reclaim OS keyboard focus the instant the window loses it during active
   // gameplay. Click-through lets clicks pass to apps below, which causes macOS
@@ -288,6 +310,12 @@ if ('mediaSession' in navigator) {
     if (window.agentArcade && window.agentArcade.hideApp) {
       window.agentArcade.hideApp();
     }
+  });
+
+  // Pause button (Linux only) — Wayland has no global Escape shortcut
+  var pauseBtn = document.getElementById('pause-btn');
+  pauseBtn.addEventListener('click', function () {
+    if (!isPaused()) setPaused(true);
   });
 
   // Resume button — unpause the game (shown only when paused)
@@ -807,8 +835,18 @@ if ('mediaSession' in navigator) {
     }
   });
 
-  // Escape is handled by Rust's global shortcut so it works
-  // even when another app has focus. No in-page handler needed.
+  // Escape is handled by Rust's global shortcut on macOS/Windows so it works
+  // even when another app has focus. Wayland compositors never deliver
+  // global shortcuts, so Linux pauses from an in-page handler instead.
+  if (IS_LINUX) {
+    document.addEventListener('keydown', function (e) {
+      if (e.code !== 'Escape' || isPaused()) return;
+      if (settingsOverlay.classList.contains('show')) return;
+      if (helpOverlay.classList.contains('show')) return;
+      e.preventDefault();
+      setPaused(true);
+    });
+  }
 
   // Auto-refocus the Phaser canvas when the window regains focus
   // or the user clicks anywhere outside an interactive HUD element.

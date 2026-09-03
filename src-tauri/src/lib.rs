@@ -65,9 +65,22 @@ static UNPAUSE_SC: ToggleableShortcut = ToggleableShortcut {
 #[tauri::command]
 fn set_click_through(app: AppHandle, enabled: bool) {
     if let Some(win) = app.get_webview_window("main") {
-        let _ = win.set_ignore_cursor_events(enabled);
-        if !enabled {
-            let _ = win.set_focus();
+        // Wayland: an empty input region makes the compositor hit-test the
+        // window underneath, and focus-follows-mouse then moves keyboard focus
+        // there too, so the game stops receiving keys. Keep the overlay
+        // interactive on Linux; Escape/pause shrinks it out of the way.
+        // set_focus() is skipped as well: it dismisses the native <select>.
+        #[cfg(target_os = "linux")]
+        {
+            let _ = enabled;
+            let _ = win.set_ignore_cursor_events(false);
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            let _ = win.set_ignore_cursor_events(enabled);
+            if !enabled {
+                let _ = win.set_focus();
+            }
         }
     }
 }
@@ -75,8 +88,16 @@ fn set_click_through(app: AppHandle, enabled: bool) {
 /// Immediately request OS keyboard focus without changing click-through state.
 /// Called by the blur handler in hud.js to reclaim focus the instant
 /// another window steals it during active gameplay.
+///
+/// Linux/Wayland: the compositor owns focus and workspace switching, and
+/// re-focusing on blur fights Super+N workspace binds and traps the user on
+/// the overlay. Compositors also ignore focus requests by default, so no-op.
 #[tauri::command]
 fn request_focus(app: AppHandle) {
+    if cfg!(target_os = "linux") {
+        let _ = app;
+        return;
+    }
     if let Some(win) = app.get_webview_window("main") {
         let _ = win.set_focus();
     }
@@ -373,8 +394,44 @@ fn update_tray_label(_app: &AppHandle, combo: &str) {
 /// display or displays have different scale factors, which shifts the whole
 /// app sideways and breaks get_cursor_in_window's coordinate math (making the
 /// HUD undetectable and unclickable).
+///
+/// Linux: primary_monitor() is None on wlroots/Hyprland, so fall back to the
+/// current monitor, then the first available one. The fallback is Linux-only.
 fn overlay_monitor(win: &tauri::WebviewWindow) -> Option<tauri::Monitor> {
-    win.primary_monitor().ok().flatten()
+    let primary = win.primary_monitor().ok().flatten();
+
+    #[cfg(not(target_os = "linux"))]
+    {
+        primary
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        primary
+            .or_else(|| win.current_monitor().ok().flatten())
+            .or_else(|| {
+                win.available_monitors()
+                    .ok()
+                    .and_then(|monitors| monitors.into_iter().next())
+            })
+    }
+}
+
+/// Vertical space left free at the top of the monitor. Linux reserves room for
+/// the compositor bar (Omarchy/Hyprland) so it stays clickable; 0 elsewhere.
+fn top_inset() -> f64 {
+    if cfg!(target_os = "linux") {
+        top_inset_from_env(std::env::var("AGENT_ARCADE_TOP_INSET").ok())
+    } else {
+        0.0
+    }
+}
+
+fn top_inset_from_env(value: Option<String>) -> f64 {
+    value
+        .and_then(|raw| raw.parse::<f64>().ok())
+        .filter(|inset| (0.0..=512.0).contains(inset))
+        .unwrap_or(40.0)
 }
 
 /// Monitor geometry in logical (point) units: (x, y, width, height).
@@ -402,7 +459,7 @@ fn shrink_to_hud(win: &tauri::WebviewWindow) {
         let hud_h = 152.0;
         let x = mx + ((mw - hud_w) / 2.0).max(0.0);
         let _ = win.set_size(tauri::LogicalSize::new(hud_w, hud_h));
-        let _ = win.set_position(tauri::LogicalPosition::new(x, my));
+        let _ = win.set_position(tauri::LogicalPosition::new(x, my + top_inset()));
     }
 }
 
@@ -411,8 +468,12 @@ fn expand_fullscreen(win: &tauri::WebviewWindow) {
     if let Some(monitor) = overlay_monitor(win) {
         let (mx, my, mw, mh) = monitor_logical_rect(&monitor);
         let bottom_trim = 5.0;
-        let _ = win.set_position(tauri::LogicalPosition::new(mx, my));
-        let _ = win.set_size(tauri::LogicalSize::new(mw, (mh - bottom_trim).max(1.0)));
+        let inset = top_inset();
+        let _ = win.set_position(tauri::LogicalPosition::new(mx, my + inset));
+        let _ = win.set_size(tauri::LogicalSize::new(
+            mw,
+            (mh - inset - bottom_trim).max(1.0),
+        ));
     }
 }
 
@@ -477,6 +538,8 @@ fn resume_game_impl(app: &AppHandle, from_hotkey: bool) {
         // restoration are handled inside __agentArcadeOnResume
         expand_fullscreen(&win);
         let _ = win.eval("window.__agentArcadeOnResume && window.__agentArcadeOnResume()");
+        // Linux stays interactive (see set_click_through).
+        #[cfg(not(target_os = "linux"))]
         if !from_hotkey {
             let _ = win.set_ignore_cursor_events(true);
         }
@@ -563,8 +626,13 @@ fn matches_stored(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let log_level = if cfg!(debug_assertions) {
+        log::LevelFilter::Debug
+    } else {
+        log::LevelFilter::Info
+    };
     tauri::Builder::default()
-        .plugin(tauri_plugin_log::Builder::new().build())
+        .plugin(tauri_plugin_log::Builder::new().level(log_level).build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -763,4 +831,67 @@ pub fn run() {
             }
             let _ = (app, event); // suppress unused warnings on non-macOS
         });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{format_combo_display, parse_shortcut, top_inset_from_env};
+    use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut};
+
+    #[test]
+    fn parses_shortcuts_case_insensitively() {
+        assert_eq!(
+            parse_shortcut("ctrl+ALT+m"),
+            Some(Shortcut::new(
+                Some(Modifiers::CONTROL | Modifiers::ALT),
+                Code::KeyM,
+            ))
+        );
+        assert_eq!(
+            parse_shortcut("Escape"),
+            Some(Shortcut::new(None, Code::Escape))
+        );
+        assert_eq!(
+            parse_shortcut("Ctrl+Escape"),
+            Some(Shortcut::new(Some(Modifiers::CONTROL), Code::Escape))
+        );
+    }
+
+    #[test]
+    fn accepts_super_modifier_aliases() {
+        let expected = Some(Shortcut::new(Some(Modifiers::SUPER), Code::KeyM));
+        for alias in ["Super", "Meta", "Cmd", "Command"] {
+            assert_eq!(parse_shortcut(&format!("{alias}+M")), expected);
+        }
+    }
+
+    #[test]
+    fn rejects_invalid_shortcuts() {
+        for invalid in ["", "Ctrl", "Ctrl++M", "Hyper+M", "Ctrl+NotAKey"] {
+            assert_eq!(parse_shortcut(invalid), None);
+        }
+    }
+
+    #[test]
+    fn formats_shortcuts_for_the_current_platform() {
+        assert_eq!(format_combo_display(""), "(no shortcut)");
+        if cfg!(target_os = "macos") {
+            assert_eq!(format_combo_display("Ctrl+Alt+Shift+Super+M"), "⌃+⌥+⇧+⌘+M");
+        } else {
+            assert_eq!(
+                format_combo_display("Ctrl+Alt+Shift+Super+M"),
+                "Ctrl+Alt+Shift+Super+M"
+            );
+        }
+    }
+
+    #[test]
+    fn validates_linux_top_inset_override() {
+        assert_eq!(top_inset_from_env(None), 40.0);
+        assert_eq!(top_inset_from_env(Some("0".to_string())), 0.0);
+        assert_eq!(top_inset_from_env(Some("32.5".to_string())), 32.5);
+        assert_eq!(top_inset_from_env(Some("-1".to_string())), 40.0);
+        assert_eq!(top_inset_from_env(Some("513".to_string())), 40.0);
+        assert_eq!(top_inset_from_env(Some("invalid".to_string())), 40.0);
+    }
 }

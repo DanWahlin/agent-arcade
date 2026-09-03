@@ -111,6 +111,8 @@ Go to the [releases page](https://github.com/DanWahlin/agent-arcade/releases), e
 > ./Agent-Arcade_*.AppImage
 > ```
 
+> **No sound?** Game audio plays through GStreamer. The AppImage and `.deb` bring the needed plugins with them, but if you build from source or use another packaging, install your distro's GStreamer "good", "bad" and "libav" plugin packages (Arch: `sudo pacman -S gst-plugins-good gst-plugins-bad gst-libav`). The game runs silently without them.
+
 ## Running Locally
 
 > **Prerequisites:** [Node.js](https://nodejs.org), the [Rust toolchain](https://rustup.rs/), and the [Tauri v2 prerequisites](https://v2.tauri.app/start/prerequisites/) for your platform.
@@ -151,6 +153,8 @@ Go to the [releases page](https://github.com/DanWahlin/agent-arcade/releases), e
    npm install
    npm start
    ```
+
+On Linux, Agent Arcade leaves 40 pixels available for a top desktop panel. Set `AGENT_ARCADE_TOP_INSET` before starting the app to use a different inset, such as `AGENT_ARCADE_TOP_INSET=0 npm start`.
 
 ## Controls
 

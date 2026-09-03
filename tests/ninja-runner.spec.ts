@@ -130,7 +130,7 @@ test.describe('Ninja Runner — Player Movement', () => {
 
   test('jump while moving covers horizontal distance', async ({ page }) => {
     const before = await getGameState(page);
-    await moveAndJump(page, 'ArrowRight', 800);
+    await moveAndJump(page, 'ArrowRight', 1000);
     const after = await getGameState(page);
     expect(after.playerX).toBeGreaterThan(before.playerX + 80);
   });

@@ -183,6 +183,8 @@ export class SurfaceDefenseScene extends BaseScene {
   private pointerMoveHandler?: (event: MouseEvent) => void;
   private pointerDownHandler?: (pointer: any) => void;
   private contextMenuHandler?: (event: Event) => void;
+  private canvasBounds?: DOMRect;
+  private canvasResizeHandler?: () => void;
 
   constructor() {
     super('surface-defense');
@@ -345,9 +347,17 @@ export class SurfaceDefenseScene extends BaseScene {
   }
 
   private setupPointerInput() {
+    this.canvasResizeHandler = () => {
+      this.canvasBounds = undefined;
+    };
+    window.addEventListener('resize', this.canvasResizeHandler);
+    this.game.scale.on('resize', this.canvasResizeHandler);
+
     this.pointerMoveHandler = (event: MouseEvent) => {
-      const bounds = this.game.canvas.getBoundingClientRect();
+      const cachedBounds = this.canvasBounds;
+      const bounds = cachedBounds ?? this.game.canvas.getBoundingClientRect();
       if (bounds.width <= 0 || bounds.height <= 0) return;
+      if (!cachedBounds) this.canvasBounds = bounds;
 
       const canvasX = (event.clientX - bounds.left) * (W / bounds.width);
       const canvasY = (event.clientY - bounds.top) * (H / bounds.height);
@@ -1141,9 +1151,15 @@ export class SurfaceDefenseScene extends BaseScene {
     if (this.pointerMoveHandler) document.removeEventListener('mousemove', this.pointerMoveHandler);
     if (this.pointerDownHandler) this.input.off('pointerdown', this.pointerDownHandler);
     if (this.contextMenuHandler) this.game.canvas.removeEventListener('contextmenu', this.contextMenuHandler);
+    if (this.canvasResizeHandler) {
+      window.removeEventListener('resize', this.canvasResizeHandler);
+      this.game.scale.off('resize', this.canvasResizeHandler);
+    }
     this.pointerMoveHandler = undefined;
     this.pointerDownHandler = undefined;
     this.contextMenuHandler = undefined;
+    this.canvasResizeHandler = undefined;
+    this.canvasBounds = undefined;
     super.shutdown();
   }
 }
