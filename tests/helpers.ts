@@ -15,6 +15,7 @@ export async function waitForGame(page: Page) {
       const game = (window as any).__phaserGame;
       return !!game?.canvas && game.scene?.getScenes(false)?.length > 0;
     },
+    undefined,
     { timeout: 10_000, polling: 100 },
   );
   await dismissReadyScreen(page);
@@ -26,6 +27,7 @@ export async function waitForGame(page: Page) {
       if (scene.scene?.key !== 'ninja-runner') return true;
       return !!scene.player?.body?.blocked?.down;
     },
+    undefined,
     { timeout: 10_000, polling: 100 },
   );
 }
@@ -122,6 +124,7 @@ export async function dismissReadyScreen(page: Page) {
     await page.keyboard.press('Space');
     await page.waitForFunction(
       () => !document.getElementById('ready-overlay'),
+      undefined,
       { timeout: 3000 },
     );
   }

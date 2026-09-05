@@ -121,6 +121,84 @@ test.describe('Alien Onslaught — Firing', () => {
   });
 });
 
+test.describe('Alien Onslaught — Graphics Reuse', () => {
+  test('shield collision broad phase skips distant aliens but preserves block erosion', async ({ page }) => {
+    await page.goto(GAME_URL);
+    await waitForGame(page);
+    await switchGame(page, 'alien-onslaught');
+    const result = await page.evaluate(() => {
+      const scene = (window as any).__phaserGame.scene.getScene('alien-onslaught');
+      for (const bullet of [...scene.playerBullets, ...scene.alienBullets]) bullet.gfx.destroy();
+      scene.playerBullets = [];
+      scene.alienBullets = [];
+      const overlap = scene.rectOverlap;
+      let checks = 0;
+      scene.rectOverlap = function (...args: number[]) {
+        checks++;
+        return overlap.apply(this, args);
+      };
+      scene.checkCollisions();
+      const distantChecks = checks;
+      const block = scene.shields[0][0];
+      const alien = scene.aliens[0];
+      alien.x = block.x + block.w / 2;
+      alien.y = block.y + block.h / 2;
+      scene.checkCollisions();
+      scene.rectOverlap = overlap;
+      return { distantChecks, totalChecks: checks, blockAlive: block.alive, blockVisible: block.gfx.active };
+    });
+    expect(result.distantChecks).toBe(0);
+    expect(result.totalChecks).toBeGreaterThan(0);
+    expect(result.blockAlive).toBe(false);
+    expect(result.blockVisible).toBe(false);
+  });
+
+  test('movement reuses player and mystery ship geometry', async ({ page }) => {
+    await page.goto(GAME_URL);
+    await waitForGame(page);
+    await switchGame(page, 'alien-onslaught');
+
+    const result = await page.evaluate(() => {
+      const scene = (window as any).__phaserGame.scene.getScene('alien-onslaught');
+      scene.spawnMystery();
+      const playerCommands = [...scene.playerGfx.commandBuffer];
+      const mysteryCommands = [...scene.mystery.gfx.commandBuffer];
+      const startX = scene.playerX;
+      const mysteryX = scene.mystery.x;
+      const direction = scene.mystery.direction;
+      let clears = 0;
+      const playerClear = scene.playerGfx.clear;
+      const mysteryClear = scene.mystery.gfx.clear;
+      scene.playerGfx.clear = function () { clears++; return playerClear.call(this); };
+      scene.mystery.gfx.clear = function () { clears++; return mysteryClear.call(this); };
+      scene.cursors.right.isDown = true;
+      for (let i = 0; i < 20; i++) {
+        scene.updatePlayerInput(0.016);
+        scene.updateMystery(16, 0.016);
+      }
+      scene.cursors.right.isDown = false;
+      scene.playerGfx.clear = playerClear;
+      scene.mystery.gfx.clear = mysteryClear;
+      return {
+        clears,
+        playerGeometryUnchanged: JSON.stringify(playerCommands) === JSON.stringify(scene.playerGfx.commandBuffer),
+        mysteryGeometryUnchanged: JSON.stringify(mysteryCommands) === JSON.stringify(scene.mystery.gfx.commandBuffer),
+        movement: scene.playerX - startX,
+        mysteryMovement: (scene.mystery.x - mysteryX) * direction,
+        playerPositionSynced: scene.playerGfx.x === scene.playerX && scene.playerGfx.y === scene.playerY,
+        mysteryPositionSynced: scene.mystery.gfx.x === scene.mystery.x && scene.mystery.gfx.y === scene.mystery.y,
+      };
+    });
+    expect(result.clears).toBe(0);
+    expect(result.playerGeometryUnchanged).toBe(true);
+    expect(result.mysteryGeometryUnchanged).toBe(true);
+    expect(result.movement).toBeCloseTo(350 * 0.016 * 20);
+    expect(result.mysteryMovement).toBeCloseTo(150 * 0.016 * 20);
+    expect(result.playerPositionSynced).toBe(true);
+    expect(result.mysteryPositionSynced).toBe(true);
+  });
+});
+
 test.describe('Alien Onslaught — Game Switching', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(GAME_URL);

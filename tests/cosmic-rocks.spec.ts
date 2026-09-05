@@ -118,12 +118,98 @@ test.describe('Cosmic Rocks — Game Switching', () => {
     await waitForGame(page);
   });
 
+  test('Cosmic Rocks — ship geometry is retained while rotating and thrusting', async ({ page }) => {
+    await page.goto(GAME_URL);
+    await waitForGame(page);
+    await switchGame(page, 'cosmic-rocks');
+    const result = await page.evaluate(() => {
+      const scene = (window as any).__phaserGame.scene.getScene('cosmic-rocks');
+      const commands = [...scene.shipGfx.commandBuffer];
+      const startAngle = scene.shipAngle;
+      const startX = scene.shipX;
+      const startY = scene.shipY;
+      const clear = scene.shipGfx.clear;
+      let clears = 0;
+      scene.shipGfx.clear = function () { clears++; return clear.call(this); };
+      scene.invincibleTimer = 10000;
+      scene.cursors.right.isDown = true;
+      scene.cursors.up.isDown = true;
+      for (let i = 0; i < 20; i++) scene.update(i * 16, 16);
+      const flameCommands = scene.thrustGfx.commandBuffer.length;
+      scene.cursors.right.isDown = false;
+      scene.cursors.up.isDown = false;
+      scene.update(320, 16);
+      scene.shipGfx.clear = clear;
+      const size = 20 * Math.max(Math.min(scene.scale.width / 1920, scene.scale.height / 1080), 0.6);
+      const matrix = scene.shipGfx.getWorldTransformMatrix();
+      const vertices = [0, 2.4, -2.4].map((offset, i) => {
+        const radius = size * (i === 0 ? 1 : 0.85);
+        const world = matrix.transformPoint(Math.cos(offset) * radius, Math.sin(offset) * radius);
+        return {
+          x: world.x, y: world.y,
+          expectedX: scene.shipX + Math.cos(scene.shipAngle + offset) * radius,
+          expectedY: scene.shipY + Math.sin(scene.shipAngle + offset) * radius,
+        };
+      });
+      return {
+        clears,
+        geometryUnchanged: JSON.stringify(commands) === JSON.stringify(scene.shipGfx.commandBuffer),
+        angleChange: scene.shipAngle - startAngle,
+        rotation: scene.shipGfx.rotation,
+        angle: scene.shipAngle,
+        moved: scene.shipX !== startX || scene.shipY !== startY,
+        positionSynced: scene.shipGfx.x === scene.shipX && scene.shipGfx.y === scene.shipY,
+        flameCommands,
+        idleFlameCommands: scene.thrustGfx.commandBuffer.length,
+        vertices,
+      };
+    });
+    expect(result.clears).toBe(0);
+    expect(result.geometryUnchanged).toBe(true);
+    expect(result.angleChange).toBeCloseTo(4 * 0.016 * 20);
+    expect(result.rotation).toBeCloseTo(result.angle);
+    expect(result.moved).toBe(true);
+    expect(result.positionSynced).toBe(true);
+    expect(result.flameCommands).toBeGreaterThan(result.idleFlameCommands);
+    for (const vertex of result.vertices) {
+      expect(vertex.x).toBeCloseTo(vertex.expectedX);
+      expect(vertex.y).toBeCloseTo(vertex.expectedY);
+    }
+  });
+
   test('can switch to Cosmic Rocks', async ({ page }) => {
     await switchGame(page, 'cosmic-rocks');
     await page.waitForTimeout(1000);
     const state = await getCosmicState(page);
     expect(state).not.toBeNull();
     expect(state!.asteroidCount).toBeGreaterThanOrEqual(5);
+  });
+
+  test('UFO shots still move and hit the player after their UFO leaves', async ({ page }) => {
+    await switchGame(page, 'cosmic-rocks');
+    const result = await page.evaluate(() => {
+      const scene = (window as any).__phaserGame.scene.getScene('cosmic-rocks');
+      scene.invincibleTimer = 0;
+      scene.spawnUfo();
+      scene.ufo.x = scene.scale.width + 100;
+      scene.ufo.vx = 100;
+      const bullet = {
+        gfx: scene.add.graphics(), x: scene.shipX, y: scene.shipY - 1,
+        vx: 0, vy: 10, life: 1000,
+      };
+      scene.ufoBullets.push(bullet);
+      const lives = scene.lives;
+      scene.updateUfo(100, 0.1);
+      const moved = bullet.y === scene.shipY;
+      scene.checkUfoCollisions();
+      return {
+        moved, ufoGone: scene.ufo === null, livesLost: lives - scene.lives,
+        bulletRemoved: !scene.ufoBullets.includes(bullet), bulletDestroyed: !bullet.gfx.active,
+      };
+    });
+    expect(result).toEqual({
+      moved: true, ufoGone: true, livesLost: 1, bulletRemoved: true, bulletDestroyed: true,
+    });
   });
 
   test('can switch away from Cosmic Rocks', async ({ page }) => {

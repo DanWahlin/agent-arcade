@@ -3,10 +3,9 @@
 // De Casteljau bezier smoothing, hop+figure-eight attack patterns.
 // Phaser sprites used ONLY for rendering (setPosition, setRotation, destroy).
 
-declare const Phaser: any;
-
 import { BaseScene, W, H } from './BaseScene.js';
 import type { Star } from './BaseScene.js';
+import { getGalaxyLayout } from '../layout.js';
 
 /* ------------------------------------------------------------------ */
 /*  Tiny helpers                                                       */
@@ -24,26 +23,26 @@ function computeDistance(a: { x: number; y: number }, b: { x: number; y: number 
 /* ------------------------------------------------------------------ */
 /*  De Casteljau bezier — exact port from PathFollower.ts              */
 /* ------------------------------------------------------------------ */
-function getBezierPoint(t: number, points: { x: number; y: number }[]): { x: number; y: number } {
-  if (points.length === 1) return { x: points[0].x, y: points[0].y };
-  const next: { x: number; y: number }[] = [];
-  for (let i = 0; i < points.length - 1; i++) {
-    next.push({
-      x: (1 - t) * points[i].x + t * points[i + 1].x,
-      y: (1 - t) * points[i].y + t * points[i + 1].y,
-    });
-  }
-  return getBezierPoint(t, next);
-}
-
 function generatePointsOnBezierCurve(
   points: { x: number; y: number }[],
   numOfPoints: number,
 ): { x: number; y: number }[] {
   const bezierPoints: { x: number; y: number }[] = [];
+  const scratch = points.map(point => ({ x: point.x, y: point.y }));
   for (let i = 0; i <= numOfPoints; i++) {
     const t = i / numOfPoints;
-    bezierPoints.push(getBezierPoint(t, points));
+    for (let j = 0; j < points.length; j++) {
+      scratch[j].x = points[j].x;
+      scratch[j].y = points[j].y;
+    }
+    // Keep De Casteljau's interpolation order without allocating every recursive level.
+    for (let remaining = points.length - 1; remaining > 0; remaining--) {
+      for (let j = 0; j < remaining; j++) {
+        scratch[j].x = (1 - t) * scratch[j].x + t * scratch[j + 1].x;
+        scratch[j].y = (1 - t) * scratch[j].y + t * scratch[j + 1].y;
+      }
+    }
+    bezierPoints.push({ x: scratch[0].x, y: scratch[0].y });
   }
   return bezierPoints;
 }
@@ -83,15 +82,14 @@ interface Enemy {
   activePath: { x: number; y: number }[];
   pathIndex: number;
   speed: number;
-  breathTimer: number;
   breathingOffsetX: number;
   breathingOffsetY: number;
-  attackPath: { x: number; y: number }[];
   shotsFired: number;
   shotTimer: number;
 }
 
 interface Bullet { sprite: any; vx: number; vy: number }
+interface Pickup { sprite: any; vy: number }
 
 /* ------------------------------------------------------------------ */
 /*  Wave definitions                                                   */
@@ -115,9 +113,7 @@ function waveDef(n: number): WaveDef {
 /* ------------------------------------------------------------------ */
 let CONV_X = W / 500;
 let CONV_Y = H / 500;
-let SCALE = Math.min(CONV_X, CONV_Y);
-
-let OPPONENT_SIZE = Math.min(32 * SCALE, W / 35);
+let { scale: SCALE, opponentSize: OPPONENT_SIZE } = getGalaxyLayout(W, H);
 let ENTRY_SPEED = 0.4 * SCALE;   // px/ms
 let ATTACK_SPEED = 0.3 * SCALE;  // px/ms
 const ENTRANCE_INTERVAL = 100;     // ms between spawns in a trail
@@ -411,19 +407,19 @@ export class GalaxyBlasterScene extends BaseScene {
   private ship!: any;
   private shipX = W / 2;
   private shipVx = 0;
-  private readonly shipY = H - OPPONENT_SIZE * 3;
+  private shipY = 0;
   private bullets: Bullet[] = [];
   private invincible = 0;
 
   /* shield */
   private shieldActive = false;
   private shieldSprite?: any;
-  private shieldPickups: any[] = [];
+  private shieldPickups: Pickup[] = [];
 
   /* dual-shot power-up */
   private dualShot = false;
   private dualShotTimer = 0;
-  private dualShotPickups: { sprite: any; vy: number }[] = [];
+  private dualShotPickups: Pickup[] = [];
   private dualShotGlow?: any;
   private normalShipWidth = 0;
   private normalShipHeight = 0;
@@ -446,7 +442,6 @@ export class GalaxyBlasterScene extends BaseScene {
   private waveDelay = 0;
   private spawnQueue: { kind: EnemyKind; entryPath: { x: number; y: number }[]; slotIdx: number }[] = [];
   private spawnTimer = 0;
-  private waveTextSprite: any = null;
 
   /* starfield */
   private stars: Star[] = [];
@@ -498,8 +493,7 @@ export class GalaxyBlasterScene extends BaseScene {
     // Recalculate screen-dependent constants now that W/H are correct
     CONV_X = W / 500;
     CONV_Y = H / 500;
-    SCALE = Math.min(CONV_X, CONV_Y);
-    OPPONENT_SIZE = Math.min(32 * SCALE, W / 35);
+    ({ scale: SCALE, opponentSize: OPPONENT_SIZE } = getGalaxyLayout(W, H));
     ENTRY_SPEED = 0.4 * SCALE;
     ATTACK_SPEED = 0.3 * SCALE;
     SHIP_SPEED = 0.25 * 1000 * SCALE;
@@ -527,6 +521,7 @@ export class GalaxyBlasterScene extends BaseScene {
     this.invincible = 0;
     this.gameOver = false;
     this.shipX = W / 2;
+    this.shipY = H - OPPONENT_SIZE * 3;
     this.shipVx = 0;
     this.shieldActive = false;
     if (this.shieldSprite && this.shieldSprite.active) { this.shieldSprite.destroy(); this.shieldSprite = undefined; }
@@ -692,13 +687,6 @@ export class GalaxyBlasterScene extends BaseScene {
     this.allStationary = false;
     this.offsetLerping = false;
 
-    // Clean up old wave text sprite if any
-    if (this.waveTextSprite) {
-      this.tweens.killTweensOf(this.waveTextSprite);
-      this.waveTextSprite.destroy();
-      this.waveTextSprite = null;
-    }
-
     this.showWaveBanner(this.wave);
   }
 
@@ -755,10 +743,8 @@ export class GalaxyBlasterScene extends BaseScene {
       activePath: entryPath,
       pathIndex: 0,
       speed: ENTRY_SPEED,
-      breathTimer: 0,
       breathingOffsetX: 0,
       breathingOffsetY: 0,
-      attackPath: [],
       shotsFired: 0,
       shotTimer: 0,
     };
@@ -901,7 +887,6 @@ export class GalaxyBlasterScene extends BaseScene {
           e.breathingOffsetY += dir * (e.restingPosY / (H / 2)) * 0.4 * dtScale;
         }
 
-        // activePath is set to attackPath when dive starts
         this.followPath(e, dt, () => {
           // Attack complete — return to formation / breathing state
           e.pos.x = e.restingPosX + e.breathingOffsetX;
@@ -949,7 +934,6 @@ export class GalaxyBlasterScene extends BaseScene {
     if (candidates.length === 0) return;
 
     const e = candidates[Math.floor(Math.random() * candidates.length)];
-    if (e.state === 'entrance') return; // guard against race condition
 
     // Remember breathing state as secondary so it continues independently
     if (e.state === 'breathe-in' || e.state === 'breathe-out') {
@@ -960,7 +944,6 @@ export class GalaxyBlasterScene extends BaseScene {
 
     e.state = 'attack';
     const atkPath = getAttackPath({ x: e.pos.x, y: e.pos.y });
-    e.attackPath = atkPath;
     e.activePath = atkPath;
     e.pathIndex = 0;
     e.speed = ATTACK_SPEED;
@@ -1277,10 +1260,16 @@ export class GalaxyBlasterScene extends BaseScene {
     for (let i = this.dualShotPickups.length - 1; i >= 0; i--) {
       const pu = this.dualShotPickups[i];
       pu.sprite.y += pu.vy * (dt / 1000);
-      if (pu.sprite.y > H) { pu.sprite.destroy(); this.dualShotPickups.splice(i, 1); continue; }
+      if (pu.sprite.y > H) {
+        this.tweens.killTweensOf(pu.sprite);
+        pu.sprite.destroy();
+        this.dualShotPickups.splice(i, 1);
+        continue;
+      }
       const dx = Math.abs(pu.sprite.x - this.shipX);
       const dy = Math.abs(pu.sprite.y - this.shipY);
       if (dx < OPPONENT_SIZE * 0.8 && dy < OPPONENT_SIZE * 0.8) {
+        this.tweens.killTweensOf(pu.sprite);
         pu.sprite.destroy();
         this.dualShotPickups.splice(i, 1);
         this.activateDualShot();
@@ -1439,11 +1428,14 @@ export class GalaxyBlasterScene extends BaseScene {
     // Destroy shield and pickups
     this.destroyObj(this.shieldSprite);
     this.shieldSprite = undefined;
-    for (const p of this.shieldPickups) this.destroyObj(p);
+    for (const p of this.shieldPickups) this.destroyObj(p.sprite);
     this.shieldPickups = [];
 
     // Destroy dual-shot pickups and glow
-    for (const p of this.dualShotPickups) this.destroyObj(p.sprite);
+    for (const p of this.dualShotPickups) {
+      this.tweens.killTweensOf(p.sprite);
+      this.destroyObj(p.sprite);
+    }
     this.dualShotPickups = [];
     this.destroyObj(this.dualShotGlow);
     this.dualShotGlow = undefined;
@@ -1451,9 +1443,5 @@ export class GalaxyBlasterScene extends BaseScene {
     // Destroy meteors
     for (const m of this.meteors) this.destroyObj(m.sprite);
     this.meteors = [];
-
-    // Destroy wave text
-    this.destroyObj(this.waveTextSprite);
-    this.waveTextSprite = null;
   }
 }

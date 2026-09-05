@@ -17,6 +17,10 @@ for (const vp of VIEWPORTS) {
     await page.goto(GAME_URL);
     await waitForGame(page);
     await switchGame(page, 'alien-onslaught');
+    // These assertions cover layout, not the outcome of random enemy shots.
+    await page.evaluate(() => {
+      (window as any).__phaserGame.scene.getScene('alien-onslaught').alienFireTimer = -10_000;
+    });
     await page.waitForTimeout(2000);
 
     // Verify game state

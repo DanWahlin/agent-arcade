@@ -13,7 +13,7 @@
  */
 
 import { test, expect, type Page } from '@playwright/test';
-import { GAME_URL, waitForGame, setLives, killPlayer, dismissReadyScreen } from './helpers';
+import { GAME_URL, waitForGame, setLives, killPlayer } from './helpers';
 
 // ── Mock Tauri bridge ──────────────────────────────────────────────────────────
 
@@ -99,7 +99,6 @@ test.describe('Focus / click-through — Game Over dialog', () => {
     await setupTauriMock(page);
     await page.goto(GAME_URL);
     await waitForGame(page);
-    await dismissReadyScreen(page);
   });
 
   test('game over overlay disables click-through when shown', async ({ page }) => {
@@ -183,7 +182,6 @@ test.describe('Focus / click-through — Resume paths', () => {
     await setupTauriMock(page);
     await page.goto(GAME_URL);
     await waitForGame(page);
-    await dismissReadyScreen(page);
   });
 
   test('__agentArcadeResumeFromRust re-enables click-through when no overlay is showing', async ({ page }) => {
@@ -242,7 +240,6 @@ test.describe('Focus / click-through — HUD overlays', () => {
     await setupTauriMock(page);
     await page.goto(GAME_URL);
     await waitForGame(page);
-    await dismissReadyScreen(page);
   });
 
   test('help overlay opens and closes without breaking state', async ({ page }) => {
@@ -285,7 +282,6 @@ test.describe('Focus / click-through — Blur handler', () => {
     await setupTauriMock(page);
     await page.goto(GAME_URL);
     await waitForGame(page);
-    await dismissReadyScreen(page);
   });
 
   test('window blur during gameplay calls request_focus', async ({ page }) => {

@@ -2,8 +2,6 @@
 // Ship rotates and thrusts through space, destroying asteroids that split
 // into smaller fragments. Vector-style graphics drawn with Phaser Graphics.
 
-declare const Phaser: any;
-
 import { BaseScene, W, H } from './BaseScene.js';
 import type { Star } from './BaseScene.js';
 
@@ -41,7 +39,6 @@ interface Asteroid {
   sizeIdx: number;        // 0=large, 1=medium, 2=small
   rotation: number;
   rotSpeed: number;
-  vertices: { x: number; y: number }[];
 }
 
 interface Bullet {
@@ -49,7 +46,6 @@ interface Bullet {
   x: number; y: number;
   vx: number; vy: number;
   life: number;
-  color: number;
 }
 
 /* ------------------------------------------------------------------ */
@@ -71,7 +67,7 @@ export class CosmicRocksScene extends BaseScene {
   private stars: Star[] = [];
 
   /* UFO */
-  private ufo: { gfx: any; x: number; y: number; vx: number; shootTimer: number; active: boolean } | null = null;
+  private ufo: { gfx: any; x: number; y: number; vx: number; shootTimer: number } | null = null;
   private ufoBullets: { gfx: any; x: number; y: number; vx: number; vy: number; life: number }[] = [];
   private ufoTimer = 0;
 
@@ -176,7 +172,9 @@ export class CosmicRocksScene extends BaseScene {
     if (this.shipAlive) {
       this.updateShipInput(dtSec);
       this.updateShipPhysics(dtSec);
-      this.drawShip();
+      this.shipGfx.setPosition(this.shipX, this.shipY);
+      this.shipGfx.setRotation(this.shipAngle);
+      this.drawThrust();
     }
 
     this.updateBullets(dtSec);
@@ -208,6 +206,7 @@ export class CosmicRocksScene extends BaseScene {
     this.shipGfx = this.add.graphics().setDepth(10);
     this.thrustGfx = this.add.graphics().setDepth(9);
     this.drawShip();
+    this.shipGfx.setRotation(this.shipAngle);
   }
 
   private updateShipInput(dtSec: number) {
@@ -249,14 +248,12 @@ export class CosmicRocksScene extends BaseScene {
     g.clear();
     g.setPosition(this.shipX, this.shipY);
 
-    const cos = Math.cos(this.shipAngle);
-    const sin = Math.sin(this.shipAngle);
     const s = SHIP_SIZE;
 
-    // Triangle ship
-    const nose = { x: cos * s, y: sin * s };
-    const leftWing = { x: Math.cos(this.shipAngle + 2.4) * s * 0.85, y: Math.sin(this.shipAngle + 2.4) * s * 0.85 };
-    const rightWing = { x: Math.cos(this.shipAngle - 2.4) * s * 0.85, y: Math.sin(this.shipAngle - 2.4) * s * 0.85 };
+    // Draw once in local coordinates; movement and rotation use the Graphics transform.
+    const nose = { x: s, y: 0 };
+    const leftWing = { x: Math.cos(2.4) * s * 0.85, y: Math.sin(2.4) * s * 0.85 };
+    const rightWing = { x: leftWing.x, y: -leftWing.y };
 
     // Dark shadow backdrop for visibility on light backgrounds
     g.lineStyle(6, 0x000000, 0.5);
@@ -284,11 +281,15 @@ export class CosmicRocksScene extends BaseScene {
     g.lineTo(rightWing.x, rightWing.y);
     g.closePath();
     g.strokePath();
+  }
 
-    // Thrust flame
+  private drawThrust() {
     const tg = this.thrustGfx;
     tg.clear();
     if (this.cursors && this.cursors.up.isDown) {
+      const s = SHIP_SIZE;
+      const cos = Math.cos(this.shipAngle);
+      const sin = Math.sin(this.shipAngle);
       tg.setPosition(this.shipX, this.shipY);
       const tailLen = s * (0.6 + Math.random() * 0.4);
       const tailX = -cos * tailLen;
@@ -361,7 +362,6 @@ export class CosmicRocksScene extends BaseScene {
       vx: Math.cos(this.shipAngle) * BULLET_SPEED,
       vy: Math.sin(this.shipAngle) * BULLET_SPEED,
       life: BULLET_LIFE,
-      color,
     });
   }
 
@@ -452,7 +452,6 @@ export class CosmicRocksScene extends BaseScene {
       sizeIdx,
       rotation: 0,
       rotSpeed: (Math.random() - 0.5) * 2,
-      vertices,
     });
   }
 
@@ -614,7 +613,7 @@ export class CosmicRocksScene extends BaseScene {
     this.drawUfo(gfx);
     gfx.setPosition(x, y);
 
-    this.ufo = { gfx, x, y, vx, shootTimer: 1500 + Math.random() * 1000, active: true };
+    this.ufo = { gfx, x, y, vx, shootTimer: 1500 + Math.random() * 1000 };
   }
 
   private drawUfo(gfx: any) {
@@ -655,6 +654,7 @@ export class CosmicRocksScene extends BaseScene {
     if ((u.vx > 0 && u.x > W + 60) || (u.vx < 0 && u.x < -60)) {
       u.gfx.destroy();
       this.ufo = null;
+      this.updateUfoBullets(dtSec);
       return;
     }
 
@@ -698,11 +698,10 @@ export class CosmicRocksScene extends BaseScene {
   }
 
   private checkUfoCollisions() {
-    if (!this.ufo) return;
-    const u = this.ufo;
+    let u = this.ufo;
 
     // Player bullets vs UFO
-    for (let bi = this.bullets.length - 1; bi >= 0; bi--) {
+    for (let bi = this.bullets.length - 1; u && bi >= 0; bi--) {
       const b = this.bullets[bi];
       const dx = b.x - u.x;
       const dy = b.y - u.y;
@@ -714,7 +713,7 @@ export class CosmicRocksScene extends BaseScene {
         this.sound.play('sfx_zap', { volume: 0.4 });
         u.gfx.destroy();
         this.ufo = null;
-        return;
+        break;
       }
     }
 
@@ -734,7 +733,8 @@ export class CosmicRocksScene extends BaseScene {
     }
 
     // UFO body vs player
-    if (this.shipAlive && this.invincibleTimer <= 0) {
+    u = this.ufo;
+    if (u && this.shipAlive && this.invincibleTimer <= 0) {
       const dx = this.shipX - u.x;
       const dy = this.shipY - u.y;
       if (dx * dx + dy * dy < (SHIP_SIZE * 1.8) ** 2) {

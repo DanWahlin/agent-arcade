@@ -59,6 +59,9 @@ jobs:
       - name: Build frontend
         run: npm run build:frontend
 
+      - name: Run native Rust tests
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
@@ -227,6 +230,10 @@ jobs:
             > chmod +x Agent-Arcade_*.AppImage
             > ./Agent-Arcade_*.AppImage
             > ```
+
+            ## What's Changed
+
+            ${{ steps.changelog.outputs.content }}
 
             ---
             *A retro arcade overlay for your desktop — play while your AI agent is thinking! Built with Tauri + Phaser + TypeScript.*

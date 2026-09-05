@@ -19,6 +19,7 @@ const run = (cmd) => {
 console.log(`\n🔖 Bumping version to ${version}...`);
 const update = (file, regex, replacement) => {
   let content = fs.readFileSync(file, 'utf8');
+  if (!regex.test(content)) throw new Error(`Version field not found in ${file}`);
   content = content.replace(regex, replacement);
   fs.writeFileSync(file, content);
   console.log(`   ✓ ${file}`);
@@ -26,6 +27,15 @@ const update = (file, regex, replacement) => {
 update('package.json', /"version": ".*?"/, `"version": "${version}"`);
 update('src-tauri/tauri.conf.json', /"version": ".*?"/, `"version": "${version}"`);
 update('src-tauri/Cargo.toml', /^version = ".*?"/m, `version = "${version}"`);
+update('src-tauri/Cargo.lock', /(name = "agent-arcade"\r?\nversion = ")[^"]+"/,
+  (_match, prefix) => `${prefix}${version}"`);
+
+// Keep the root package metadata aligned without changing dependency resolutions.
+const packageLock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+packageLock.version = version;
+packageLock.packages[''].version = version;
+fs.writeFileSync('package-lock.json', JSON.stringify(packageLock, null, 2) + '\n');
+console.log('   ✓ package-lock.json');
 
 // 2. Update changelog
 console.log('\n📋 Updating CHANGELOG.md...');

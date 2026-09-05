@@ -10,19 +10,16 @@
   --bg-deep:      #06060f;
   --bg-section:   #0a0a1a;
   --bg-card:      #0f0f24;
-  --bg-card-alt:  #12122a;
   --gold:         #ffc629;
   --gold-bright:  #ffd95c;
   --gold-dark:    #c9930a;
   --cyan:         #00e5ff;
-  --magenta:      #ff2daa;
   --purple:       #9b4dff;
   --white:        #f0f2f8;
   --white-dim:    #c4c8d8;
   --border:       rgba(255,255,255,0.08);
   --glow-gold:    0 0 30px rgba(255,198,41,0.25);
   --glow-cyan:    0 0 20px rgba(0,229,255,0.2);
-  --glow-magenta: 0 0 20px rgba(255,45,170,0.15);
   --radius:       12px;
   --radius-lg:    20px;
   --font-display: 'Orbitron', sans-serif;
@@ -421,21 +418,6 @@ img { max-width: 100%; height: auto; }
   50% { box-shadow: 0 0 40px rgba(255,198,41,0.5), 0 0 80px rgba(255,198,41,0.15); }
 }
 
-.btn-secondary {
-  background: transparent;
-  color: var(--white);
-  border: 2px solid rgba(255,255,255,0.2);
-  backdrop-filter: blur(8px);
-}
-
-.btn-secondary:hover {
-  border-color: var(--cyan);
-  color: var(--cyan);
-  box-shadow: var(--glow-cyan);
-  transform: translateY(-2px);
-}
-
-.btn-sm { padding: 10px 24px; font-size: 0.8rem; }
 .btn-icon { font-size: 1.1em; }
 
 /* Badges */
@@ -751,8 +733,6 @@ img { max-width: 100%; height: auto; }
   100% { transform: translateX(4px); }
 }
 
-.game-icon { font-size: 3rem; margin-bottom: 16px; }
-
 .game-card h3 {
   font-family: var(--font-display);
   font-size: 1.4rem;
@@ -872,20 +852,6 @@ kbd {
   background: linear-gradient(90deg, var(--gold-dark), var(--gold), var(--cyan));
 }
 
-.story-timeline { text-align: center; margin-bottom: 24px; }
-
-.timeline-badge {
-  display: inline-block;
-  padding: 8px 24px;
-  border-radius: 50px;
-  background: rgba(255,198,41,0.1);
-  border: 1px solid rgba(255,198,41,0.25);
-  color: var(--gold);
-  font-family: var(--font-display);
-  font-size: 0.85rem;
-  font-weight: 700;
-}
-
 .story-text p {
   margin-bottom: 16px;
   color: var(--white-dim);
@@ -894,7 +860,6 @@ kbd {
 }
 
 .story-text strong { color: var(--white); }
-.story-inspiration { font-style: italic; opacity: 0.8; }
 
 /* ---------- Controls Section ---------- */
 .controls-grid { max-width: 600px; margin: 0 auto; }
@@ -926,79 +891,6 @@ kbd {
 .control-card tr:last-child td { border-bottom: none; }
 .control-card td:first-child { text-align: right; width: 55%; }
 .control-card td:last-child { text-align: left; color: var(--white-dim); }
-
-/* ---------- Install ---------- */
-.install-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 32px;
-  align-items: start;
-}
-
-.install-card {
-  background: var(--bg-card);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-  padding: 32px;
-}
-
-.install-card h3 {
-  font-family: var(--font-display);
-  font-size: 1.1rem;
-  margin-bottom: 16px;
-  color: var(--gold);
-}
-
-.install-card p { color: var(--white-dim); margin-bottom: 20px; font-size: 1rem; }
-.install-note { margin-top: 20px !important; font-size: 0.9rem; }
-
-/* Code blocks */
-.code-block {
-  background: #0d0d1a;
-  border-radius: var(--radius);
-  overflow: hidden;
-  border: 1px solid rgba(255,255,255,0.06);
-  margin-bottom: 12px;
-}
-
-.code-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
-  background: rgba(255,255,255,0.03);
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-}
-
-.code-dots { display: flex; gap: 6px; }
-
-.code-dots i {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.1);
-}
-
-.code-dots i:nth-child(1) { background: #ff5f57; }
-.code-dots i:nth-child(2) { background: #ffbd2e; }
-.code-dots i:nth-child(3) { background: #28c840; }
-
-.code-title {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  color: var(--white-dim);
-}
-
-.code-block pre { padding: 16px; overflow-x: auto; }
-
-.code-block code {
-  font-family: var(--font-mono);
-  font-size: 0.88rem;
-  line-height: 1.6;
-  color: var(--cyan);
-}
-
-.code-comment { color: #5a5a7a; }
 
 /* ---------- Credits ---------- */
 .credits-grid {
@@ -1100,7 +992,6 @@ kbd {
   .built-with { margin: 0 auto; }
   .hero-stage { order: -1; }
   .gif-showcase { max-width: 400px; }
-  .install-grid { grid-template-columns: 1fr; }
 }
 
 /* Tablet portrait */
@@ -1151,8 +1042,6 @@ kbd {
   @keyframes ninjaRun { to { background-position: -240px 0; } }
   .sprite-icon { max-width: 48px; max-height: 48px; }
   .game-card-content { padding: 22px 16px; }
-  .game-title { font-size: 1.1rem; }
-  .game-desc { font-size: 0.88rem; }
   .step { gap: 14px; padding: 20px 0; }
   .step-number { width: 48px; height: 48px; font-size: 0.8rem; }
   .step-content h3 { font-size: 1rem; }
@@ -1163,8 +1052,6 @@ kbd {
   .controls-grid { max-width: 100%; }
   .control-card td { padding: 8px 6px; font-size: 0.85rem; }
   kbd { font-size: 0.72rem; padding: 2px 6px; }
-  .code-block code { font-size: 0.78rem; }
-  .code-block pre { padding: 12px; }
   .credits-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
   .credit-icon { font-size: 1.5rem; margin-bottom: 8px; }
   .footer-title { font-size: 1.1rem; }

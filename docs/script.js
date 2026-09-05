@@ -25,7 +25,6 @@
         y: Math.random() * canvas.height,
         r: Math.random() * 1.6 + 0.3,
         color: COLORS[Math.floor(Math.random() * COLORS.length)],
-        speed: Math.random() * 0.15 + 0.02,
         phase: Math.random() * Math.PI * 2,
         twinkleSpeed: Math.random() * 0.02 + 0.005,
       });
@@ -152,6 +151,55 @@
     return arr;
   }
 
+  const gifCache = new Map();
+
+  function loadGif(image, src, onLoad, onError) {
+    let cancelled = false;
+    let objectUrl;
+    function removeListeners() {
+      image.removeEventListener('load', loaded);
+      image.removeEventListener('error', failed);
+    }
+    function loaded() {
+      removeListeners();
+      if (!cancelled) onLoad();
+    }
+    function failed() {
+      removeListeners();
+      if (!cancelled) {
+        gifCache.delete(src);
+        onError();
+      }
+    }
+
+    if (!gifCache.has(src)) {
+      const pending = fetch(src).then(response => {
+        if (!response.ok) throw new Error(`Cannot load ${src}: ${response.status}`);
+        return response.blob();
+      }).catch(error => {
+        gifCache.delete(src);
+        throw error;
+      });
+      gifCache.set(src, pending);
+    }
+    gifCache.get(src).then(blob => {
+      if (cancelled) return;
+      // A fresh blob URL restarts the animation without downloading the GIF again.
+      objectUrl = URL.createObjectURL(blob);
+      image.addEventListener('load', loaded);
+      image.addEventListener('error', failed);
+      image.src = objectUrl;
+    }).catch(failed);
+
+    return () => {
+      cancelled = true;
+      removeListeners();
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }
+
   function initGifCarousel() {
     const display = document.getElementById('gif-display');
     const label = document.getElementById('gif-label');
@@ -179,8 +227,18 @@
     const MAX_RETRIES = 3;
     const RETRY_DELAY = 1000;
     let timer = null;
+    let progressFrame = null;
+    let cancelCarouselImage = null;
+
+    function stopCarousel() {
+      clearTimeout(timer);
+      cancelAnimationFrame(progressFrame);
+      if (cancelCarouselImage) cancelCarouselImage();
+      cancelCarouselImage = null;
+    }
 
     function showGif(idx, retryCount) {
+      stopCarousel();
       retryCount = retryCount || 0;
       currentIdx = idx;
       const data = GIF_DATA[order[idx]];
@@ -196,52 +254,37 @@
         progressBar.style.width = '0%';
       }
 
-      setTimeout(() => {
-        // Force GIF restart by appending a cache-bust
-        display.src = data.src + '?t=' + Date.now();
+      timer = setTimeout(() => {
         label.textContent = data.label;
 
         const onLoad = () => {
-          display.removeEventListener('load', onLoad);
-          display.removeEventListener('error', onError);
           display.classList.add('visible');
           label.style.opacity = '1';
 
           // Animate progress bar to match GIF duration
-          requestAnimationFrame(() => {
+          progressFrame = requestAnimationFrame(() => {
             progressBar.style.transition = `width ${dur}ms linear`;
             progressBar.style.width = '100%';
           });
+          timer = setTimeout(next, dur);
         };
 
-        var onError = () => {
-          display.removeEventListener('load', onLoad);
-          display.removeEventListener('error', onError);
+        const onError = () => {
           if (retryCount < MAX_RETRIES) {
-            setTimeout(() => showGif(idx, retryCount + 1), RETRY_DELAY);
+            timer = setTimeout(() => showGif(idx, retryCount + 1), RETRY_DELAY);
           } else {
-            // Skip to next GIF after exhausting retries
+            console.error(`Cannot display ${data.src} after ${MAX_RETRIES} retries`);
             next();
           }
         };
 
-        display.addEventListener('load', onLoad);
-        display.addEventListener('error', onError);
-
-        if (display.complete && display.naturalWidth > 0) {
-          display.removeEventListener('load', onLoad);
-          display.removeEventListener('error', onError);
-          onLoad();
-        }
+        cancelCarouselImage = loadGif(display, data.src, onLoad, onError);
 
         // Update dots
         indicatorWrap.querySelectorAll('.gif-dot').forEach((d, i) => {
           d.classList.toggle('active', i === idx);
         });
 
-        // Schedule next after full GIF plays
-        clearTimeout(timer);
-        timer = setTimeout(next, dur + FADE_MS);
       }, retryCount === 0 ? FADE_MS : 0);
     }
 
@@ -250,7 +293,6 @@
     }
 
     function goTo(idx) {
-      clearTimeout(timer);
       showGif(idx);
     }
 
@@ -261,29 +303,37 @@
     const lightbox = document.getElementById('lightbox');
     const lbImg = document.getElementById('lightbox-img');
     const lbLabel = document.getElementById('lightbox-label');
+    let lightboxTimer = null;
+    let cancelLightboxImage = null;
 
     display.addEventListener('click', () => {
+      if (lightbox.classList.contains('open')) return;
+      stopCarousel();
       const data = GIF_DATA[order[currentIdx]];
-      var lbRetries = 0;
+      let lbRetries = 0;
       function tryLoadLightbox() {
-        lbImg.src = data.src + '?t=' + Date.now();
+        if (cancelLightboxImage) cancelLightboxImage();
+        cancelLightboxImage = loadGif(lbImg, data.src, () => {}, () => {
+          if (lbRetries < MAX_RETRIES) {
+            lbRetries++;
+            lightboxTimer = setTimeout(tryLoadLightbox, RETRY_DELAY);
+          } else {
+            console.error(`Cannot display ${data.src} after ${MAX_RETRIES} retries`);
+          }
+        });
       }
-      lbImg.onerror = function () {
-        if (lbRetries < MAX_RETRIES) {
-          lbRetries++;
-          setTimeout(tryLoadLightbox, RETRY_DELAY);
-        }
-      };
-      lbImg.onload = function () { lbImg.onerror = null; };
       tryLoadLightbox();
       lbLabel.textContent = data.label;
       lightbox.classList.add('open');
-      clearTimeout(timer); // pause carousel
     });
 
     function closeLightbox() {
+      if (!lightbox.classList.contains('open')) return;
       lightbox.classList.remove('open');
-      lbImg.src = '';
+      clearTimeout(lightboxTimer);
+      if (cancelLightboxImage) cancelLightboxImage();
+      cancelLightboxImage = null;
+      lbImg.removeAttribute('src');
       showGif(currentIdx); // resume carousel
     }
 

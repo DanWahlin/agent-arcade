@@ -166,4 +166,102 @@ test.describe('Galaxy Blaster — Dual-Shot Power-Up', () => {
     expect(state!.dualShotTimer).toBeGreaterThan(0);
     await debugScreenshot(page, 'galaxy-blaster-dual-shot');
   });
+
+  test('collected and missed pickups release their infinite tweens', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const scene = (window as any).__phaserGame.scene.getScene('galaxy-blaster');
+      const targets: any[] = [];
+      for (let i = 0; i < 12; i++) {
+        scene.spawnDualShotPickup(scene.shipX, scene.shipY);
+        const pickup = scene.dualShotPickups[scene.dualShotPickups.length - 1];
+        targets.push(pickup.sprite);
+        if (i % 2 === 0) pickup.sprite.y = scene.scale.height + 100;
+        scene.updateDualShotPickups(0);
+      }
+      return {
+        pickups: scene.dualShotPickups.length,
+        retainedTweens: targets.reduce((sum, target) => sum + scene.tweens.getTweensOf(target).length, 0),
+        liveSprites: targets.filter(target => target.active).length,
+        dualShot: scene.dualShot,
+        timer: scene.dualShotTimer,
+      };
+    });
+    expect(result.pickups).toBe(0);
+    expect(result.retainedTweens).toBe(0);
+    expect(result.liveSprites).toBe(0);
+    expect(result.dualShot).toBe(true);
+    expect(result.timer).toBe(15000);
+  });
+});
+
+test('Galaxy Blaster — entry curve samples preserve De Casteljau results', async ({ page }) => {
+  await page.goto(GAME_URL);
+  await waitForGame(page);
+  await switchGame(page, 'galaxy-blaster');
+  const result = await page.evaluate(() => {
+    const scene = (window as any).__phaserGame.scene.getScene('galaxy-blaster');
+    scene.wave = 0;
+    scene.startWave();
+    const next = scene.spawnQueue[0];
+    const target = scene.formation[next.slotIdx];
+    const cx = scene.scale.width / 500;
+    const cy = scene.scale.height / 500;
+    const controls = [
+      [300, -32], [330, 50], [380, 130], [400, 220],
+      [430, 290], [390, 340], [330, 330], [270, 300],
+      [220, 260], [200, 210], [220, 170],
+    ].map(([x, y]) => ({ x: x * cx, y: y * cy }));
+    controls.push({ x: target.x, y: target.y });
+    const legacyPoint = (t: number, points: { x: number; y: number }[]): { x: number; y: number } => {
+      if (points.length === 1) return { ...points[0] };
+      return legacyPoint(t, points.slice(0, -1).map((point, i) => ({
+        x: (1 - t) * point.x + t * points[i + 1].x,
+        y: (1 - t) * point.y + t * points[i + 1].y,
+      })));
+    };
+    return {
+      actual: next.entryPath,
+      expected: Array.from({ length: 26 }, (_, i) => legacyPoint(i / 25, controls)),
+      uniqueSamples: new Set(next.entryPath).size,
+    };
+  });
+
+  expect(result.actual).toEqual(result.expected);
+  expect(result.uniqueSamples).toBe(26);
+});
+
+test('Galaxy Blaster — ship position uses the current viewport when the scene starts', async ({ page }) => {
+  await page.goto(GAME_URL);
+  await waitForGame(page);
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.waitForFunction(() => (window as any).__phaserGame.scale.height === 720);
+  await switchGame(page, 'galaxy-blaster');
+  const state = await getGalaxyState(page);
+  const opponentSize = Math.min(32 * Math.min(1280 / 500, 720 / 500), 1280 / 35);
+  expect(state!.shipY).toBe(Math.round(720 - opponentSize * 3));
+});
+
+test('Galaxy Blaster — shutdown destroys pickup sprites and their tweens', async ({ page }) => {
+  await page.goto(GAME_URL);
+  await waitForGame(page);
+  await switchGame(page, 'galaxy-blaster');
+  const result = await page.evaluate(() => {
+    const scene = (window as any).__phaserGame.scene.getScene('galaxy-blaster');
+    const shield = scene.add.sprite(100, 100, 'space', 'powerupBlue_shield.png');
+    scene.shieldPickups.push({ sprite: shield, vy: 0 });
+    scene.spawnDualShotPickup(100, 100);
+    const dual = scene.dualShotPickups[scene.dualShotPickups.length - 1].sprite;
+    scene.scene.pause();
+    scene.shutdown();
+    return {
+      shieldActive: shield.active,
+      dualActive: dual.active,
+      retainedTweens: scene.tweens.getTweensOf(dual).length,
+      pickups: scene.shieldPickups.length + scene.dualShotPickups.length,
+    };
+  });
+  expect(result.shieldActive).toBe(false);
+  expect(result.dualActive).toBe(false);
+  expect(result.retainedTweens).toBe(0);
+  expect(result.pickups).toBe(0);
 });

@@ -29,7 +29,6 @@ const TAURI_CONF = path.join(ROOT, 'src-tauri', 'tauri.conf.json');
 // Read and parse tauri.conf.json
 const originalConf = fs.readFileSync(TAURI_CONF, 'utf8');
 const conf = JSON.parse(originalConf);
-const originalEndpoints = conf.plugins?.updater?.endpoints;
 
 // Fake updater manifest — version much higher than any real release
 const manifest = {

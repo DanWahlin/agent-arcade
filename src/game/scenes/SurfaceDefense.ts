@@ -147,6 +147,9 @@ export class SurfaceDefenseScene extends BaseScene {
   private effectsGfx!: any;
   private cursorGfx!: any;
   private statusText!: any;
+  private defensesDirty = true;
+  private displayedAmmo = -1;
+  private displayedMultiplier = -1;
 
   private cities: City[] = [];
   private batteries: Battery[] = [];
@@ -248,6 +251,9 @@ export class SurfaceDefenseScene extends BaseScene {
     this.aircraftSpawnTimer = 0;
     this.aircraftSpawnedThisWave = false;
     this.stars = [];
+    this.defensesDirty = true;
+    this.displayedAmmo = -1;
+    this.displayedMultiplier = -1;
 
     this.terrainGfx = this.add.graphics().setDepth(-5);
     this.defenseGfx = this.add.graphics().setDepth(5);
@@ -424,6 +430,7 @@ export class SurfaceDefenseScene extends BaseScene {
     }
 
     battery.ammo--;
+    this.defensesDirty = true;
     this.fireCooldown = 120;
     const startX = battery.x;
     const startY = battery.y - H * 0.018;
@@ -464,6 +471,7 @@ export class SurfaceDefenseScene extends BaseScene {
       battery.alive = true;
       battery.ammo = BATTERY_AMMO;
     }
+    this.defensesDirty = true;
 
     this.syncLevelToHUD();
     this.showWaveBanner(this.wave);
@@ -659,7 +667,6 @@ export class SurfaceDefenseScene extends BaseScene {
         this.addScore(points, missile.x, missile.y);
         this.checkBonusCity();
         this.createExplosion(missile.x, missile.y, true, missile.color);
-        this.checkBonusCity();
       }
 
       for (const craft of this.aircraft) {
@@ -678,6 +685,7 @@ export class SurfaceDefenseScene extends BaseScene {
   }
 
   private handleImpact(missile: EnemyMissile) {
+    this.defensesDirty = true;
     if (missile.targetKind === 'city') {
       const city = this.cities[missile.targetIndex];
       if (city.alive) city.alive = false;
@@ -774,6 +782,7 @@ export class SurfaceDefenseScene extends BaseScene {
       if (this.bonusCityReserve <= 0) break;
       if (!city.alive) {
         city.alive = true;
+        this.defensesDirty = true;
         this.bonusCityReserve--;
       }
     }
@@ -822,14 +831,21 @@ export class SurfaceDefenseScene extends BaseScene {
   // Terrain is static within a wave; it's drawn at create() and startWave()
   // rather than every frame.
   private drawScene() {
-    this.drawDefenses();
+    if (this.defensesDirty) {
+      this.drawDefenses();
+      this.defensesDirty = false;
+    }
     this.drawMissiles();
     this.drawEffects();
     this.drawCursor();
 
     const totalAmmo = this.batteries.reduce((sum, battery) => sum + battery.ammo, 0);
     const multiplier = this.getScoreMultiplier();
-    this.statusText.setText(`INTERCEPTORS ${String(totalAmmo).padStart(2, '0')}   ×${multiplier}`);
+    if (totalAmmo !== this.displayedAmmo || multiplier !== this.displayedMultiplier) {
+      this.statusText.setText(`INTERCEPTORS ${String(totalAmmo).padStart(2, '0')}   ×${multiplier}`);
+      this.displayedAmmo = totalAmmo;
+      this.displayedMultiplier = multiplier;
+    }
   }
 
   private drawTerrain() {

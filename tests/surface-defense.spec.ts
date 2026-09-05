@@ -306,6 +306,84 @@ test.describe('Surface Defense — Gameplay', () => {
 });
 
 test.describe('Surface Defense — Game Switching', () => {
+  test('static defense graphics and status are refreshed only after state changes', async ({ page }) => {
+    await page.goto(GAME_URL);
+    await waitForGame(page);
+    await switchGame(page, 'surface-defense');
+    const result = await page.evaluate(() => {
+      const scene = (window as any).__phaserGame.scene.getScene('surface-defense') as any;
+      scene.drawScene();
+      const originalClear = scene.defenseGfx.clear;
+      const originalSetText = scene.statusText.setText;
+      let redraws = 0;
+      let textUpdates = 0;
+      scene.defenseGfx.clear = function () { redraws++; return originalClear.call(this); };
+      scene.statusText.setText = function (text: string) {
+        textUpdates++;
+        return originalSetText.call(this, text);
+      };
+      const snapshots: { redraws: number; textUpdates: number; text: string }[] = [];
+      const draw = () => {
+        scene.drawScene();
+        snapshots.push({ redraws, textUpdates, text: scene.statusText.text });
+      };
+      try {
+        for (let i = 0; i < 10; i++) scene.drawScene();
+        draw();
+        scene.fireCooldown = 0;
+        scene.fireInterceptor(0);
+        draw();
+        scene.handleImpact({
+          targetKind: 'city', targetIndex: 0,
+          targetX: scene.cities[0].x, targetY: scene.groundY,
+        });
+        draw();
+        scene.bonusCityReserve = 1;
+        scene.restoreCitiesFromReserve();
+        draw();
+        scene.handleImpact({
+          targetKind: 'battery', targetIndex: 1,
+          targetX: scene.batteries[1].x, targetY: scene.groundY,
+        });
+        draw();
+        scene.wave = 2;
+        scene.startWave();
+        draw();
+        return { snapshots, cityRestored: scene.cities[0].alive, batteryRestored: scene.batteries[1].alive };
+      } finally {
+        scene.defenseGfx.clear = originalClear;
+        scene.statusText.setText = originalSetText;
+      }
+    });
+    expect(result.snapshots).toEqual([
+      { redraws: 0, textUpdates: 0, text: 'INTERCEPTORS 30   ×1' },
+      { redraws: 1, textUpdates: 1, text: 'INTERCEPTORS 29   ×1' },
+      { redraws: 2, textUpdates: 1, text: 'INTERCEPTORS 29   ×1' },
+      { redraws: 3, textUpdates: 1, text: 'INTERCEPTORS 29   ×1' },
+      { redraws: 4, textUpdates: 2, text: 'INTERCEPTORS 19   ×1' },
+      { redraws: 5, textUpdates: 3, text: 'INTERCEPTORS 30   ×2' },
+    ]);
+    expect(result.cityRestored).toBe(true);
+    expect(result.batteryRestored).toBe(true);
+  });
+
+  test('render caches reset when returning to Surface Defense', async ({ page }) => {
+    await page.goto(GAME_URL);
+    await waitForGame(page);
+    await switchGame(page, 'surface-defense');
+    await switchGame(page, 'cosmic-rocks');
+    await switchGame(page, 'surface-defense');
+    const result = await page.evaluate(() => {
+      const scene = (window as any).__phaserGame.scene.getScene('surface-defense') as any;
+      scene.drawScene();
+      return {
+        text: scene.statusText.text,
+        hasDefenses: scene.defenseGfx.commandBuffer.length > 0,
+      };
+    });
+    expect(result).toEqual({ text: 'INTERCEPTORS 30   ×1', hasDefenses: true });
+  });
+
   test('switches to and away from the scene', async ({ page }) => {
     await page.goto(GAME_URL);
     await waitForGame(page);

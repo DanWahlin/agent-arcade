@@ -190,6 +190,8 @@ On Linux, Agent Arcade leaves 40 pixels available for a top desktop panel. Set `
 | <kbd>F</kbd> / <kbd>Z</kbd> | Fire (when powered up) |
 | <kbd>↓</kbd> | Enter warp/golden pipes |
 
+You can go back up to two screen widths behind the furthest camera position. Older terrain is removed to keep memory use stable during long runs. Respawning uses terrain inside the retained area.
+
 ### 🛡️ Planet Guardian
 
 | Key | Action |

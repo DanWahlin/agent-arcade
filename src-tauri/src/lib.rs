@@ -25,6 +25,8 @@ static PAUSE_SHORTCUT: Mutex<String> = Mutex::new(String::new());
 /// Only OS-registered while the game is paused so it isn't swallowed
 /// system-wide the rest of the time.
 static UNPAUSE_SHORTCUT: Mutex<String> = Mutex::new(String::new());
+// Keep conflict validation and assignment atomic across all three setters.
+static SHORTCUT_ASSIGNMENT_LOCK: Mutex<()> = Mutex::new(());
 
 /// Combo string of a default shortcut that failed to register at startup.
 /// Surfaced to JS on page load — evaluating it during setup would be lost
@@ -185,6 +187,130 @@ async fn install_update(app: AppHandle) -> Result<(), String> {
     }
 }
 
+fn shortcuts_conflict(combo: &str, other: &str) -> bool {
+    match (parse_shortcut(combo), parse_shortcut(other)) {
+        (Some(shortcut), Some(other_shortcut)) => shortcut == other_shortcut,
+        _ => false,
+    }
+}
+
+fn validate_shortcut_assignment(storage: &Mutex<String>, combo: &str) -> Result<(), String> {
+    parse_shortcut(combo).ok_or_else(|| format!("Invalid shortcut: {}", combo))?;
+    for other in [&TOGGLE_SHORTCUT, &PAUSE_SHORTCUT, &UNPAUSE_SHORTCUT] {
+        if !std::ptr::eq(storage, other) && shortcuts_conflict(combo, &other.lock().unwrap()) {
+            return Err(format!("Shortcut {} is already assigned to another action", combo));
+        }
+    }
+    Ok(())
+}
+
+#[derive(Clone, serde::Deserialize, serde::Serialize)]
+struct ShortcutConfig {
+    toggle: String,
+    pause: String,
+    unpause: String,
+}
+
+fn current_shortcuts() -> ShortcutConfig {
+    let toggle = TOGGLE_SHORTCUT.lock().unwrap();
+    let pause = PAUSE_SHORTCUT.lock().unwrap();
+    let unpause = UNPAUSE_SHORTCUT.lock().unwrap();
+    ShortcutConfig {
+        toggle: toggle.clone(),
+        pause: pause.clone(),
+        unpause: unpause.clone(),
+    }
+}
+
+fn parse_shortcut_config(
+    config: &ShortcutConfig,
+) -> Result<Vec<tauri_plugin_global_shortcut::Shortcut>, String> {
+    let mut parsed = Vec::new();
+    for combo in [&config.toggle, &config.pause, &config.unpause] {
+        let shortcut = parse_shortcut(combo).ok_or_else(|| format!("Invalid shortcut: {}", combo))?;
+        if parsed.contains(&shortcut) {
+            return Err(format!("Shortcut {} is assigned to more than one action", combo));
+        }
+        parsed.push(shortcut);
+    }
+    Ok(parsed)
+}
+
+fn replace_shortcut_registrations(
+    current: &[tauri_plugin_global_shortcut::Shortcut],
+    desired: &[tauri_plugin_global_shortcut::Shortcut],
+    mut change: impl FnMut(tauri_plugin_global_shortcut::Shortcut, bool) -> Result<(), String>,
+) -> Result<(), String> {
+    let changes = desired.iter().filter(|sc| !current.contains(sc)).map(|sc| (*sc, true))
+        .chain(current.iter().filter(|sc| !desired.contains(sc)).map(|sc| (*sc, false)));
+    let mut applied: Vec<(tauri_plugin_global_shortcut::Shortcut, bool)> = Vec::new();
+    // Acquire new keys before releasing old ones. Shared keys need no OS operation, even in a swap.
+    for (shortcut, registered) in changes {
+        if let Err(error) = change(shortcut, registered) {
+            let mut errors = vec![error];
+            for (previous, was_registered) in applied.into_iter().rev() {
+                if let Err(rollback_error) = change(previous, !was_registered) {
+                    errors.push(format!("Shortcut rollback failed: {}", rollback_error));
+                }
+            }
+            return Err(errors.join("; "));
+        }
+        applied.push((shortcut, registered));
+    }
+    Ok(())
+}
+
+async fn with_shortcut_assignment<T: Send + 'static>(
+    change: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    // OS registration can wait on the main thread. Never block that thread waiting on these locks.
+    tauri::async_runtime::spawn_blocking(move || {
+        let _assignment = SHORTCUT_ASSIGNMENT_LOCK.lock().unwrap();
+        change()
+    }).await.map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+async fn restore_shortcuts(app: AppHandle, shortcuts: ShortcutConfig) -> Result<ShortcutConfig, String> {
+    let parsed = parse_shortcut_config(&shortcuts)?;
+    with_shortcut_assignment(move || {
+        use tauri_plugin_global_shortcut::GlobalShortcutExt;
+
+        let _pause_registration = PAUSE_SC.lock.lock().unwrap();
+        let _unpause_registration = UNPAUSE_SC.lock.lock().unwrap();
+        let old = current_shortcuts();
+        let current: Vec<_> = [&old.toggle, &old.pause, &old.unpause].into_iter()
+            .filter_map(|combo| parse_shortcut(combo))
+            .filter(|shortcut| app.global_shortcut().is_registered(*shortcut))
+            .collect();
+        let mut desired = vec![parsed[0]];
+        if VISIBLE.load(Ordering::SeqCst) {
+            desired.push(parsed[if PAUSED.load(Ordering::SeqCst) { 2 } else { 1 }]);
+        }
+        replace_shortcut_registrations(&current, &desired, |shortcut, registered| {
+            let result = if registered {
+                app.global_shortcut().register(shortcut)
+            } else {
+                app.global_shortcut().unregister(shortcut)
+            };
+            result.map_err(|error| error.to_string())
+        })?;
+
+        // Pending deferred jobs keep their generations and read the committed bindings after
+        // these registration locks are released; failures leave their original bindings intact.
+        {
+            let mut toggle = TOGGLE_SHORTCUT.lock().unwrap();
+            let mut pause = PAUSE_SHORTCUT.lock().unwrap();
+            let mut unpause = UNPAUSE_SHORTCUT.lock().unwrap();
+            *toggle = shortcuts.toggle.clone();
+            *pause = shortcuts.pause.clone();
+            *unpause = shortcuts.unpause.clone();
+        }
+        update_tray_label(&app, &shortcuts.toggle);
+        Ok(shortcuts)
+    }).await
+}
+
 /// Shared helper: swap a global shortcut registration, updating the stored Mutex.
 fn swap_shortcut(
     app: &AppHandle,
@@ -225,10 +351,13 @@ fn swap_shortcut(
 /// `combo` is a string like "Ctrl+Alt+M" or "Ctrl+Shift+G".
 /// Returns Ok(combo) on success or an error string if the shortcut can't be registered.
 #[tauri::command]
-fn set_toggle_shortcut(app: AppHandle, combo: String) -> Result<String, String> {
-    let result = swap_shortcut(&app, &TOGGLE_SHORTCUT, &combo, true)?;
-    update_tray_label(&app, &combo);
-    Ok(result)
+async fn set_toggle_shortcut(app: AppHandle, combo: String) -> Result<String, String> {
+    with_shortcut_assignment(move || {
+        validate_shortcut_assignment(&TOGGLE_SHORTCUT, &combo)?;
+        let result = swap_shortcut(&app, &TOGGLE_SHORTCUT, &combo, true)?;
+        update_tray_label(&app, &combo);
+        Ok(result)
+    }).await
 }
 
 /// Get the current toggle shortcut string.
@@ -241,16 +370,18 @@ fn get_toggle_shortcut() -> String {
 /// `combo` can be a single key like "Escape" or a combo like "Ctrl+P".
 /// Returns Ok(combo) on success or an error string if the shortcut can't be registered.
 #[tauri::command]
-fn set_pause_shortcut(app: AppHandle, combo: String) -> Result<String, String> {
-    if *PAUSE_SHORTCUT.lock().unwrap() == combo {
-        return Ok(combo);
-    }
-
-    PAUSE_SC.generation.fetch_add(1, Ordering::SeqCst);
-    let _registration = PAUSE_SC.lock.lock().unwrap();
-    // Only OS-registered while the game is visible and unpaused.
-    let should_register = VISIBLE.load(Ordering::SeqCst) && !PAUSED.load(Ordering::SeqCst);
-    swap_shortcut(&app, &PAUSE_SHORTCUT, &combo, should_register)
+async fn set_pause_shortcut(app: AppHandle, combo: String) -> Result<String, String> {
+    with_shortcut_assignment(move || {
+        validate_shortcut_assignment(&PAUSE_SHORTCUT, &combo)?;
+        if *PAUSE_SHORTCUT.lock().unwrap() == combo {
+            return Ok(combo);
+        }
+        PAUSE_SC.generation.fetch_add(1, Ordering::SeqCst);
+        let _registration = PAUSE_SC.lock.lock().unwrap();
+        // Only OS-registered while the game is visible and unpaused.
+        let should_register = VISIBLE.load(Ordering::SeqCst) && !PAUSED.load(Ordering::SeqCst);
+        swap_shortcut(&app, &PAUSE_SHORTCUT, &combo, should_register)
+    }).await
 }
 
 /// Get the current pause shortcut string.
@@ -263,16 +394,18 @@ fn get_pause_shortcut() -> String {
 /// `combo` can be a combo like "Ctrl+Escape" or "Ctrl+P".
 /// Returns Ok(combo) on success or an error string if the shortcut can't be registered.
 #[tauri::command]
-fn set_unpause_shortcut(app: AppHandle, combo: String) -> Result<String, String> {
-    if *UNPAUSE_SHORTCUT.lock().unwrap() == combo {
-        return Ok(combo);
-    }
-
-    UNPAUSE_SC.generation.fetch_add(1, Ordering::SeqCst);
-    let _registration = UNPAUSE_SC.lock.lock().unwrap();
-    // Only OS-registered while paused; otherwise just store the combo.
-    let should_register = PAUSED.load(Ordering::SeqCst);
-    swap_shortcut(&app, &UNPAUSE_SHORTCUT, &combo, should_register)
+async fn set_unpause_shortcut(app: AppHandle, combo: String) -> Result<String, String> {
+    with_shortcut_assignment(move || {
+        validate_shortcut_assignment(&UNPAUSE_SHORTCUT, &combo)?;
+        if *UNPAUSE_SHORTCUT.lock().unwrap() == combo {
+            return Ok(combo);
+        }
+        UNPAUSE_SC.generation.fetch_add(1, Ordering::SeqCst);
+        let _registration = UNPAUSE_SC.lock.lock().unwrap();
+        // Only OS-registered while paused; otherwise just store the combo.
+        let should_register = PAUSED.load(Ordering::SeqCst);
+        swap_shortcut(&app, &UNPAUSE_SHORTCUT, &combo, should_register)
+    }).await
 }
 
 /// Get the current unpause shortcut string.
@@ -615,15 +748,6 @@ fn unregister_unpause_shortcut(app: &AppHandle) {
     set_shortcut_registration(app, &UNPAUSE_SC, false);
 }
 
-/// True when `shortcut` matches the combo currently stored in `storage`.
-fn matches_stored(
-    storage: &Mutex<String>,
-    shortcut: &tauri_plugin_global_shortcut::Shortcut,
-) -> bool {
-    let stored = storage.lock().unwrap();
-    !stored.is_empty() && parse_shortcut(&stored).is_some_and(|sc| sc == *shortcut)
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let log_level = if cfg!(debug_assertions) {
@@ -647,9 +771,10 @@ pub fn run() {
                         return;
                     }
 
-                    let is_toggle = matches_stored(&TOGGLE_SHORTCUT, shortcut);
-                    let is_pause = matches_stored(&PAUSE_SHORTCUT, shortcut);
-                    let is_unpause = matches_stored(&UNPAUSE_SHORTCUT, shortcut);
+                    let bindings = current_shortcuts();
+                    let is_toggle = parse_shortcut(&bindings.toggle).is_some_and(|sc| sc == *shortcut);
+                    let is_pause = parse_shortcut(&bindings.pause).is_some_and(|sc| sc == *shortcut);
+                    let is_unpause = parse_shortcut(&bindings.unpause).is_some_and(|sc| sc == *shortcut);
 
                     if is_toggle {
                         toggle_window(app);
@@ -666,7 +791,7 @@ pub fn run() {
                 })
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![set_click_through, request_focus, set_paused, quit_app, hide_app, get_cursor_in_window, set_toggle_shortcut, get_toggle_shortcut, set_pause_shortcut, get_pause_shortcut, set_unpause_shortcut, get_unpause_shortcut, get_app_version, install_update])
+        .invoke_handler(tauri::generate_handler![set_click_through, request_focus, set_paused, quit_app, hide_app, get_cursor_in_window, restore_shortcuts, set_toggle_shortcut, get_toggle_shortcut, set_pause_shortcut, get_pause_shortcut, set_unpause_shortcut, get_unpause_shortcut, get_app_version, install_update])
         .on_page_load(|webview, payload| {
             if payload.event() == tauri::webview::PageLoadEvent::Finished {
                 // Surface a startup shortcut-registration failure now that the
@@ -835,7 +960,10 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{format_combo_display, parse_shortcut, top_inset_from_env};
+    use super::{
+        format_combo_display, parse_shortcut, parse_shortcut_config,
+        replace_shortcut_registrations, shortcuts_conflict, top_inset_from_env, ShortcutConfig,
+    };
     use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut};
 
     #[test]
@@ -870,6 +998,118 @@ mod tests {
         for invalid in ["", "Ctrl", "Ctrl++M", "Hyper+M", "Ctrl+NotAKey"] {
             assert_eq!(parse_shortcut(invalid), None);
         }
+    }
+
+    #[test]
+    fn detects_equivalent_shortcut_assignments() {
+        for (combo, other) in [
+            ("Escape", "Esc"),
+            ("Ctrl+Escape", "control+esc"),
+            ("Ctrl+Alt+M", " option + CONTROL + m "),
+            ("Super+Shift+M", "shift+command+m"),
+        ] {
+            assert!(shortcuts_conflict(combo, other));
+            assert!(shortcuts_conflict(other, combo));
+        }
+    }
+
+    #[test]
+    fn allows_distinct_or_unassigned_shortcuts() {
+        for (combo, other) in [
+            ("Escape", "Ctrl+Escape"),
+            ("Ctrl+M", "Alt+M"),
+            ("Ctrl+M", "Ctrl+N"),
+            ("Ctrl+M", ""),
+            ("", ""),
+        ] {
+            assert!(!shortcuts_conflict(combo, other));
+        }
+    }
+
+    #[test]
+    fn restores_swapped_startup_shortcuts_as_one_configuration() {
+        let config = ShortcutConfig {
+            toggle: "Ctrl+Alt+M".to_string(),
+            pause: "Ctrl+Escape".to_string(),
+            unpause: "Escape".to_string(),
+        };
+        let parsed = parse_shortcut_config(&config).unwrap();
+        let current = vec![parsed[0], parsed[2]];
+        let desired = vec![parsed[0], parsed[1]];
+        let mut native = current.clone();
+        replace_shortcut_registrations(&current, &desired, |shortcut, registered| {
+            if registered {
+                assert!(!native.contains(&shortcut));
+                native.push(shortcut);
+            } else {
+                native.retain(|sc| *sc != shortcut);
+            }
+            Ok(())
+        }).unwrap();
+        assert_eq!(native, desired);
+    }
+
+    #[test]
+    fn rejects_duplicate_or_invalid_startup_configurations() {
+        for (pause, unpause) in [
+            ("Escape", "Esc"),
+            ("Ctrl+Escape", "control+esc"),
+            ("option+control+m", "Escape"),
+            ("NotAKey", "Escape"),
+        ] {
+            let config = ShortcutConfig {
+                toggle: "Ctrl+Alt+M".to_string(),
+                pause: pause.to_string(),
+                unpause: unpause.to_string(),
+            };
+            assert!(parse_shortcut_config(&config).is_err());
+        }
+    }
+
+    #[test]
+    fn registration_failure_rolls_back_acquired_keys_without_releasing_old_keys() {
+        let current = vec![parse_shortcut("Escape").unwrap()];
+        let desired = vec![parse_shortcut("Ctrl+M").unwrap(), parse_shortcut("Alt+M").unwrap()];
+        let mut native = current.clone();
+        let result = replace_shortcut_registrations(&current, &desired, |shortcut, registered| {
+            if registered && shortcut == desired[1] {
+                return Err("Key already taken".to_string());
+            }
+            if registered {
+                native.push(shortcut);
+            } else {
+                native.retain(|sc| *sc != shortcut);
+            }
+            Ok(())
+        });
+        assert!(result.is_err());
+        assert_eq!(native, current);
+    }
+
+    #[test]
+    fn unregister_failure_restores_old_keys_and_reports_rollback_failures() {
+        let current = vec![parse_shortcut("Escape").unwrap(), parse_shortcut("Ctrl+Escape").unwrap()];
+        let desired = vec![parse_shortcut("Ctrl+M").unwrap()];
+        let mut native = current.clone();
+        let result = replace_shortcut_registrations(&current, &desired, |shortcut, registered| {
+            if !registered && shortcut == current[1] {
+                return Err("Could not unregister".to_string());
+            }
+            if registered {
+                native.push(shortcut);
+            } else {
+                native.retain(|sc| *sc != shortcut);
+            }
+            Ok(())
+        });
+        assert!(result.is_err());
+        assert_eq!(native.len(), current.len());
+        assert!(current.iter().all(|sc| native.contains(sc)));
+
+        let result = replace_shortcut_registrations(&current, &desired, |_, registered| {
+            if registered { Ok(()) } else { Err("OS failure".to_string()) }
+        });
+        assert!(result.unwrap_err().contains("Shortcut rollback failed"));
     }
 
     #[test]

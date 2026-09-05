@@ -19,12 +19,25 @@ async function setupTauriMock(page: Page) {
     const calls: { cmd: string; args: any }[] = [];
     (window as any).__tauriMockCalls = calls;
     (window as any).__mockCursor = null;
+    let shortcuts = { toggle: 'Ctrl+Alt+M', pause: 'Escape', unpause: 'Ctrl+Escape' };
+    (window as any).__mockShortcuts = shortcuts;
     (window as any).__TAURI_INTERNALS__ = {
       invoke: (cmd: string, args?: any) => {
         calls.push({ cmd, args: args ?? {} });
         if (cmd === 'get_cursor_in_window') {
           return Promise.resolve((window as any).__mockCursor);
         }
+        if (cmd === 'restore_shortcuts') {
+          const values = Object.values(args.shortcuts);
+          if (new Set(values).size !== 3) return Promise.reject(new Error('Duplicate shortcuts'));
+          shortcuts = { ...args.shortcuts };
+          (window as any).__mockShortcuts = shortcuts;
+          return Promise.resolve(shortcuts);
+        }
+        const getters: Record<string, keyof typeof shortcuts> = {
+          get_toggle_shortcut: 'toggle', get_pause_shortcut: 'pause', get_unpause_shortcut: 'unpause',
+        };
+        if (getters[cmd]) return Promise.resolve(shortcuts[getters[cmd]]);
         return Promise.resolve(null);
       },
     };
@@ -92,6 +105,45 @@ test.beforeEach(async ({ page }) => {
   await setupTauriMock(page);
   await page.goto(GAME_URL);
   await waitForGame(page);
+});
+
+test.describe('User flows — startup shortcut restore', () => {
+  test('restores swapped pause and resume bindings through one transaction', async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem('agentArcade_pauseKey', 'Ctrl+Escape');
+      localStorage.setItem('agentArcade_unpauseKey', 'Escape');
+    });
+    await page.reload();
+    await expect.poll(async () => (await getInvokeCalls(page)).filter(c => c.cmd === 'restore_shortcuts').length)
+      .toBe(1);
+    const calls = await getInvokeCalls(page);
+    expect(calls.find(c => c.cmd === 'restore_shortcuts')?.args).toEqual({
+      shortcuts: { toggle: 'Ctrl+Alt+M', pause: 'Ctrl+Escape', unpause: 'Escape' },
+    });
+    expect(calls.filter(c => /^set_(toggle|pause|unpause)_shortcut$/.test(c.cmd))).toEqual([]);
+    expect(await page.evaluate(() => (window as any).__mockShortcuts)).toEqual({
+      toggle: 'Ctrl+Alt+M', pause: 'Ctrl+Escape', unpause: 'Escape',
+    });
+    await expect(page.locator('#pause-hotkey-display')).toHaveValue('Ctrl+Escape');
+    await expect(page.locator('#unpause-hotkey-display')).toHaveValue('Escape');
+    await expect(page.locator('#pause-hotkey-status')).toHaveText('');
+  });
+
+  test('rejected duplicate startup bindings report failure and retain active defaults', async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem('agentArcade_pauseKey', 'Ctrl+Escape');
+      localStorage.setItem('agentArcade_unpauseKey', 'Ctrl+Escape');
+    });
+    await page.reload();
+    await expect(page.locator('#pause-hotkey-status')).toHaveText('Saved shortcuts unavailable');
+    await expect(page.locator('#pause-hotkey-display')).toHaveValue('Escape');
+    await expect(page.locator('#unpause-hotkey-display')).toHaveValue('Ctrl+Escape');
+    expect(await page.evaluate(() => (window as any).__mockShortcuts)).toEqual({
+      toggle: 'Ctrl+Alt+M', pause: 'Escape', unpause: 'Ctrl+Escape',
+    });
+    expect(await page.evaluate(() => localStorage.getItem('agentArcade_pauseKey'))).toBe('Ctrl+Escape');
+    await expect(page.locator('#help-pause-keys')).toHaveText('Esc');
+  });
 });
 
 test.describe('User flows — mute/unmute', () => {
@@ -174,6 +226,63 @@ test.describe('User flows — HUD stays clickable after resume (tracker regressi
 });
 
 test.describe('User flows — settings', () => {
+  for (const overlay of ['help', 'settings']) {
+    test(`repeated ${overlay} activation still resumes the scene on close`, async ({ page }) => {
+      await page.click(`#${overlay}-btn`);
+      await expect.poll(() => page.evaluate(() =>
+        (window as any).__phaserGame.scene.isPaused('ninja-runner'))).toBe(true);
+      await page.keyboard.press('Enter');
+      await page.click(`#${overlay}-close`);
+      await expect.poll(() => page.evaluate(() =>
+        (window as any).__phaserGame.scene.isActive('ninja-runner'))).toBe(true);
+    });
+  }
+
+  test('zero background opacity survives reload', async ({ page }) => {
+    await page.click('#settings-btn');
+    await page.locator('#bg-transparency').fill('0');
+    await page.reload();
+    await waitForGame(page);
+    await page.click('#settings-btn');
+    await expect(page.locator('#bg-transparency')).toHaveValue('0');
+    await expect(page.locator('#bg-transparency-value')).toHaveText('0%');
+    expect(await page.evaluate(() =>
+      (window as any).__phaserGame.scene.getScene('ninja-runner')._backdrop.alpha)).toBeCloseTo(0.01);
+  });
+
+  test('a rejected hotkey keeps the saved value and help text', async ({ page }) => {
+    await page.evaluate(() => {
+      const ti = (window as any).__TAURI_INTERNALS__;
+      const invoke = ti.invoke;
+      ti.invoke = (cmd: string, args?: any) =>
+        cmd === 'set_toggle_shortcut' ? Promise.reject(new Error('Shortcut taken')) : invoke(cmd, args);
+    });
+    await page.click('#settings-btn');
+    await page.click('#hotkey-record-btn');
+    await page.keyboard.press('Control+Alt+K');
+    await expect(page.locator('#hotkey-status')).toHaveText('Taken!');
+    await expect(page.locator('#hotkey-display')).toHaveValue('Ctrl+Alt+M');
+    await page.click('#hotkey-record-btn');
+    await page.click('#hotkey-record-btn');
+    await expect(page.locator('#hotkey-display')).toHaveValue('Ctrl+Alt+M');
+    expect(await page.locator('#help-toggle-keys kbd').allTextContents()).toEqual(['⌃', '⌥', 'M']);
+    expect(await page.evaluate(() => localStorage.getItem('agentArcade_hotkey'))).toBeNull();
+  });
+
+  test('closing settings stops hotkey recording and Escape does not pause the game', async ({ page }) => {
+    await page.click('#settings-btn');
+    await page.click('#hotkey-record-btn');
+    await page.click('#settings-close');
+    await page.keyboard.press('Control+Alt+K');
+    expect(await page.evaluate(() => localStorage.getItem('agentArcade_hotkey'))).toBeNull();
+    await page.click('#settings-btn');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#settings-overlay')).not.toHaveClass(/show/);
+    await expect(page.locator('body')).not.toHaveClass(/paused/);
+    await expect.poll(() => page.evaluate(() =>
+      (window as any).__phaserGame.scene.isActive('ninja-runner'))).toBe(true);
+  });
+
   test('settings opens, transparency change applies and persists, settings closes', async ({ page }) => {
     await page.click('#settings-btn');
     await expect(page.locator('#settings-overlay')).toHaveClass(/show/);

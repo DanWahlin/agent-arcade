@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import {
   GAME_URL, waitForGame, getGameState, getSceneState, getGroundInfo,
   holdKey, moveAndJump, debugScreenshot, killPlayer,
-  setInvincible, setLives, getSceneProperty
+  setInvincible, setLives, getSceneProperty, switchGame
 } from './helpers';
 
 test.describe('Ninja Runner — Startup & Layout', () => {
@@ -11,11 +11,314 @@ test.describe('Ninja Runner — Startup & Layout', () => {
     await waitForGame(page);
   });
 
+  test.describe('Ninja Runner — Rendering and resource regressions', () => {
+    test('returning to the scene resets previous run state', async ({ page }) => {
+      await page.evaluate(() => {
+        const scene = (window as any).__phaserGame.scene.getScene('ninja-runner');
+        scene.score = 900;
+        scene.lives = 1;
+        scene.dead = true;
+        scene.warping = true;
+        scene.genX = 90000;
+        scene.furthestCameraX = 80000;
+        scene.terrainStartX = 75000;
+        scene.gaps = [{ start: 0, end: 50000 }];
+        scene.currentBiome = 3;
+      });
+      await switchGame(page, 'cosmic-rocks');
+      await switchGame(page, 'ninja-runner');
+      const state = await page.evaluate(() => {
+        const scene = (window as any).__phaserGame.scene.getScene('ninja-runner');
+        return {
+          score: scene.score, lives: scene.lives, dead: scene.dead, warping: scene.warping,
+          biome: scene.currentBiome, level: scene.currentLevel,
+          freshGeneration: scene.genX < 90000,
+          terrainStart: scene.terrainStartX,
+          freshCameraProgress: scene.furthestCameraX < 80000,
+          spawnOnGround: scene.player.body.blocked.down,
+        };
+      });
+      expect(state).toEqual({
+        score: 0, lives: 3, dead: false, warping: false,
+        biome: 0, level: 1, freshGeneration: true, spawnOnGround: true,
+        terrainStart: 0, freshCameraProgress: true,
+      });
+      await expect(page.locator('#score-value')).toHaveText('0');
+    });
+
+    test('coin cleanup removes adjacent expired coins in one update', async ({ page }) => {
+      const remaining = await page.evaluate(() => {
+        const scene = (window as any).__phaserGame.scene.getScene('ninja-runner');
+        const coins = [0, 10, 20].map(x => scene.coinGroup.create(x, 100, 'coin0'));
+        scene.updateCoins(1000);
+        return coins.filter(coin => coin.active).length;
+      });
+      expect(remaining).toBe(0);
+    });
+
+    test('ground extension preserves gaps and off-grid tolerance without rescanning every tile', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const scene = (window as any).__phaserGame.scene.getScene('ninja-runner') as any;
+        const originalGroup = scene.groundGroup;
+        const originalGaps = scene.gaps;
+        let reads = 0;
+        const xs = [24, 72.5, 121, 167, 216, 360];
+        const children = xs.map(x => ({ get x() { reads++; return x; } }));
+        const created: number[] = [];
+        const block = { setDisplaySize() {}, refreshBody() {}, setTint() {} };
+        scene.groundGroup = {
+          getChildren: () => children,
+          create(x: number) { created.push(x); children.push({ x }); return block; },
+        };
+        scene.gaps = [{ start: 192, end: 240 }];
+        try {
+          scene.extendGround(0, 384);
+          const firstPass = [...created];
+          const firstReads = reads;
+          scene.extendGround(0, 384);
+          return { firstPass, created, firstReads };
+        } finally {
+          scene.groundGroup = originalGroup;
+          scene.gaps = originalGaps;
+        }
+      });
+      // Exact one-pixel differences do not suppress a tile; sub-pixel differences do.
+      expect(result.firstPass).toEqual([120, 168, 264, 312]);
+      expect(result.created).toEqual(result.firstPass);
+      expect(result.firstReads).toBe(6);
+    });
+
+    test('all gap patterns remove contiguous ground without removing their neighbors', async ({ page }) => {
+      const results = await page.evaluate(() => {
+        const scene = (window as any).__phaserGame.scene.getScene('ninja-runner') as any;
+        const originalRandom = Math.random;
+        const results: { pattern: number; before: number; remaining: number; neighbors: number }[] = [];
+        try {
+          for (const pattern of [8, 9, 19]) {
+            const lo = Math.ceil((scene.genX + Number(scene.game.config.width)) / 48) * 48;
+            scene.extendGround(lo, lo + 20 * 48);
+            const beforeXs = scene.groundGroup.getChildren().map((ground: any) => ground.x);
+            scene.genX = lo;
+            let randomCalls = 0;
+            // The third random draw chooses the pattern after its spacing.
+            Math.random = () => ++randomCalls === 3 ? (pattern + 0.5) / 20 : 0.4;
+            scene.generateLevel(lo, lo + 1);
+            Math.random = originalRandom;
+            const gap = scene.gaps[scene.gaps.length - 1];
+            const afterXs = scene.groundGroup.getChildren().map((ground: any) => ground.x);
+            results.push({
+              pattern,
+              before: beforeXs.filter((x: number) => x >= gap.start && x < gap.end).length,
+              remaining: afterXs.filter((x: number) => x >= gap.start && x < gap.end).length,
+              neighbors: afterXs.filter((x: number) => x === gap.start - 24 || x === gap.end + 24).length,
+            });
+          }
+          return results;
+        } finally {
+          Math.random = originalRandom;
+        }
+      });
+      expect(results).toEqual([
+        { pattern: 8, before: 3, remaining: 0, neighbors: 2 },
+        { pattern: 9, before: 5, remaining: 0, neighbors: 2 },
+        { pattern: 19, before: 2, remaining: 0, neighbors: 2 },
+      ]);
+    });
+
+    test('coins change texture only when the animation frame changes', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const scene = (window as any).__phaserGame.scene.getScene('ninja-runner') as any;
+        const coin = scene.coinGroup.create(scene.player.x + 100, 100, 'coin0');
+        coin.body.setAllowGravity(false);
+        const originalTime = scene.time.now;
+        const originalSetTexture = coin.setTexture;
+        let changes = 0;
+        coin.setTexture = function (...args: any[]) {
+          changes++;
+          return originalSetTexture.apply(this, args);
+        };
+        try {
+          scene.time.now = 0;
+          for (let i = 0; i < 10; i++) scene.updateCoins(-1000);
+          const unchanged = changes;
+          scene.time.now = 120;
+          scene.updateCoins(-1000);
+          const frame = coin.texture.key;
+          scene.time.now = 240;
+          scene.updateCoins(-1000);
+          return { unchanged, changes, frame, finalFrame: coin.texture.key };
+        } finally {
+          scene.time.now = originalTime;
+          coin.destroy();
+        }
+      });
+      expect(result).toEqual({ unchanged: 0, changes: 2, frame: 'coin1', finalFrame: 'coin0' });
+    });
+
+    test('parachute exit destroys the owned looping sound', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const scene = (window as any).__phaserGame.scene.getScene('ninja-runner') as any;
+        const sound = scene.sound.add('nr_wind', { loop: true });
+        scene.windSound = sound;
+        scene.endParachute();
+        return { destroyed: sound.pendingRemove, released: scene.windSound === undefined };
+      });
+      expect(result).toEqual({ destroyed: true, released: true });
+    });
+
+    test('game switching destroys the owned wind sound', async ({ page }) => {
+      await page.evaluate(() => {
+        const scene = (window as any).__phaserGame.scene.getScene('ninja-runner') as any;
+        scene.windSound = scene.sound.add('nr_wind', { loop: true });
+      });
+      await switchGame(page, 'cosmic-rocks');
+      const remaining = await page.evaluate(() =>
+        (window as any).__phaserGame.sound.getAll('nr_wind').length,
+      );
+      expect(remaining).toBe(0);
+    });
+
+    test('long runs keep terrain, decorations and gap metadata within a fixed window', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const scene = (window as any).__phaserGame.scene.getScene('ninja-runner');
+        const width = Number(scene.game.config.width);
+        const originalRandom = Math.random;
+        let seed = 321;
+        Math.random = () => ((seed = (1664525 * seed + 1013904223) >>> 0) / 4294967296);
+        let maxGround = 0;
+        let maxObjects = 0;
+        let maxGaps = 0;
+        try {
+          for (let screen = 1; screen <= 80; screen++) {
+            scene.cameras.main.scrollX = screen * width;
+            scene.player.setPosition(screen * width + width / 2, 100);
+            scene.trimWorld();
+            scene.generateLevel(scene.genX, (screen + 1) * width + 600);
+            maxGround = Math.max(maxGround, scene.groundGroup.getLength());
+            maxObjects = Math.max(maxObjects, scene.children.list.length);
+            maxGaps = Math.max(maxGaps, scene.gaps.length);
+          }
+          return { maxGround, maxObjects, maxGaps, width, cutoff: scene.terrainStartX };
+        } finally {
+          Math.random = originalRandom;
+        }
+      });
+      expect(result.cutoff).toBe(Math.floor(78 * result.width / 48) * 48);
+      expect(result.maxGround).toBeLessThan(12 * result.width / 48);
+      expect(result.maxObjects).toBeLessThan(80 * result.width / 48);
+      expect(result.maxGaps).toBeLessThan(80);
+    });
+
+    test('backtracking cannot lower the boundary or recreate removed terrain', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const scene = (window as any).__phaserGame.scene.getScene('ninja-runner');
+        const width = Number(scene.game.config.width);
+        scene.cameras.main.scrollX = 5 * width;
+        scene.trimWorld();
+        const cutoff = scene.terrainStartX;
+        scene.extendGround(0, cutoff + width);
+        scene.cameras.main.scrollX = cutoff;
+        scene.player.x = cutoff - 100;
+        scene.trimWorld();
+        scene.updatePlayerMovement(0);
+        return {
+          cutoff, width, after: scene.terrainStartX, playerX: scene.player.x,
+          oldestGround: Math.min(...scene.groundGroup.getChildren().map((ground: any) => ground.x)),
+        };
+      });
+      expect(result.cutoff).toBe(Math.floor(3 * result.width / 48) * 48);
+      expect(result.after).toBe(result.cutoff);
+      expect(result.playerX).toBeGreaterThanOrEqual(result.cutoff);
+      expect(result.oldestGround).toBeGreaterThanOrEqual(result.cutoff);
+    });
+
+    test('terrain cleanup preserves gaps and a safe respawn area inside the retained window', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const scene = (window as any).__phaserGame.scene.getScene('ninja-runner');
+        const width = Number(scene.game.config.width);
+        const cameraX = 5 * width;
+        const cutoff = Math.floor(3 * width / 48) * 48;
+        scene.gaps.push(
+          { start: cutoff - 144, end: cutoff - 48 },
+          { start: cutoff - 48, end: cutoff + 48 },
+          { start: cameraX + 192, end: cameraX + 384 },
+        );
+        scene.extendGround(cameraX, cameraX + width);
+        scene.cameras.main.scrollX = cameraX;
+        scene.trimWorld();
+        scene.lastSafeX = 600;
+        scene.doRespawn();
+        const x = scene.player.x;
+        return {
+          x, cutoff, cameraX, inGap: scene.isInGap(x),
+          retainedGap: scene.isInGap(cutoff + 24),
+          expiredGaps: scene.gaps.some((gap: any) => gap.end <= cutoff),
+          hasGround: scene.groundGroup.getChildren().some((ground: any) => Math.abs(ground.x - x) <= 24),
+          collisionEnabled: !scene.player.body.checkCollision.none,
+        };
+      });
+      expect(result.x).toBeGreaterThanOrEqual(result.cameraX + 100);
+      expect(result.x).toBeGreaterThan(result.cutoff);
+      expect(result.inGap).toBe(false);
+      expect(result.retainedGap).toBe(true);
+      expect(result.expiredGaps).toBe(false);
+      expect(result.hasGround).toBe(true);
+      expect(result.collisionEnabled).toBe(true);
+    });
+
+    test('terrain cleanup destroys owned effects and stops removed object tweens', async ({ page }) => {
+      const errors: string[] = [];
+      page.on('pageerror', error => errors.push(error.message));
+      const result = await page.evaluate(() => {
+        const scene = (window as any).__phaserGame.scene.getScene('ninja-runner');
+        const heart = scene.heartGroup.create(100, 100, 'heart_anim');
+        const bridge = scene.bridgeGroup.create(100, 100, 'bridge_tile');
+        const fire = scene.fireGroup.create(100, 100, 'fire_column');
+        const glow = scene.add.ellipse(100, 100, 80, 80, 0xff4400);
+        const sparks = scene.add.particles(100, 100, 'coin0', { frequency: 100 });
+        fire.setData('warnGlow', glow);
+        fire.setData('sparks', sparks);
+        scene.tweens.add({ targets: heart, y: 80, duration: 100, yoyo: true, repeat: -1 });
+        scene.tweens.add({
+          targets: bridge, y: 200, duration: 100,
+          onComplete: () => { throw new Error('Removed bridge tween continued'); },
+        });
+        scene.tweens.add({ targets: glow, alpha: 0, duration: 100, yoyo: true, repeat: -1 });
+        scene.cameras.main.scrollX = Number(scene.game.config.width) * 5;
+        scene.trimWorld();
+        return {
+          destroyed: [heart, bridge, fire, glow, sparks].every(object => !object.scene),
+          tweens: scene.tweens.getTweensOf([heart, bridge, glow]).length,
+        };
+      });
+      expect(result).toEqual({ destroyed: true, tweens: 0 });
+      await page.waitForTimeout(250);
+      expect(errors).toEqual([]);
+    });
+
+    test('collecting a heart also stops its looping tween', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const scene = (window as any).__phaserGame.scene.getScene('ninja-runner');
+        const heart = scene.heartGroup.create(100, 100, 'heart_anim');
+        const lives = scene.lives;
+        scene.tweens.add({ targets: heart, y: 80, duration: 100, yoyo: true, repeat: -1 });
+        scene.onPlayerHeart(scene.player, heart);
+        return {
+          destroyed: !heart.scene,
+          tweens: scene.tweens.getTweensOf(heart).length,
+          gainedLife: scene.lives === lives + 1,
+        };
+      });
+      expect(result).toEqual({ destroyed: true, tweens: 0, gainedLife: true });
+    });
+  });
+
   test('game initializes with correct defaults', async ({ page }) => {
     const state = await getGameState(page);
     expect(state).not.toBeNull();
     expect(state.hasPlayer).toBe(true);
-    expect(state.playerVisible).toBe(true);
+    // Startup invincibility makes the player blink.
+    await expect.poll(async () => (await getGameState(page)).playerVisible).toBe(true);
     expect(state.lives).toBe(3);
     expect(state.score).toBe(0);
     expect(state.gameOverShown).toBe(false);
@@ -150,13 +453,17 @@ test.describe('Ninja Runner — Invincible Traversal', () => {
     expect(state.playerX).toBeGreaterThan(1000);
   });
 
-  test('player stays within canvas bounds vertically', async ({ page }) => {
+  test('player returns to playable vertical bounds between jumps', async ({ page }) => {
     await setInvincible(page);
+    await setLives(page, 10);
     for (let i = 0; i < 5; i++) {
       await moveAndJump(page, 'ArrowRight', 1000);
-      const state = await getGameState(page);
-      expect(state.playerY).toBeGreaterThan(0);
-      expect(state.playerY).toBeLessThan(state.canvasHeight + 100);
+      // Invincibility does not prevent pit deaths and the off-screen death animation.
+      await expect.poll(async () => {
+        const scene = await getSceneState(page);
+        const state = await getGameState(page);
+        return !scene.dead && state.playerY > 0 && state.playerY < state.canvasHeight + 100;
+      }, { timeout: 3000 }).toBe(true);
     }
   });
 });
@@ -256,24 +563,26 @@ test.describe('Ninja Runner — Visual Effects', () => {
     await waitForGame(page);
   });
 
-  test('spike glow effects exist when spikes present', async ({ page }) => {
-    await setInvincible(page);
-    // Walk until we find spikes
-    for (let i = 0; i < 10; i++) {
-      await holdKey(page, 'ArrowRight', 1500);
-    }
-    const hasGlows = await page.evaluate(() => {
-      const game = (window as any).__phaserGame;
-      const scene = game?.scene.getScenes(true)?.find((s: any) => (s as any).fireGroup);
-      if (!scene) return false;
-      const fires = (scene as any).fireGroup.getChildren();
-      return fires.some((f: any) => f.getData('hasGlow') === true);
+  test('generated spikes own visible glow effects', async ({ page }) => {
+    const glows = await page.evaluate(() => {
+      const scene = (window as any).__phaserGame.scene.getScene('ninja-runner');
+      const lo = scene.genX + Number(scene.game.config.width);
+      scene.genX = lo;
+      const originalRandom = Math.random;
+      let randomCalls = 0;
+      // Choose the spike pattern rather than an inactive fire column in the same group.
+      Math.random = () => ++randomCalls === 3 ? 15.5 / 20 : 0.4;
+      try {
+        scene.generateLevel(lo, lo + 1);
+        return scene.fireGroup.getChildren().filter((fire: any) => fire.x >= lo).map((fire: any) => {
+          const glow = fire.getData('manualGlow');
+          return fire.getData('hasGlow') === true && glow.active && glow.visible && glow.alpha > 0;
+        });
+      } finally {
+        Math.random = originalRandom;
+      }
     });
-    // Spikes with glows should exist somewhere in the level
-    const scene = await getSceneState(page);
-    if (scene.fireCount > 0) {
-      expect(hasGlows).toBe(true);
-    }
+    expect(glows).toEqual([true, true, true]);
   });
 });
 

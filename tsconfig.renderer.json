@@ -6,6 +6,8 @@
     "outDir": "dist/game",
     "rootDir": "src/game",
     "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "esModuleInterop": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,

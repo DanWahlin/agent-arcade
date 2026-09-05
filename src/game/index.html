@@ -19,7 +19,6 @@
     }
     body.paused #game,
     body.paused #game *,
-    body.paused #pause-overlay,
     body.paused #gameover-overlay,
     body.paused #wave-banner,
     body.paused #help-overlay {
@@ -80,12 +79,6 @@
       flex: 1;
     }
 
-    .ctrl {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-    }
-
     kbd {
       display: inline-block;
       min-width: 18px;
@@ -100,12 +93,6 @@
       border-bottom-width: 2px;
       border-radius: 4px;
       box-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
-    }
-
-    .ctrl-label {
-      font-weight: 600;
-      letter-spacing: 0.3px;
-      color: #b8c2e8;
     }
 
     .title {
@@ -143,10 +130,6 @@
       text-align: center;
       transition: transform 120ms ease-out;
     }
-    .score-value.bump {
-      transform: scale(1.25);
-      filter: brightness(1.4);
-    }
     @keyframes scorePop {
       0%   { transform: translateY(0) scale(1);    color: #ffeb3b; }
       30%  { transform: translateY(-3px) scale(1.28); color: #fff59d; }
@@ -164,19 +147,6 @@
       text-shadow:
         0 0 8px rgba(255, 82, 82, 0.9),
         0 0 14px rgba(255, 0, 0, 0.5),
-        0 2px 0 rgba(0, 0, 0, 0.6);
-      min-width: 20px;
-      text-align: center;
-    }
-
-    .level-value {
-      font-family: 'SF Mono', ui-monospace, Menlo, monospace;
-      font-size: 20px;
-      font-weight: 900;
-      color: #4fc3f7;
-      text-shadow:
-        0 0 8px rgba(79, 195, 247, 0.9),
-        0 0 14px rgba(33, 150, 243, 0.5),
         0 2px 0 rgba(0, 0, 0, 0.6);
       min-width: 20px;
       text-align: center;
@@ -508,39 +478,7 @@
       box-shadow: none;
       animation: none;
     }
-    @keyframes hudPulse {
-      0%, 100% { box-shadow: 0 0 0 1px rgba(255,255,255,0.08) inset, 0 6px 24px rgba(0,0,0,0.7), 0 0 18px rgba(255, 213, 74, 0.45); }
-      50%      { box-shadow: 0 0 0 1px rgba(255,255,255,0.08) inset, 0 6px 24px rgba(0,0,0,0.7), 0 0 32px rgba(255, 213, 74, 0.85); }
-    }
-    .pause-badge {
-      display: none;
-      align-items: center;
-      gap: 8px;
-      padding: 4px 10px;
-      background: linear-gradient(180deg, #4d3a06 0%, #2a1f00 100%);
-      border: 1px solid #ffd54a;
-      border-radius: 6px;
-      color: #ffd54a;
-      font-weight: 800;
-      font-size: 12px;
-      letter-spacing: 1.2px;
-      text-shadow: 0 0 6px rgba(255, 213, 74, 0.6);
-    }
-    #hud.paused .pause-badge { display: inline-flex; }
     #hud.paused .when-running { display: none; }
-    .pause-badge .dot {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #ffd54a;
-      box-shadow: 0 0 8px #ffd54a;
-      animation: dotBlink 1s ease-in-out infinite;
-    }
-    @keyframes dotBlink {
-      0%, 100% { opacity: 1; }
-      50%      { opacity: 0.25; }
-    }
 
     /* Resume button — shown only when paused */
     .resume-btn {
@@ -943,8 +881,6 @@
     <span class="update-link">View Release</span>
     <span class="update-dismiss" id="update-dismiss" title="Dismiss">✕</span>
   </div>
-
-  <div id="pause-overlay" style="display:none"></div>
 
   <div id="game"></div>
   <script src="./hud.js"></script>

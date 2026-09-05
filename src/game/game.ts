@@ -8,6 +8,7 @@ import { CosmicRocksScene } from './scenes/CosmicRocks.js';
 import { AlienOnslaughtScene } from './scenes/AlienOnslaught.js';
 import { PlanetGuardianScene } from './scenes/PlanetGuardian.js';
 import { SurfaceDefenseScene } from './scenes/SurfaceDefense.js';
+import { runtimeLayout } from './layout.js';
 
 declare const Phaser: any;
 
@@ -158,11 +159,11 @@ window.addEventListener('resize', () => {
     const newW = window.innerWidth;
     const newH = window.innerHeight;
 
-    if (!game && newW > 800 && newH > 400) {
+    if (!game && newW > runtimeLayout.minimumWidth && newH > runtimeLayout.minimumHeight) {
       // First time: window is now full-screen — create the game
       refreshDimensions();
       initGame();
-    } else if (game && newH > 400) {
+    } else if (game && newH > runtimeLayout.minimumHeight) {
       // Full-screen resize (could be unpause expand or genuine resize).
       // Update dimensions and resize the canvas, but never restart the
       // scene — the resume system handles unpause, and a simple resize
@@ -174,7 +175,7 @@ window.addEventListener('resize', () => {
         game.scale.resize(W, H);
       }
     }
-    // If newH <= 400 (pause shrink to HUD), skip entirely —
+    // Below the profile's minimum height (pause shrink to HUD), skip entirely —
     // keep W/H at full-screen values so the paused game state stays valid.
   }, 150) as unknown as number;
 });
@@ -207,7 +208,7 @@ if (document.readyState === 'loading') {
 // If the window is already full-screen (e.g. Playwright tests or fast Tauri
 // init), create the game immediately since no resize event will fire.
 setTimeout(() => {
-  if (!game && window.innerWidth > 800 && window.innerHeight > 400) {
+  if (!game && window.innerWidth > runtimeLayout.minimumWidth && window.innerHeight > runtimeLayout.minimumHeight) {
     refreshDimensions();
     initGame();
   }

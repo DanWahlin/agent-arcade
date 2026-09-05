@@ -22,6 +22,8 @@ export abstract class BaseScene extends Phaser.Scene {
   protected lives = 3;
   protected level = 0;
   private scoreAnimFrame?: number;
+  private waveBannerTimer?: number;
+  private waveBanner: HTMLElement | null = null;
   private gameOverKeyListener?: (ev: KeyboardEvent) => void;
   /** Full-screen dark backdrop controlled by the transparency slider. */
   private _backdrop: any = null;
@@ -114,7 +116,10 @@ export abstract class BaseScene extends Phaser.Scene {
     let alpha = 1;
     try {
       const saved = localStorage.getItem('agentArcade_bgTransparency');
-      if (saved !== null) alpha = Math.max(0.01, Math.min(1, parseInt(saved, 10) / 100));
+      if (saved !== null) {
+        const percent = parseInt(saved, 10);
+        if (Number.isFinite(percent)) alpha = Math.max(0.01, Math.min(1, percent / 100));
+      }
     } catch { /* ignore */ }
     g.setAlpha(alpha);
     this._backdrop = g;
@@ -138,32 +143,35 @@ export abstract class BaseScene extends Phaser.Scene {
 
   /** Push current score into the HTML HUD element. */
   protected syncScoreToHUD() {
-    const el = document.getElementById('score-value');
-    if (el) el.textContent = String(this.score);
+    this.setHUDValue('score-value', this.score);
   }
 
   /** Push high score into the HTML HUD element. */
   protected syncHighScoreToHUD() {
-    const el = document.getElementById('hi-value');
-    if (el) el.textContent = String(this.highScore);
+    this.setHUDValue('hi-value', this.highScore);
   }
 
   /** Push lives count into the HTML HUD element. */
   protected syncLivesToHUD() {
-    const el = document.getElementById('lives-value');
-    if (el) el.textContent = String(this.lives);
+    this.setHUDValue('lives-value', this.lives);
   }
 
   /** Push level/wave number into the HTML HUD element. */
   protected syncLevelToHUD(value?: number) {
-    const el = document.getElementById('level-value');
-    if (el) el.textContent = String(value ?? this.level);
+    this.setHUDValue('level-value', value ?? this.level);
+  }
+
+  private setHUDValue(id: string, value: number) {
+    const el = document.getElementById(id);
+    const text = String(value);
+    if (el && el.textContent !== text) el.textContent = text;
   }
 
   /** Animated score bump (count-up + pop class). */
   protected addScore(points: number, worldX?: number, worldY?: number) {
     const prev = this.score;
     this.score += points;
+    this.checkHighScore();
 
     // Floating "+N" text at world position
     if (worldX !== undefined && worldY !== undefined) {
@@ -197,7 +205,8 @@ export abstract class BaseScene extends Phaser.Scene {
     const animate = () => {
       const t = Math.min(1, (performance.now() - startTime) / duration);
       const ease = 1 - Math.pow(1 - t, 3);
-      el.textContent = String(Math.round(start + (end - start) * ease));
+      const text = String(Math.round(start + (end - start) * ease));
+      if (el.textContent !== text) el.textContent = text;
       if (t >= 1) {
         this.scoreAnimFrame = undefined;
         el.classList.remove('pop');
@@ -210,8 +219,6 @@ export abstract class BaseScene extends Phaser.Scene {
       }
     };
     this.scoreAnimFrame = requestAnimationFrame(animate);
-
-    this.checkHighScore();
   }
 
   /** Get top 10 scores for this game from localStorage. */
@@ -426,6 +433,7 @@ export abstract class BaseScene extends Phaser.Scene {
       restartFn();
     };
     const onKey = (ev: KeyboardEvent) => {
+      if (this.isHUDOverlayOpen() || document.body.classList.contains('paused')) return;
       if (ev.code === 'Space' || ev.code === 'Enter') { ev.preventDefault(); dismiss(); }
     };
     this.gameOverKeyListener = onKey;
@@ -623,6 +631,7 @@ export abstract class BaseScene extends Phaser.Scene {
     this._readyOverlay = overlay;
 
     const onKey = (e: KeyboardEvent) => {
+      if (this.isHUDOverlayOpen() || document.body.classList.contains('paused')) return;
       if (['Meta', 'Alt', 'Control', 'Shift'].includes(e.key)) return;
       document.removeEventListener('keydown', onKey);
       this._readyKeyListener = undefined;
@@ -648,6 +657,10 @@ export abstract class BaseScene extends Phaser.Scene {
     }
   }
 
+  private isHUDOverlayOpen(): boolean {
+    return !!document.querySelector('#settings-overlay.show, #help-overlay.show');
+  }
+
   private _fireReadyOnStart() {
     if (this._readyOnStart) {
       const fn = this._readyOnStart;
@@ -658,6 +671,10 @@ export abstract class BaseScene extends Phaser.Scene {
 
   /** Called by the pause system. Override if the scene needs custom cleanup. */
   pauseGame() {
+    if (this._readyOverlay) {
+      this._wasOnReadyScreen = true;
+      this._cleanupReadyScreen();
+    }
     this.scene.pause();
     this.sound.pauseAll();
   }
@@ -711,6 +728,7 @@ export abstract class BaseScene extends Phaser.Scene {
    * Auto-animates in/out and removes itself after ~2.2 seconds.
    */
   protected showWaveBanner(waveNum: number) {
+    this.cleanupWaveBanner();
     const existing = document.getElementById('wave-banner');
     if (existing) existing.remove();
 
@@ -735,6 +753,7 @@ export abstract class BaseScene extends Phaser.Scene {
     `;
     banner.textContent = `WAVE ${waveNum}`;
     document.body.appendChild(banner);
+    this.waveBanner = banner;
 
     if (!document.getElementById('wave-banner-style')) {
       const style = document.createElement('style');
@@ -746,10 +765,19 @@ export abstract class BaseScene extends Phaser.Scene {
       document.head.appendChild(style);
     }
 
-    setTimeout(() => {
+    this.waveBannerTimer = window.setTimeout(() => {
       banner.style.animation = 'waveBannerOut 0.6s ease-in forwards';
-      setTimeout(() => banner.remove(), 700);
+      this.waveBannerTimer = window.setTimeout(() => this.cleanupWaveBanner(), 700);
     }, 1500);
+  }
+
+  private cleanupWaveBanner() {
+    if (this.waveBannerTimer !== undefined) {
+      clearTimeout(this.waveBannerTimer);
+      this.waveBannerTimer = undefined;
+    }
+    this.waveBanner?.remove();
+    this.waveBanner = null;
   }
 
   /** Create the shared 'spark' texture used for particle effects. */
@@ -785,19 +813,20 @@ export abstract class BaseScene extends Phaser.Scene {
 
   /** Update parallax starfield positions (call from update). */
   protected updateStarfield(stars: Star[], dt: number) {
-    const movingLayers = new Map<any, Star[]>();
+    if (dt === 0) return;
+    const seconds = dt / 1000;
+    let currentGraphics: any = null;
+    // createStarfield stores each layer contiguously, so no regrouping is needed.
     for (const s of stars) {
       if (s.speed === 0) continue;
-      s.y += s.speed * (dt / 1000);
+      s.y += s.speed * seconds;
       if (s.y > H) s.y -= H;
-      const layer = movingLayers.get(s.gfx);
-      if (layer) layer.push(s);
-      else movingLayers.set(s.gfx, [s]);
-    }
-    for (const [gfx, layer] of movingLayers) {
-      gfx.clear();
-      gfx.fillStyle(0xffffff, layer[0].alpha);
-      for (const s of layer) gfx.fillCircle(s.x, s.y, s.size);
+      if (s.gfx !== currentGraphics) {
+        currentGraphics = s.gfx;
+        currentGraphics.clear();
+        currentGraphics.fillStyle(0xffffff, s.alpha);
+      }
+      currentGraphics.fillCircle(s.x, s.y, s.size);
     }
   }
 
@@ -813,6 +842,7 @@ export abstract class BaseScene extends Phaser.Scene {
     }
     if (this._gameOverDelayTimer) { this._gameOverDelayTimer.remove(); this._gameOverDelayTimer = null; }
     this._cleanupReadyScreen();
+    this.cleanupWaveBanner();
     this._readyOnStart = undefined;
     this._wasOnReadyScreen = false;
     this.time.removeAllEvents();
