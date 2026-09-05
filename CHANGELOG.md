@@ -1,11 +1,29 @@
 # Changelog
 
 All notable changes to Agent Arcade.
+## [0.6.1] - 2026-09-05
+
+### 🚀 Features & Improvements
+
+- Docs: add Surface Defense gameplay GIF
+- Improve rendering performance and cross-platform reliability
+
+### ⚙️ CI/CD & Build
+
+- Remove Copilot co-author trailer from release script
+
+### 💼 Other
+
+- Optimize Linux performance and portability
 ## [0.6.0] - 2026-08-13
 
 ### 🚀 Features & Improvements
 
 - Add Surface Defense game with docs site and arcade canvas updates
+
+### ⚙️ CI/CD & Build
+
+- Release v0.6.0
 ## [0.5.3] - 2026-07-24
 
 ### 🐛 Bug Fixes
