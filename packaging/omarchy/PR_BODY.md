@@ -1,6 +1,6 @@
-Adds **agent-arcade-bin**, a collection of retro arcade games (Space Invaders,
-Asteroids, Galaga, Defender and Missile Command style, plus a platformer) that
-runs as a transparent always-on-top overlay. It is meant for playing while an
+Adds **agent-arcade-bin**, a collection of six original retro arcade games
+(Alien Onslaught, Cosmic Rocks, Galaxy Blaster, Ninja Runner, Planet Guardian
+and Surface Defense) that runs as a transparent always-on-top overlay. It is meant for playing while an
 AI coding agent (Copilot CLI, Claude Code, Codex, and so on) is busy. Tauri +
 Phaser, MIT licensed, source is public. x86_64 only.
 
