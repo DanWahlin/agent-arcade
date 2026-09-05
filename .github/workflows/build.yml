@@ -223,12 +223,18 @@ jobs:
             | `*.AppImage` | Universal Linux (run anywhere) |
             | `*.deb` | Debian/Ubuntu package |
 
-            > Download the `.AppImage` or `.deb` file from the **Assets** list below.
+            > **Omarchy / Arch:** install from the Omarchy Package Repository instead of downloading a file:
+            > ```
+            > omarchy pkg add agent-arcade-bin
+            > ```
+            > New versions reach the Omarchy repo about a day after this release is published.
+
+            > **Other distros:** Download the `.AppImage` or `.deb` file from the **Assets** list below.
             >
             > **Note:** For the AppImage, make it executable first:
             > ```
-            > chmod +x Agent-Arcade_*.AppImage
-            > ./Agent-Arcade_*.AppImage
+            > chmod +x Agent.Arcade_*.AppImage
+            > ./Agent.Arcade_*.AppImage
             > ```
 
             ## What's Changed

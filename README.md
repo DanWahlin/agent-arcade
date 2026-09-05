@@ -103,12 +103,26 @@ Go to the [releases page](https://github.com/DanWahlin/agent-arcade/releases), e
 
 ### 🐧 Linux
 
-Go to the [releases page](https://github.com/DanWahlin/agent-arcade/releases), expand the **Assets** list, and download the `.AppImage` (universal) or `.deb` (Debian/Ubuntu) package.
+**Omarchy / Arch Linux:** Agent Arcade is in the [Omarchy Package Repository](https://github.com/omacom/omarchy-pkgs), so on Omarchy it installs like any other package and updates with `omarchy update`:
+
+```
+omarchy pkg add agent-arcade-bin
+```
+
+On other Arch-based distros, build the package from the PKGBUILD in this repo:
+
+```
+git clone https://github.com/DanWahlin/agent-arcade
+cd agent-arcade/packaging/omarchy/agent-arcade-bin
+makepkg -si
+```
+
+**Other distros:** Go to the [releases page](https://github.com/DanWahlin/agent-arcade/releases), expand the **Assets** list, and download the `.AppImage` (universal) or `.deb` (Debian/Ubuntu) package.
 
 > **Note:** For the AppImage, make it executable first:
 > ```
-> chmod +x Agent-Arcade_*.AppImage
-> ./Agent-Arcade_*.AppImage
+> chmod +x Agent.Arcade_*.AppImage
+> ./Agent.Arcade_*.AppImage
 > ```
 
 > **No sound?** Game audio plays through GStreamer. The AppImage and `.deb` bring the needed plugins with them, but if you build from source or use another packaging, install your distro's GStreamer "good", "bad" and "libav" plugin packages (Arch: `sudo pacman -S gst-plugins-good gst-plugins-bad gst-libav`). The game runs silently without them.
