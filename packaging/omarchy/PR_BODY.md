@@ -18,11 +18,11 @@ reads the SHA-256 GitHub reports for the asset and never downloads it.
 
 ### Dependencies
 
-Derived from `ldd` against the shipped binary rather than copied from the
-`.deb` control file, which only lists WebKitGTK, GTK3 and appindicator.
-The binary also links the core GStreamer libraries, and game audio plays
-through WebKitGTK's GStreamer backend, so the good, bad, base and libav plugin
-sets are listed. `libayatana-appindicator` is dlopen'd for the tray icon.
+Checked with `ldd` against the shipped binary rather than copied from the
+`.deb` control file. The binary links WebKitGTK 4.1, GTK3 and the core GStreamer
+libraries; game audio plays through WebKitGTK's GStreamer backend, so the base,
+good, bad and libav plugin sets are listed, matching what the `.deb` declares.
+`libayatana-appindicator` is dlopen'd for the tray icon.
 
 ### Worth flagging
 
