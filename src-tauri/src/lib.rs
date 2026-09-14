@@ -4,13 +4,24 @@ use tauri::{
     AppHandle, Manager,
 };
 
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
+
+const PACKAGE_MANAGER_MARKER: &str = "/usr/share/agent-arcade/package-manager";
 
 static VISIBLE: AtomicBool = AtomicBool::new(false);
 static PAUSED: AtomicBool = AtomicBool::new(false);
 static UPDATE_CHECK_DONE: AtomicBool = AtomicBool::new(false);
 static UPDATE_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
+
+fn updates_managed_by_package_manager_at(marker: &Path) -> bool {
+    cfg!(target_os = "linux") && marker.is_file()
+}
+
+fn updates_managed_by_package_manager() -> bool {
+    updates_managed_by_package_manager_at(Path::new(PACKAGE_MANAGER_MARKER))
+}
 
 /// The current toggle shortcut string (e.g. "Ctrl+Alt+M").
 /// Updated by the `set_toggle_shortcut` command from JS.
@@ -152,6 +163,9 @@ fn get_app_version() -> String {
 /// Download and install an available update, then restart the app.
 #[tauri::command]
 async fn install_update(app: AppHandle) -> Result<(), String> {
+    if updates_managed_by_package_manager() {
+        return Err("Updates are managed by the system package manager.".to_string());
+    }
     if UPDATE_IN_PROGRESS.swap(true, Ordering::SeqCst) {
         return Err("Update already in progress".to_string());
     }
@@ -915,7 +929,9 @@ pub fn run() {
 
                 // Check for app updates after a short delay (once per session)
                 let app_handle = app.handle().clone();
-                if !UPDATE_CHECK_DONE.swap(true, Ordering::SeqCst) { std::thread::spawn(move || {
+                let should_check_for_updates = !updates_managed_by_package_manager()
+                    && !UPDATE_CHECK_DONE.swap(true, Ordering::SeqCst);
+                if should_check_for_updates { std::thread::spawn(move || {
                     std::thread::sleep(std::time::Duration::from_secs(5));
                     tauri::async_runtime::spawn(async move {
                         use tauri_plugin_updater::UpdaterExt;
@@ -962,9 +978,32 @@ pub fn run() {
 mod tests {
     use super::{
         format_combo_display, parse_shortcut, parse_shortcut_config,
-        replace_shortcut_registrations, shortcuts_conflict, top_inset_from_env, ShortcutConfig,
+        replace_shortcut_registrations, shortcuts_conflict, top_inset_from_env,
+        updates_managed_by_package_manager_at, ShortcutConfig,
     };
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
     use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut};
+
+    #[test]
+    fn package_manager_marker_disables_linux_updater() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let marker = std::env::temp_dir().join(format!(
+            "agent-arcade-package-manager-{unique}-{}",
+            std::process::id()
+        ));
+
+        assert!(!updates_managed_by_package_manager_at(&marker));
+        fs::write(&marker, "pacman\n").unwrap();
+        assert_eq!(
+            updates_managed_by_package_manager_at(&marker),
+            cfg!(target_os = "linux")
+        );
+        fs::remove_file(marker).unwrap();
+    }
 
     #[test]
     fn parses_shortcuts_case_insensitively() {
