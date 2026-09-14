@@ -1,6 +1,27 @@
 # Changelog
 
 All notable changes to Agent Arcade.
+## [0.6.2] - 2026-09-14
+
+### 🚀 Features & Improvements
+
+- Add Omarchy Package Repository packaging for agent-arcade-bin
+
+### 📚 Documentation
+
+- Document Omarchy package install for Linux
+
+### 🧪 Testing
+
+- Respect system package managers
+
+### 📦 Updates
+
+- Bump agent-arcade-bin packaging to 0.6.1
+
+### 💼 Other
+
+- Use Agent Arcade game names in OPR PR body
 ## [0.6.1] - 2026-09-05
 
 ### 🚀 Features & Improvements
@@ -11,6 +32,7 @@ All notable changes to Agent Arcade.
 ### ⚙️ CI/CD & Build
 
 - Remove Copilot co-author trailer from release script
+- Release v0.6.1
 
 ### 💼 Other
 
