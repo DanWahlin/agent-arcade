@@ -5,6 +5,7 @@ declare const Phaser: any;
 
 import { BaseScene, W, H } from './BaseScene.js';
 import type { Star } from './BaseScene.js';
+import { getWavAudioPath } from '../layout.js';
 
 type TargetKind = 'city' | 'battery';
 type AircraftKind = 'bomber' | 'satellite';
@@ -212,14 +213,14 @@ export class SurfaceDefenseScene extends BaseScene {
   preload() {
     // All effects are original WAVs synthesized by
     // scripts/generate-surface-defense-audio.mjs — no third-party audio.
-    this.load.audio('sd_launch', '../assets/surface-defense/sounds/launch.wav');
-    this.load.audio('sd_airburst', '../assets/surface-defense/sounds/airburst.wav');
-    this.load.audio('sd_wave', '../assets/surface-defense/sounds/wave-start.wav');
-    this.load.audio('sd_noAmmo', '../assets/surface-defense/sounds/no-ammo.wav');
-    this.load.audio('sd_gameOver', '../assets/surface-defense/sounds/game-over.wav');
-    this.load.audio('sd_impact', '../assets/surface-defense/sounds/ground-impact.wav');
-    this.load.audio('sd_bonus', '../assets/surface-defense/sounds/bonus-city.wav');
-    this.load.audio('sd_aircraft', '../assets/surface-defense/sounds/aircraft-alert.wav');
+    this.load.audio('sd_launch', getWavAudioPath('surface-defense/sounds/launch'));
+    this.load.audio('sd_airburst', getWavAudioPath('surface-defense/sounds/airburst'));
+    this.load.audio('sd_wave', getWavAudioPath('surface-defense/sounds/wave-start'));
+    this.load.audio('sd_noAmmo', getWavAudioPath('surface-defense/sounds/no-ammo'));
+    this.load.audio('sd_gameOver', getWavAudioPath('surface-defense/sounds/game-over'));
+    this.load.audio('sd_impact', getWavAudioPath('surface-defense/sounds/ground-impact'));
+    this.load.audio('sd_bonus', getWavAudioPath('surface-defense/sounds/bonus-city'));
+    this.load.audio('sd_aircraft', getWavAudioPath('surface-defense/sounds/aircraft-alert'));
   }
 
   create() {

@@ -59,6 +59,8 @@ The canvas serves the built Phaser frontend from `.github/extensions/arcade-canv
 npm run build:canvas
 ```
 
+Copilot provides the extension SDK automatically, so the project extension does not need a local dependency install. Its generated package stays below the 8 MiB repository-trust limit.
+
 ## How This Was Made
 
 Idea ➡ Working prototype over a weekend! I put in a lot of work after the initial prototype of course, but was able to accomplish a lot by starting with a planning document that outlined the overall idea. 

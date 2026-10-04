@@ -16,28 +16,15 @@ A GitHub Copilot canvas that opens a retro arcade in the side panel. It serves t
 - `extension.mjs` — canvas declaration, loopback game server, static asset handling, and agent actions.
 - `game/` — compiled Phaser game frontend served inside the canvas.
 - `assets/` — game sprites, sounds, app icon, and `preview.png` for the extensions gallery.
-- `package.json` — declares the Copilot SDK dependency and ESM entry point.
 - `copilot-extension.json` — Copilot extension name/version metadata.
-- `canvas.json` — Awesome Copilot gallery metadata.
 
 ## Prerequisites
 
-- **Node.js 20.19 or newer** because the Copilot SDK requires `node ^20.19.0 || >=22.12.0`.
 - The GitHub Copilot app canvas / UI-extensions experiment enabled.
 
 ## Install
 
-Drop this folder at `~/.copilot/extensions/arcade-canvas/` for user scope, or in a repository at `.github/extensions/arcade-canvas/` for project scope. Then install dependencies from inside the copied folder:
-
-```sh
-# User scope
-cd ~/.copilot/extensions/arcade-canvas
-
-# Or project scope, from the repository root
-cd .github/extensions/arcade-canvas
-
-npm install
-```
+Drop this folder at `~/.copilot/extensions/arcade-canvas/` for user scope, or in a repository at `.github/extensions/arcade-canvas/` for project scope. Do not install `@github/copilot-sdk` locally. Copilot provides it through the automatic extension module resolver.
 
 Reload extensions in the GitHub Copilot app, then open the `arcade-canvas` canvas. The canvas accepts an optional `defaultGame` input with one of these keys: `cosmic-rocks`, `alien-onslaught`, `galaxy-blaster`, `ninja-runner`, `defender`, or `surface-defense`.
 
@@ -55,7 +42,16 @@ In the Agent Arcade repository, rebuild the committed canvas bundle after fronte
 npm run build:canvas
 ```
 
-That command builds the frontend, copies `dist/game` into `game/`, copies `dist/assets` into `assets/`, writes `assets/preview.png` for the Awesome Copilot gallery, and bundles `assets/canvas-background.webp` for the canvas-only space backdrop.
+That command builds the frontend, copies `dist/game` into `game/`, copies the required assets into `assets/`, writes `assets/preview.png` for the Awesome Copilot gallery, and bundles `assets/canvas-background.webp` for the canvas-only space backdrop. The canvas package uses compressed M4A copies of WAV effects and removes unused desktop assets so it stays within the 8 MiB project-extension trust limit.
+
+## Awesome Copilot sync
+
+The published copy lives in `github/awesome-copilot` under `extensions/arcade-canvas/`. After rebuilding this canonical copy:
+
+1. Replace the Awesome Copilot `extensions/arcade-canvas/` directory with this directory.
+2. Update `plugins/arcade-canvas/plugin.json`, including its version and six-game description.
+3. Update `plugins/arcade-canvas/README.md`.
+4. Run `npm run plugin:validate`, `npm run build`, and `npm run website:data` in the Awesome Copilot repository.
 
 ## Credits
 

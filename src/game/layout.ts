@@ -15,6 +15,11 @@ export const runtimeLayout = {
   minimumHeight: profile === 'canvas' ? 220 : 400,
 } as const;
 
+export function getWavAudioPath(relativePathWithoutExtension: string) {
+  const extension = profile === 'canvas' ? 'm4a' : 'wav';
+  return `../assets/${relativePathWithoutExtension}.${extension}`;
+}
+
 export function getAlienLayout(width: number, height: number) {
   const canvas = profile === 'canvas';
   const playfieldHeight = canvas ? Math.min(height, width * 3 / 4) : height;

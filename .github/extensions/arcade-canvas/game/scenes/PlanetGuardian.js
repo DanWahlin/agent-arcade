@@ -1,6 +1,7 @@
 // Defender — Classic 1981 Williams side-scrolling shooter.
 // Protect humanoids from alien landers across a scrolling terrain world.
 import { BaseScene, W, H } from './BaseScene.js';
+import { getWavAudioPath } from '../layout.js';
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
@@ -101,19 +102,19 @@ export class PlanetGuardianScene extends BaseScene {
         this.load.image('def-swarmer', '../assets/defender/swarmer.png');
         this.load.image('def-baiter', '../assets/defender/baiter.png');
         // Sounds from OpenDefender
-        this.load.audio('snd_laser', '../assets/defender/sounds/sound_laser.wav');
-        this.load.audio('snd_enemydead', '../assets/defender/sounds/sound_enemydead.wav');
-        this.load.audio('snd_explode', '../assets/defender/sounds/sound_explode.wav');
-        this.load.audio('snd_playerdead', '../assets/defender/sounds/sound_playerdead.wav');
-        this.load.audio('snd_bonus', '../assets/defender/sounds/sound_bonus.wav');
-        this.load.audio('snd_humanoiddead', '../assets/defender/sounds/sound_humanoiddead.wav');
-        this.load.audio('snd_start', '../assets/defender/sounds/sound_start.wav');
-        this.load.audio('snd_thrust', '../assets/defender/sounds/sound_thurst.wav');
-        this.load.audio('snd_warning', '../assets/defender/sounds/sound_warning.wav');
-        this.load.audio('snd_baiterwarning', '../assets/defender/sounds/sound_baiterwarning.wav');
-        this.load.audio('snd_player1up', '../assets/defender/sounds/sound_player1up.wav');
-        this.load.audio('snd_enemyshoot', '../assets/defender/sounds/sound_enemyshoot.wav');
-        this.load.audio('snd_enemyshoot2', '../assets/defender/sounds/sound_enemyshoot2.wav');
+        this.load.audio('snd_laser', getWavAudioPath('defender/sounds/sound_laser'));
+        this.load.audio('snd_enemydead', getWavAudioPath('defender/sounds/sound_enemydead'));
+        this.load.audio('snd_explode', getWavAudioPath('defender/sounds/sound_explode'));
+        this.load.audio('snd_playerdead', getWavAudioPath('defender/sounds/sound_playerdead'));
+        this.load.audio('snd_bonus', getWavAudioPath('defender/sounds/sound_bonus'));
+        this.load.audio('snd_humanoiddead', getWavAudioPath('defender/sounds/sound_humanoiddead'));
+        this.load.audio('snd_start', getWavAudioPath('defender/sounds/sound_start'));
+        this.load.audio('snd_thrust', getWavAudioPath('defender/sounds/sound_thurst'));
+        this.load.audio('snd_warning', getWavAudioPath('defender/sounds/sound_warning'));
+        this.load.audio('snd_baiterwarning', getWavAudioPath('defender/sounds/sound_baiterwarning'));
+        this.load.audio('snd_player1up', getWavAudioPath('defender/sounds/sound_player1up'));
+        this.load.audio('snd_enemyshoot', getWavAudioPath('defender/sounds/sound_enemyshoot'));
+        this.load.audio('snd_enemyshoot2', getWavAudioPath('defender/sounds/sound_enemyshoot2'));
     }
     create() {
         this.initBase();

@@ -14,8 +14,8 @@ src/game/layout.ts — Explicit desktop/canvas sizing profiles
 src-tauri/         — Tauri v2 Rust backend (window management, tray icon, overlay)
 docs/              — GitHub Pages website (static HTML/CSS/JS)
 assets/            — Sprite sheets, sounds, and game assets
-assets/defender/   — Planet Guardian sprites (PNG) and sounds (WAV)
-assets/surface-defense/ — Surface Defense synthesized sound effects (WAV); graphics are procedural
+assets/defender/   — Planet Guardian sprites (PNG), desktop sounds (WAV), and canvas sounds (M4A)
+assets/surface-defense/ — Surface Defense desktop sounds (WAV) and canvas sounds (M4A); graphics are procedural
 scripts/           — Build and release scripts (release.js)
 tests/             — Playwright end-to-end tests, including per-game and viewport coverage
 .plans/            — Game design plans and future feature ideas
@@ -60,6 +60,8 @@ After frontend changes, run `npm run build:canvas` to update the tracked canvas 
 
 The canvas bootstrap sets `window.__agentArcadeLayoutProfile = 'canvas'` before modules load. Desktop builds use the default profile. Keep layout differences in `src/game/layout.ts`; do not rewrite compiled JavaScript in the extension server.
 
+Copilot resolves `@github/copilot-sdk` automatically for project extensions. Do not add a local canvas `package.json`, lockfile, or `node_modules`. The tracked extension must stay below the 8 MiB repository-trust limit. The canvas build uses M4A copies of WAV effects and removes unused desktop assets.
+
 ## Website
 
 The `docs/` directory contains the project landing page deployed to [danwahlin.github.io/agent-arcade](https://danwahlin.github.io/agent-arcade). It is a single-page static site (`index.html`, `style.css`, `script.js`) with no build step. Changes to `docs/` on `main` trigger the `deploy-pages.yml` workflow.
@@ -90,7 +92,7 @@ Planet Guardian (`src/game/scenes/PlanetGuardian.ts`) is a side-scrolling shoote
 - **Manual physics** — positions tracked as world coordinates, no Phaser bodies.
 - **Sprites** — PNG files in `assets/defender/`, loaded in `preload()`. Uses linear texture filtering (overrides global `pixelArt: true`).
 - **Sprite scale** — `spriteScale = max(0.35, 0.55 * SCALE)` where `SCALE = min(W/1920, H/1080)`.
-- **Sounds** — 13 WAV files from the OpenDefender project in `assets/defender/sounds/`. Playback wrapped in `try/catch`.
+- **Sounds** — 13 WAV files from the OpenDefender project in `assets/defender/sounds/`, with M4A copies for the size-limited canvas package. Playback wrapped in `try/catch`.
 - **World wrap** — toroidal world (`WORLD_W = W * 6`). Use `wrapDx()` helper for delta-X calculations.
 - **Enemy types** — Lander, Mutant, Bomber, Pod, Swarmer, Baiter (6 types with distinct AI).
 - **Humanoid rescue** — 10 humanoids walk on terrain. Landers grab them; player can catch falling humanoids. All humanoids dead triggers planet destruction.
@@ -105,7 +107,7 @@ Surface Defense (`src/game/scenes/SurfaceDefense.ts`) is a procedurally rendered
 - **Defenses** — six persistent cities and three batteries with 10 interceptors each; batteries replenish each wave.
 - **Input** — mouse or arrow keys move the targeting cursor. Click/Space fires the nearest battery; A/S/D selects a specific battery.
 - **Escalation** — later waves add faster missiles, splitting warheads, smart warheads that steer around blasts, bombers, and hostile satellites.
-- **Assets** — all graphics are drawn with Phaser Graphics. Original synthesized WAV effects live in `assets/surface-defense/sounds/` and can be regenerated with `node scripts/generate-surface-defense-audio.mjs`.
+- **Assets** — all graphics are drawn with Phaser Graphics. Original synthesized WAV effects and canvas M4A copies live in `assets/surface-defense/sounds/`. WAV effects can be regenerated with `node scripts/generate-surface-defense-audio.mjs`.
 
 ## CI/CD
 

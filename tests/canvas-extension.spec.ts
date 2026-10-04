@@ -1,6 +1,6 @@
 import { test as base, expect, type Page } from '@playwright/test';
 import { createReadStream, readFileSync } from 'node:fs';
-import { readFile, stat } from 'node:fs/promises';
+import { readdir, readFile, stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -60,6 +60,19 @@ const test = base.extend<{ arcade: Arcade; realAssets: boolean }>({
     }
   },
 });
+
+const PROJECT_EXTENSION_SIZE_LIMIT = 8 * 1024 * 1024;
+
+async function getDirectorySize(directory: string): Promise<number> {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const sizes = await Promise.all(entries
+    .filter(entry => entry.name !== 'node_modules')
+    .map(async entry => {
+      const entryPath = path.join(directory, entry.name);
+      return entry.isDirectory() ? getDirectorySize(entryPath) : (await stat(entryPath)).size;
+    }));
+  return sizes.reduce((total, size) => total + size, 0);
+}
 
 async function expectShooterLayout(page: Page, width: number, height: number, canvas: boolean) {
   await page.selectOption('#game-select', 'alien-onslaught');
@@ -152,8 +165,34 @@ test('dropdown selections survive restart and reopening updates the existing can
   await page.close();
 });
 
+test('project extension package stays within the trust size limit', async () => {
+  const size = await getDirectorySize('.github/extensions/arcade-canvas');
+  expect(size).toBeLessThanOrEqual(PROJECT_EXTENSION_SIZE_LIMIT);
+});
+
 test.describe('packaged canvas', () => {
   test.use({ realAssets: true });
+
+  test('canvas registry matches the generated game selector and Phaser scenes', async ({ arcade, page, request }) => {
+    await page.goto(arcade.url);
+    await waitForGame(page);
+
+    const state = await (await request.get(`${arcade.url}state`)).json();
+    const selectorGames = await page.locator('#game-select option').evaluateAll(options =>
+      options.map(option => ({
+        key: (option as HTMLOptionElement).value,
+        label: option.textContent,
+      })));
+    const sceneKeys = await page.evaluate(() =>
+      (window as any).__phaserGame.scene.scenes.map((scene: any) => scene.scene.key).sort());
+    const canvasKeys = state.games.map((game: any) => game.key).sort();
+
+    expect(state.games.map((game: any) => ({
+      key: game.key,
+      label: `${game.icon} ${game.label}`,
+    }))).toEqual(selectorGames);
+    expect(canvasKeys).toEqual(sceneKeys);
+  });
 
   test('generated games boot, switch and restart through the actual canvas server', async ({ arcade, page }) => {
     const errors: string[] = [];
