@@ -1,6 +1,12 @@
 # Changelog
 
 All notable changes to Agent Arcade.
+## [0.6.3] - 2026-10-04
+
+### ⚙️ CI/CD & Build
+
+- Chore: update dependencies and sync canvas
+
 ## [0.6.2] - 2026-09-14
 
 ### 🚀 Features & Improvements
