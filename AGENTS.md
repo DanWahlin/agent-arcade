@@ -16,7 +16,7 @@ docs/              — GitHub Pages website (static HTML/CSS/JS)
 assets/            — Sprite sheets, sounds, and game assets
 assets/defender/   — Planet Guardian sprites (PNG), desktop sounds (WAV), and canvas sounds (M4A)
 assets/surface-defense/ — Surface Defense desktop sounds (WAV) and canvas sounds (M4A); graphics are procedural
-scripts/           — Build and release scripts (release.js)
+scripts/           — Build and release scripts (release.js, windows-signing.ps1)
 tests/             — Playwright end-to-end tests, including per-game and viewport coverage
 .plans/            — Game design plans and future feature ideas
 .github/workflows/ — CI: build.yml (Build & Release on tags), deploy-pages.yml (Pages deploy on docs/ changes)
@@ -111,7 +111,7 @@ Surface Defense (`src/game/scenes/SurfaceDefense.ts`) is a procedurally rendered
 
 ## CI/CD
 
-- **Build & Release** (`build.yml`): Triggered by `v*` tags, or manually for build-only validation. Runs native Rust tests and builds for macOS (universal), Windows, and Linux. Tag runs create a GitHub Release with installers and git-cliff change notes.
+- **Build & Release** (`build.yml`): Triggered by `v*` tags, or manually for build-only validation. Runs native Rust tests and builds for macOS (universal), Windows, and Linux. Tag runs sign the Windows app (see [Windows Signing](#windows-signing)) and create a GitHub Release with installers and git-cliff change notes.
 - **Deploy Pages** (`deploy-pages.yml`): Triggered by pushes to `main` that change `docs/`. Deploys `docs/` to GitHub Pages.
 
 ## Releasing
@@ -129,3 +129,13 @@ This script (`scripts/release.js`) handles everything:
 4. CI automatically builds installers and creates the GitHub Release with auto-generated notes
 
 **Important:** Version must be updated in all three config files for installer filenames to be correct. The release script does this automatically — do not manually tag without bumping versions first.
+
+## Windows Signing
+
+Release builds sign the Windows app with Azure Artifact Signing (publisher `CN=Dan Wahlin`), so Windows Smart App Control lets it run. SmartScreen may still warn about early signed releases until they build reputation. macOS and Linux builds are not signed.
+
+- **Where it runs:** the Windows build job in `build.yml` uses the `release` GitHub environment on `v*` tags, or on a manual run with `sign_windows: true`. That environment allows only `v*` tags and holds the `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `ARTIFACT_SIGNING_ENDPOINT`, `ARTIFACT_SIGNING_ACCOUNT`, and `ARTIFACT_SIGNING_PROFILE` variables. `azure/login` signs in with OIDC, so no secrets are stored. macOS and Linux jobs don't use the environment.
+- **How it signs:** `scripts/windows-signing.ps1 -Setup` downloads pinned, SHA-256-checked signtool and Artifact Signing packages plus an x64 .NET 8 runtime. The workflow passes Tauri a `bundle.windows.signCommand` with `--config`, so Tauri signs the app, NSIS plugins, uninstaller, and both installers before it creates the updater zips and their `.sig` files.
+- **How it checks:** the "Check the Windows signatures" step extracts the NSIS installer (7-Zip) and the MSI (`msiexec /a`), verifies both installers and every `.exe`/`.dll` they install, and confirms the `.nsis.zip` updater artifact holds the signed installer. A signing or verification failure fails the build, so a tag never publishes an unsigned Windows app.
+- **Local builds** stay unsigned and are unaffected.
+- **Testing from a branch:** temporarily add a branch deployment rule to the `release` environment (`gh api -X POST repos/DanWahlin/agent-arcade/environments/release/deployment-branch-policies -f name=<branch> -f type=branch`), run `gh workflow run build.yml --ref <branch> -f sign_windows=true`, then delete the rule so only `v*` tags remain. The release job runs only on tags, so a branch run never publishes.

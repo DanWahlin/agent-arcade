@@ -71,7 +71,7 @@ Blog post about the creation process used with Copilot CLI: [https://blog.codewi
 
 ## Installing Agent Arcade
 
-Visit the [releases page](https://github.com/DanWahlin/agent-arcade/releases) and download the installer for your OS. Note that the app is not code-signed, so you may need to bypass security warnings on your OS when installing or running it for the first time. All of the code used in the app installation package is here in the repo - feel free to scan it.
+Visit the [releases page](https://github.com/DanWahlin/agent-arcade/releases) and download the installer for your OS. The Windows app is code-signed; the macOS and Linux apps are not, so on those you may need to bypass security warnings when installing or running it for the first time. All of the code used in the app installation package is here in the repo - feel free to scan it.
 
 ### 🤖 Install this using the Copilot CLI
 
@@ -81,14 +81,14 @@ If you have [GitHub Copilot CLI](https://github.com/features/copilot/cli/) insta
 copilot --allow-all -p "Install the latest version of this app for me https://github.com/DanWahlin/agent-arcade/releases"
 ```
 
-> **Note:** The app is not code-signed, so after installing you'll still need to manually run the commands shown below for your operating system.
+> **Note:** The macOS app is not code-signed, so after installing on a Mac you'll still need to run the Terminal command shown below. The Windows app is code-signed.
 
 ### 🍎 macOS
 
 1. Go to the [releases page](https://github.com/DanWahlin/agent-arcade/releases) and expand the **Assets** list to find the `.dmg` file
 2. Download the `.dmg` file and open it
 3. Drag **Agent Arcade** to your Applications folder
-4. **Important:** The app is not code-signed, so macOS will block it on first launch. Open Terminal and run:
+4. **Important:** The macOS app is not code-signed, so macOS will block it on first launch. Open Terminal and run:
    ```
    sudo xattr -rd com.apple.quarantine /Applications/Agent\ Arcade.app
    ```
@@ -98,9 +98,9 @@ copilot --allow-all -p "Install the latest version of this app for me https://gi
 
 Go to the [releases page](https://github.com/DanWahlin/agent-arcade/releases), expand the **Assets** list, and download the `.msi` installer. Run the installer to complete setup.
 
-> **Note:** The app is not code-signed, so Windows may flag it:
+> **Note:** The Windows app is code-signed by Dan Wahlin (Azure Artifact Signing), so Smart App Control lets it run. While a new release builds reputation with Microsoft, SmartScreen may still warn you:
 > 1. If your browser warns about the download, select **"Keep"**
-> 2. When you see "Windows protected your PC", click **"More info"**
+> 2. If you see "Windows protected your PC", click **"More info"**
 > 3. Then click **"Run anyway"**
 
 ### 🐧 Linux
