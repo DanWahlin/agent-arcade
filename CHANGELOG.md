@@ -1,12 +1,21 @@
 # Changelog
 
 All notable changes to Agent Arcade.
+## [0.6.4] - 2026-10-20
+
+### ⚙️ CI/CD & Build
+
+- Sign Windows release builds with Azure Artifact Signing ([#12](https://github.com/DanWahlin/agent-arcade/issues/12))
 ## [0.6.3] - 2026-10-04
 
 ### ⚙️ CI/CD & Build
 
 - Chore: update dependencies and sync canvas
+- Release v0.6.3
 
+### 📦 Updates
+
+- Update Omarchy package for v0.6.2
 ## [0.6.2] - 2026-09-14
 
 ### 🚀 Features & Improvements
@@ -20,6 +29,10 @@ All notable changes to Agent Arcade.
 ### 🧪 Testing
 
 - Respect system package managers
+
+### ⚙️ CI/CD & Build
+
+- Release v0.6.2
 
 ### 📦 Updates
 
